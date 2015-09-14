@@ -1,0 +1,862 @@
+diff --git a/lib/cpp/src/thrift/async/TAsyncBufferProcessor.h b/lib/cpp/src/thrift/async/TAsyncBufferProcessor.h
+index a7f6435..ad7c639 100644
+--- a/lib/cpp/src/thrift/async/TAsyncBufferProcessor.h
++++ b/lib/cpp/src/thrift/async/TAsyncBufferProcessor.h
+@@ -20,7 +20,7 @@
+ #ifndef _THRIFT_TASYNC_BUFFER_PROCESSOR_H_
+ #define _THRIFT_TASYNC_BUFFER_PROCESSOR_H_ 1
+
+-#include <tr1/functional>
++#include <thrift/cxxfunctional.h>
+ #include <boost/shared_ptr.hpp>
+
+ #include <thrift/transport/TBufferTransports.h>
+@@ -35,7 +35,7 @@ class TAsyncBufferProcessor {
+   // "in" and "out" should be TMemoryBuffer or similar,
+   // not a wrapper around a socket.
+   virtual void process(
+-      std::tr1::function<void(bool healthy)> _return,
++      apache::thrift::stdcxx::function<void(bool healthy)> _return,
+       boost::shared_ptr<apache::thrift::transport::TBufferBase> ibuf,
+       boost::shared_ptr<apache::thrift::transport::TBufferBase> obuf) = 0;
+   virtual ~TAsyncBufferProcessor() {}
+diff --git a/lib/cpp/src/thrift/async/TAsyncChannel.cpp b/lib/cpp/src/thrift/async/TAsyncChannel.cpp
+index bfde660..64dfe5f 100644
+--- a/lib/cpp/src/thrift/async/TAsyncChannel.cpp
++++ b/lib/cpp/src/thrift/async/TAsyncChannel.cpp
+@@ -18,15 +18,15 @@
+  */
+
+ #include <thrift/async/TAsyncChannel.h>
+-#include <tr1/functional>
++#include <thrift/cxxfunctional.h>
+
+ namespace apache { namespace thrift { namespace async {
+
+ void TAsyncChannel::sendAndRecvMessage(const VoidCallback& cob,
+                                        TMemoryBuffer* sendBuf,
+                                        TMemoryBuffer* recvBuf) {
+-  std::tr1::function<void()> send_done =
+-    std::tr1::bind(&TAsyncChannel::recvMessage, this, cob, recvBuf);
++  apache::thrift::stdcxx::function<void()> send_done =
++    apache::thrift::stdcxx::bind(&TAsyncChannel::recvMessage, this, cob, recvBuf);
+
+   sendMessage(send_done, sendBuf);
+ }
+diff --git a/lib/cpp/src/thrift/async/TAsyncChannel.h b/lib/cpp/src/thrift/async/TAsyncChannel.h
+index 634b6a4..0f202fd 100644
+--- a/lib/cpp/src/thrift/async/TAsyncChannel.h
++++ b/lib/cpp/src/thrift/async/TAsyncChannel.h
+@@ -20,7 +20,7 @@
+ #ifndef _THRIFT_ASYNC_TASYNCCHANNEL_H_
+ #define _THRIFT_ASYNC_TASYNCCHANNEL_H_ 1
+
+-#include <tr1/functional>
++#include <thrift/cxxfunctional.h>
+ #include <thrift/Thrift.h>
+
+ namespace apache { namespace thrift { namespace transport {
+@@ -32,7 +32,7 @@ using apache::thrift::transport::TMemoryBuffer;
+
+ class TAsyncChannel {
+  public:
+-  typedef std::tr1::function<void()> VoidCallback;
++  typedef apache::thrift::stdcxx::function<void()> VoidCallback;
+
+   virtual ~TAsyncChannel() {}
+
+diff --git a/lib/cpp/src/thrift/async/TAsyncDispatchProcessor.h b/lib/cpp/src/thrift/async/TAsyncDispatchProcessor.h
+index 9427a32..738f4b7 100644
+--- a/lib/cpp/src/thrift/async/TAsyncDispatchProcessor.h
++++ b/lib/cpp/src/thrift/async/TAsyncDispatchProcessor.h
+@@ -32,7 +32,7 @@ namespace apache { namespace thrift { namespace async {
+ template <class Protocol_>
+ class TAsyncDispatchProcessorT : public TAsyncProcessor {
+  public:
+-  virtual void process(std::tr1::function<void(bool success)> _return,
++  virtual void process(apache::thrift::stdcxx::function<void(bool success)> _return,
+                        boost::shared_ptr<protocol::TProtocol> in,
+                        boost::shared_ptr<protocol::TProtocol> out) {
+     protocol::TProtocol* inRaw = in.get();
+@@ -69,7 +69,7 @@ class TAsyncDispatchProcessorT : public TAsyncProcessor {
+     return this->dispatchCall(_return, inRaw, outRaw, fname, seqid);
+   }
+
+-  void processFast(std::tr1::function<void(bool success)> _return,
++  void processFast(apache::thrift::stdcxx::function<void(bool success)> _return,
+                    Protocol_* in, Protocol_* out) {
+     std::string fname;
+     protocol::TMessageType mtype;
+@@ -86,12 +86,12 @@ class TAsyncDispatchProcessorT : public TAsyncProcessor {
+     return this->dispatchCallTemplated(_return, in, out, fname, seqid);
+   }
+
+-  virtual void dispatchCall(std::tr1::function<void(bool ok)> _return,
++  virtual void dispatchCall(apache::thrift::stdcxx::function<void(bool ok)> _return,
+                             apache::thrift::protocol::TProtocol* in,
+                             apache::thrift::protocol::TProtocol* out,
+                             const std::string& fname, int32_t seqid) = 0;
+
+-  virtual void dispatchCallTemplated(std::tr1::function<void(bool ok)> _return,
++  virtual void dispatchCallTemplated(apache::thrift::stdcxx::function<void(bool ok)> _return,
+                                      Protocol_* in, Protocol_* out,
+                                      const std::string& fname,
+                                      int32_t seqid) = 0;
+@@ -103,7 +103,7 @@ class TAsyncDispatchProcessorT : public TAsyncProcessor {
+  */
+ class TAsyncDispatchProcessor : public TAsyncProcessor {
+  public:
+-  virtual void process(std::tr1::function<void(bool success)> _return,
++  virtual void process(apache::thrift::stdcxx::function<void(bool success)> _return,
+                        boost::shared_ptr<protocol::TProtocol> in,
+                        boost::shared_ptr<protocol::TProtocol> out) {
+     protocol::TProtocol* inRaw = in.get();
+@@ -129,7 +129,7 @@ class TAsyncDispatchProcessor : public TAsyncProcessor {
+     return dispatchCall(_return, inRaw, outRaw, fname, seqid);
+   }
+
+-  virtual void dispatchCall(std::tr1::function<void(bool ok)> _return,
++  virtual void dispatchCall(apache::thrift::stdcxx::function<void(bool ok)> _return,
+                             apache::thrift::protocol::TProtocol* in,
+                             apache::thrift::protocol::TProtocol* out,
+                             const std::string& fname, int32_t seqid) = 0;
+diff --git a/lib/cpp/src/thrift/async/TAsyncProcessor.h b/lib/cpp/src/thrift/async/TAsyncProcessor.h
+index e68c550..a03d1dc 100644
+--- a/lib/cpp/src/thrift/async/TAsyncProcessor.h
++++ b/lib/cpp/src/thrift/async/TAsyncProcessor.h
+@@ -20,7 +20,7 @@
+ #ifndef _THRIFT_TASYNCPROCESSOR_H_
+ #define _THRIFT_TASYNCPROCESSOR_H_ 1
+
+-#include <tr1/functional>
++#include <thrift/cxxfunctional.h>
+ #include <boost/shared_ptr.hpp>
+ #include <thrift/protocol/TProtocol.h>
+ #include <thrift/TProcessor.h>
+@@ -38,11 +38,11 @@ class TAsyncProcessor {
+  public:
+   virtual ~TAsyncProcessor() {}
+
+-  virtual void process(std::tr1::function<void(bool success)> _return,
++  virtual void process(apache::thrift::stdcxx::function<void(bool success)> _return,
+                        boost::shared_ptr<protocol::TProtocol> in,
+                        boost::shared_ptr<protocol::TProtocol> out) = 0;
+
+-  void process(std::tr1::function<void(bool success)> _return,
++  void process(apache::thrift::stdcxx::function<void(bool success)> _return,
+                boost::shared_ptr<apache::thrift::protocol::TProtocol> io) {
+     return process(_return, io, io);
+   }
+diff --git a/lib/cpp/src/thrift/async/TAsyncProtocolProcessor.cpp b/lib/cpp/src/thrift/async/TAsyncProtocolProcessor.cpp
+index eaa86e0..61a3ff2 100644
+--- a/lib/cpp/src/thrift/async/TAsyncProtocolProcessor.cpp
++++ b/lib/cpp/src/thrift/async/TAsyncProtocolProcessor.cpp
+@@ -25,22 +25,22 @@ using apache::thrift::protocol::TProtocol;
+ namespace apache { namespace thrift { namespace async {
+
+ void TAsyncProtocolProcessor::process(
+-    std::tr1::function<void(bool healthy)> _return,
++    apache::thrift::stdcxx::function<void(bool healthy)> _return,
+     boost::shared_ptr<TBufferBase> ibuf,
+     boost::shared_ptr<TBufferBase> obuf) {
+   boost::shared_ptr<TProtocol> iprot(pfact_->getProtocol(ibuf));
+   boost::shared_ptr<TProtocol> oprot(pfact_->getProtocol(obuf));
+   return underlying_->process(
+-      std::tr1::bind(
++      apache::thrift::stdcxx::bind(
+         &TAsyncProtocolProcessor::finish,
+         _return,
+         oprot,
+-        std::tr1::placeholders::_1),
++        apache::thrift::stdcxx::placeholders::_1),
+       iprot, oprot);
+ }
+
+ /* static */ void TAsyncProtocolProcessor::finish(
+-    std::tr1::function<void(bool healthy)> _return,
++    apache::thrift::stdcxx::function<void(bool healthy)> _return,
+     boost::shared_ptr<TProtocol> oprot,
+     bool healthy) {
+   (void) oprot;
+diff --git a/lib/cpp/src/thrift/async/TAsyncProtocolProcessor.h b/lib/cpp/src/thrift/async/TAsyncProtocolProcessor.h
+index 139e394..f217168 100644
+--- a/lib/cpp/src/thrift/async/TAsyncProtocolProcessor.h
++++ b/lib/cpp/src/thrift/async/TAsyncProtocolProcessor.h
+@@ -36,7 +36,7 @@ class TAsyncProtocolProcessor : public TAsyncBufferProcessor {
+   {}
+
+   virtual void process(
+-      std::tr1::function<void(bool healthy)> _return,
++      apache::thrift::stdcxx::function<void(bool healthy)> _return,
+       boost::shared_ptr<apache::thrift::transport::TBufferBase> ibuf,
+       boost::shared_ptr<apache::thrift::transport::TBufferBase> obuf);
+
+@@ -44,7 +44,7 @@ class TAsyncProtocolProcessor : public TAsyncBufferProcessor {
+ 
+  private:
+   static void finish(
+-      std::tr1::function<void(bool healthy)> _return,
++      apache::thrift::stdcxx::function<void(bool healthy)> _return,
+       boost::shared_ptr<apache::thrift::protocol::TProtocol> oprot,
+       bool healthy);
+
+diff --git a/lib/cpp/src/thrift/async/TEvhttpServer.cpp b/lib/cpp/src/thrift/async/TEvhttpServer.cpp
+index 73516db..85ed838 100644
+--- a/lib/cpp/src/thrift/async/TEvhttpServer.cpp
++++ b/lib/cpp/src/thrift/async/TEvhttpServer.cpp
+@@ -116,11 +116,11 @@ void TEvhttpServer::request(struct evhttp_request* req, void* self) {
+ void TEvhttpServer::process(struct evhttp_request* req) {
+   RequestContext* ctx = new RequestContext(req);
+   return processor_->process(
+-      std::tr1::bind(
++      apache::thrift::stdcxx::bind(
+         &TEvhttpServer::complete,
+         this,
+         ctx,
+-        std::tr1::placeholders::_1),
++        apache::thrift::stdcxx::placeholders::_1),
+       ctx->ibuf,
+       ctx->obuf);
+ }
+diff --git a/lib/cpp/src/thrift/concurrency/FunctionRunner.h b/lib/cpp/src/thrift/concurrency/FunctionRunner.h
+index f2162d6..d3d2d41 100644
+--- a/lib/cpp/src/thrift/concurrency/FunctionRunner.h
++++ b/lib/cpp/src/thrift/concurrency/FunctionRunner.h
+@@ -20,7 +20,7 @@
+ #ifndef _THRIFT_CONCURRENCY_FUNCTION_RUNNER_H
+ #define _THRIFT_CONCURRENCY_FUNCTION_RUNNER_H 1
+
+-#include <tr1/functional>
++#include "thrift/cxxfunctional.h"
+ #include "thrift/lib/cpp/concurrency/Thread.h"
+
+ namespace apache { namespace thrift { namespace concurrency {
+@@ -42,7 +42,7 @@ namespace apache { namespace thrift { namespace concurrency {
+  *  A* a = new A();
+  *  // To create a thread that executes a.foo() every 100 milliseconds:
+  *  factory->newThread(FunctionRunner::create(
+- *    std::tr1::bind(&A::foo, a), 100))->start();
++ *    apache::thrift::stdcxx::bind(&A::foo, a), 100))->start();
+  *
+  */
+
+@@ -51,9 +51,9 @@ class FunctionRunner : public Runnable {
+   // This is the type of callback 'pthread_create()' expects.
+   typedef void* (*PthreadFuncPtr)(void *arg);
+   // This a fully-generic void(void) callback for custom bindings.
+-  typedef std::tr1::function<void()> VoidFunc;
++  typedef apache::thrift::stdcxx::function<void()> VoidFunc;
+
+-  typedef std::tr1::function<bool()> BoolFunc;
++  typedef apache::thrift::stdcxx::function<bool()> BoolFunc;
+
+   /**
+    * Syntactic sugar to make it easier to create new FunctionRunner
+@@ -74,7 +74,7 @@ class FunctionRunner : public Runnable {
+    * execute the given callback.  Note that the 'void*' return value is ignored.
+    */
+   FunctionRunner(PthreadFuncPtr func, void* arg)
+-   : func_(std::tr1::bind(func, arg)), repFunc_(0)
++   : func_(apache::thrift::stdcxx::bind(func, arg)), repFunc_(0)
+   { }
+
+   /**
+diff --git a/lib/cpp/src/thrift/concurrency/ThreadManager.h b/lib/cpp/src/thrift/concurrency/ThreadManager.h
+index 6d7b0ef..41866bc 100644
+--- a/lib/cpp/src/thrift/concurrency/ThreadManager.h
++++ b/lib/cpp/src/thrift/concurrency/ThreadManager.h
+@@ -21,7 +21,7 @@
+ #define _THRIFT_CONCURRENCY_THREADMANAGER_H_ 1
+
+ #include <boost/shared_ptr.hpp>
+-#include <tr1/functional>
++#include <thrift/cxxfunctional.h>
+ #include <sys/types.h>
+ #include "Thread.h"
+
+@@ -58,7 +58,7 @@ class ThreadManager {
+
+  public:
+   class Task;
+-  typedef std::tr1::function<void(boost::shared_ptr<Runnable>)> ExpireCallback;
++  typedef apache::thrift::stdcxx::function<void(boost::shared_ptr<Runnable>)> ExpireCallback;
+
+   virtual ~ThreadManager() {}
+
+diff --git a/lib/cpp/src/thrift/concurrency/Util.h b/lib/cpp/src/thrift/concurrency/Util.h
+index ee67fc7..e454227 100644
+--- a/lib/cpp/src/thrift/concurrency/Util.h
++++ b/lib/cpp/src/thrift/concurrency/Util.h
+@@ -67,8 +67,8 @@ class Util {
+   }
+
+   static void toTimeval(struct timeval& result, int64_t value) {
+-    result.tv_sec = (uint32_t)(value / MS_PER_S); // ms to s
+-    result.tv_usec = (value % MS_PER_S) * US_PER_MS; // ms to us
++    result.tv_sec  = static_cast<uint32_t>(value / MS_PER_S); // ms to s
++    result.tv_usec = static_cast<uint32_t>((value % MS_PER_S) * US_PER_MS); // ms to us
+   }
+
+   static void toTicks(int64_t& result, int64_t secs, int64_t oldTicks,
+diff --git a/lib/cpp/src/thrift/cxxfunctional.h b/lib/cpp/src/thrift/cxxfunctional.h
+new file mode 100644
+index 0000000..b3c6e3e
+--- /dev/null
++++ b/lib/cpp/src/thrift/cxxfunctional.h
+@@ -0,0 +1,123 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements. See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership. The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License. You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing,
++ * software distributed under the License is distributed on an
++ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied. See the License for the
++ * specific language governing permissions and limitations
++ * under the License.
++ */
++
++#ifndef _THRIFT_CXXFUNCTIONAL_H_
++#define _THRIFT_CXXFUNCTIONAL_H_ 1
++
++/**
++ * Loads <functional> from the 'right' location, depending
++ * on compiler and whether or not it's using C++03 with TR1
++ * or C++11.
++ */
++
++/*
++ * MSVC 10 and 11 have the <functional> stuff at <functional>.
++ * In MSVC 10 all of the implementations live in std::tr1.
++ * In MSVC 11 all of the implementations live in std, with aliases
++ *  in std::tr1 to point to the ones in std.
++ */
++#ifdef _WIN32
++  #define _THRIFT_USING_MICROSOFT_STDLIB 1
++#endif
++
++#ifdef __clang__
++  /* Clang has two options, depending on standard library:
++   * - no -stdlib or -stdlib=libstdc++ set; uses GNU libstdc++.
++   *    <tr1/functional>
++   * - -stdlib=libc++; uses LLVM libc++.
++   *    <functional>, no 'std::tr1'.
++   *
++   * The compiler itself doesn't define anything differently
++   * depending on the value of -stdlib, but the library headers
++   * will set different preprocessor options. In order to check,
++   * though, we have to pull in some library header.
++   */
++  #include <utility>
++
++  /* With LLVM libc++, utility pulls in __config, which sets
++     _LIBCPP_VERSION. */
++  #if defined(_LIBCPP_VERSION)
++    #define _THRIFT_USING_CLANG_LIBCXX 1
++
++  /* With GNU libstdc++, utility pulls in bits/c++config.h,
++     which sets __GLIBCXX__. */
++  #elif defined(__GLIBCXX__)
++    #define _THRIFT_USING_GNU_LIBSTDCXX 1
++
++  /* No idea. */
++  #else
++    #error Unable to detect which C++ standard library is in use.
++  #endif
++#elif __GNUC__
++  #define _THRIFT_USING_GNU_LIBSTDCXX 1
++#endif
++
++#if _THRIFT_USING_MICROSOFT_STDLIB
++  #include <functional>
++
++  namespace apache { namespace thrift { namespace stdcxx {
++    using ::std::tr1::function;
++    using ::std::tr1::bind;
++
++    namespace placeholders {
++      using ::std::tr1::placeholders::_1;
++      using ::std::tr1::placeholders::_2;
++      using ::std::tr1::placeholders::_3;
++      using ::std::tr1::placeholders::_4;
++      using ::std::tr1::placeholders::_5;
++      using ::std::tr1::placeholders::_6;
++    } // apache::thrift::stdcxx::placeholders
++  }}} // apache::thrift::stdcxx
++
++#elif _THRIFT_USING_CLANG_LIBCXX
++  #include <functional>
++
++  namespace apache { namespace thrift { namespace stdcxx {
++    using ::std::function;
++    using ::std::bind;
++
++    namespace placeholders {
++      using ::std::placeholders::_1;
++      using ::std::placeholders::_2;
++      using ::std::placeholders::_3;
++      using ::std::placeholders::_4;
++      using ::std::placeholders::_5;
++      using ::std::placeholders::_6;
++    } // apache::thrift::stdcxx::placeholders
++  }}} // apache::thrift::stdcxx
++
++#elif _THRIFT_USING_GNU_LIBSTDCXX
++  #include <tr1/functional>
++
++  namespace apache { namespace thrift { namespace stdcxx {
++    using ::std::tr1::function;
++    using ::std::tr1::bind;
++
++    namespace placeholders {
++      using ::std::tr1::placeholders::_1;
++      using ::std::tr1::placeholders::_2;
++      using ::std::tr1::placeholders::_3;
++      using ::std::tr1::placeholders::_4;
++      using ::std::tr1::placeholders::_5;
++      using ::std::tr1::placeholders::_6;
++    } // apache::thrift::stdcxx::placeholders
++  }}} // apache::thrift::stdcxx
++#endif
++
++#endif // #ifndef _THRIFT_CXXFUNCTIONAL_H_
+diff --git a/lib/cpp/src/thrift/protocol/TDenseProtocol.cpp b/lib/cpp/src/thrift/protocol/TDenseProtocol.cpp
+index 1eb444b..4fbfc13 100644
+--- a/lib/cpp/src/thrift/protocol/TDenseProtocol.cpp
++++ b/lib/cpp/src/thrift/protocol/TDenseProtocol.cpp
+@@ -253,8 +253,8 @@ inline uint32_t TDenseProtocol::vlqWrite(uint64_t vlq) {
+   // Back up one step before writing.
+   pos++;
+
+-  trans_->write(buf+pos, sizeof(buf) - pos);
+-  return sizeof(buf) - pos;
++  trans_->write(buf+pos, static_cast<uint32_t>(sizeof(buf) - pos));
++  return static_cast<uint32_t>(sizeof(buf) - pos);
+ }
+
+
+diff --git a/lib/cpp/src/thrift/protocol/TProtocol.h b/lib/cpp/src/thrift/protocol/TProtocol.h
+index 09ce7c4..d6ecc0f 100644
+--- a/lib/cpp/src/thrift/protocol/TProtocol.h
++++ b/lib/cpp/src/thrift/protocol/TProtocol.h
+@@ -133,8 +133,8 @@ using apache::thrift::transport::TTransport;
+ #  define ntohll(n) ( _byteswap_uint64((uint64_t)n) )
+ #  define htonll(n) ( _byteswap_uint64((uint64_t)n) )
+ # else /* Not GNUC/GLIBC or MSVC */
+-#  define ntohll(n) ( (((uint64_t)ntohl(n)) << 32) + ntohl(n >> 32) )
+-#  define htonll(n) ( (((uint64_t)htonl(n)) << 32) + htonl(n >> 32) )
++#  define ntohll(n) ( (((uint64_t)ntohl((uint32_t)n)) << 32) + ntohl((uint32_t)(n >> 32)) )
++#  define htonll(n) ( (((uint64_t)htonl((uint32_t)n)) << 32) + htonl((uint32_t)(n >> 32)) )
+ # endif /* GNUC/GLIBC or MSVC or something else */
+ #else /* __THRIFT_BYTE_ORDER */
+ # error "Can't define htonll or ntohll!"
+diff --git a/lib/cpp/src/thrift/qt/TQTcpServer.cpp b/lib/cpp/src/thrift/qt/TQTcpServer.cpp
+index 2af8fa3..2468199 100644
+--- a/lib/cpp/src/thrift/qt/TQTcpServer.cpp
++++ b/lib/cpp/src/thrift/qt/TQTcpServer.cpp
+@@ -22,7 +22,7 @@
+
+ #include <QTcpSocket>
+
+-#include <tr1/functional>
++#include <thrift/cxxfunctional.h>
+
+ #include <thrift/protocol/TProtocol.h>
+ #include <thrift/async/TAsyncProcessor.h>
+@@ -33,8 +33,8 @@ using apache::thrift::protocol::TProtocolFactory;
+ using apache::thrift::transport::TTransport;
+ using apache::thrift::transport::TTransportException;
+ using apache::thrift::transport::TQIODeviceTransport;
+-using std::tr1::function;
+-using std::tr1::bind;
++using apache::thrift::stdcxx::function;
++using apache::thrift::stdcxx::bind;
+
+ QT_USE_NAMESPACE
+
+@@ -121,7 +121,7 @@ void TQTcpServer::beginDecode()
+   try {
+     processor_->process(
+       bind(&TQTcpServer::finish, this,
+-           ctx, std::tr1::placeholders::_1),
++           ctx, apache::thrift::stdcxx::placeholders::_1),
+       ctx->iprot_, ctx->oprot_);
+   } catch(const TTransportException& ex) {
+     qWarning("[TQTcpServer] TTransportException during processing: '%s'",
+diff --git a/lib/cpp/src/thrift/server/TNonblockingServer.cpp b/lib/cpp/src/thrift/server/TNonblockingServer.cpp
+index 25fe1f2..21fddad 100644
+--- a/lib/cpp/src/thrift/server/TNonblockingServer.cpp
++++ b/lib/cpp/src/thrift/server/TNonblockingServer.cpp
+@@ -1122,7 +1122,7 @@ void TNonblockingServer::listenSocket(int s) {
+ void TNonblockingServer::setThreadManager(boost::shared_ptr<ThreadManager> threadManager) {
+   threadManager_ = threadManager;
+   if (threadManager != NULL) {
+-    threadManager->setExpireCallback(std::tr1::bind(&TNonblockingServer::expireClose, this, std::tr1::placeholders::_1));
++    threadManager->setExpireCallback(apache::thrift::stdcxx::bind(&TNonblockingServer::expireClose, this, apache::thrift::stdcxx::placeholders::_1));
+     threadPoolProcessing_ = true;
+   } else {
+     threadPoolProcessing_ = false;
+diff --git a/lib/cpp/src/thrift/transport/TBufferTransports.cpp b/lib/cpp/src/thrift/transport/TBufferTransports.cpp
+index 8d7b670..a307748 100644
+--- a/lib/cpp/src/thrift/transport/TBufferTransports.cpp
++++ b/lib/cpp/src/thrift/transport/TBufferTransports.cpp
+@@ -179,7 +179,9 @@ bool TFramedTransport::readFrame() {
+   uint32_t size_bytes_read = 0;
+   while (size_bytes_read < sizeof(sz)) {
+     uint8_t* szp = reinterpret_cast<uint8_t*>(&sz) + size_bytes_read;
+-    uint32_t bytes_read = transport_->read(szp, sizeof(sz) - size_bytes_read);
++    uint32_t bytes_read = transport_->read(
++      szp,
++      static_cast<uint32_t>(sizeof(sz)) - size_bytes_read);
+     if (bytes_read == 0) {
+       if (size_bytes_read == 0) {
+         // EOF before any data was read.
+@@ -259,7 +261,9 @@ void TFramedTransport::flush()  {
+     wBase_ = wBuf_.get() + sizeof(sz_nbo);
+
+     // Write size and frame body.
+-    transport_->write(wBuf_.get(), sizeof(sz_nbo)+sz_hbo);
++    transport_->write(
++      wBuf_.get(),
++      static_cast<uint32_t>(sizeof(sz_nbo))+sz_hbo);
+   }
+
+   // Flush the underlying transport.
+diff --git a/lib/cpp/src/thrift/transport/TFileTransport.cpp b/lib/cpp/src/thrift/transport/TFileTransport.cpp
+index 0a07fba..0cbf357 100644
+--- a/lib/cpp/src/thrift/transport/TFileTransport.cpp
++++ b/lib/cpp/src/thrift/transport/TFileTransport.cpp
+@@ -43,6 +43,7 @@
+ #include <cstdlib>
+ #include <cstring>
+ #include <iostream>
++#include <limits>
+ #ifdef HAVE_SYS_STAT_H
+ #include <sys/stat.h>
+ #endif
+@@ -658,7 +659,7 @@ eventInfo* TFileTransport::readEvent() {
+     if (readState_.bufferPtr_ == readState_.bufferLen_) {
+       // advance the offset pointer
+       offset_ += readState_.bufferLen_;
+-      readState_.bufferLen_ = ::read(fd_, readBuff_, readBuffSize_);
++      readState_.bufferLen_ = static_cast<uint32_t>(::read(fd_, readBuff_, readBuffSize_));
+       //       if (readState_.bufferLen_) {
+       //         T_DEBUG_L(1, "Amount read: %u (offset: %lu)", readState_.bufferLen_, offset_);
+       //       }
+@@ -785,7 +786,7 @@ bool TFileTransport::isEventCorrupted() {
+     // 3. size indicates that event crosses chunk boundary
+     T_ERROR("Read corrupt event. Event crosses chunk boundary. Event size:%u  Offset:%lu",
+             readState_.event_->eventSize_,
+-            (offset_ + readState_.bufferPtr_ + 4));
++            static_cast<unsigned long>(offset_ + readState_.bufferPtr_ + 4));
+
+     return true;
+   }
+@@ -826,7 +827,7 @@ void TFileTransport::performRecovery() {
+       currentEvent_ = NULL;
+       char errorMsg[1024];
+       sprintf(errorMsg, "TFileTransport: log file corrupted at offset: %lu",
+-              (offset_ + readState_.lastDispatchPtr_));
++              static_cast<unsigned long>(offset_ + readState_.lastDispatchPtr_));
+
+       GlobalOutput(errorMsg);
+       throw TTransportException(errorMsg);
+@@ -915,7 +916,10 @@ uint32_t TFileTransport::getNumChunks() {
+   }
+
+   if (f_info.st_size > 0) {
+-    return ((f_info.st_size)/chunkSize_) + 1;
++    size_t numChunks = ((f_info.st_size)/chunkSize_) + 1;
++    if (numChunks > (std::numeric_limits<uint32_t>::max)())
++      throw TTransportException("Too many chunks");
++    return static_cast<uint32_t>(numChunks);
+   }
+
+   // empty file has no chunks
+@@ -923,7 +927,7 @@ uint32_t TFileTransport::getNumChunks() {
+ }
+
+ uint32_t TFileTransport::getCurChunk() {
+-  return offset_/chunkSize_;
++  return static_cast<uint32_t>(offset_/chunkSize_);
+ }
+
+ // Utility Functions
+diff --git a/lib/cpp/src/thrift/transport/TSocket.cpp b/lib/cpp/src/thrift/transport/TSocket.cpp
+index 88cb282..d2eb30e 100644
+--- a/lib/cpp/src/thrift/transport/TSocket.cpp
++++ b/lib/cpp/src/thrift/transport/TSocket.cpp
+@@ -22,9 +22,6 @@
+ #endif
+ #include <cstring>
+ #include <sstream>
+-#ifdef HAVE_SYS_SOCKET_H
+-#include <sys/socket.h>
+-#endif
+ #ifdef HAVE_SYS_UN_H
+ #include <sys/un.h>
+ #endif
+@@ -32,9 +29,6 @@
+ #include <sys/poll.h>
+ #endif
+ #include <sys/types.h>
+-#ifdef HAVE_ARPA_INET_H
+-#include <arpa/inet.h>
+-#endif
+ #ifdef HAVE_NETINET_IN_H
+ #include <netinet/in.h>
+ #include <netinet/tcp.h>
+@@ -159,7 +153,7 @@ bool TSocket::peek() {
+     return false;
+   }
+   uint8_t buf;
+-  int r = recv(socket_, cast_sockopt(&buf), 1, MSG_PEEK);
++  int r = static_cast<int>(recv(socket_, cast_sockopt(&buf), 1, MSG_PEEK));
+   if (r == -1) {
+     int errno_copy = errno;
+     #if defined __FreeBSD__ || defined __MACH__
+@@ -448,7 +442,7 @@ uint32_t TSocket::read(uint8_t* buf, uint32_t len) {
+     // an EAGAIN is due to a timeout or an out-of-resource condition.
+     begin.tv_sec = begin.tv_usec = 0;
+   }
+-  int got = recv(socket_, cast_sockopt(buf), len, 0);
++  int got = static_cast<int>(recv(socket_, cast_sockopt(buf), len, 0));
+   int errno_copy = errno; //gettimeofday can change errno
+   ++g_socket_syscalls;
+
+@@ -463,8 +457,9 @@ uint32_t TSocket::read(uint8_t* buf, uint32_t len) {
+       // check if this is the lack of resources or timeout case
+       struct timeval end;
+       gettimeofday(&end, NULL);
+-      uint32_t readElapsedMicros =  (((end.tv_sec - begin.tv_sec) * 1000 * 1000)
+-                                     + (((uint64_t)(end.tv_usec - begin.tv_usec))));
++      uint32_t readElapsedMicros =  static_cast<uint32_t>(
++         ((end.tv_sec - begin.tv_sec) * 1000 * 1000)
++         + (((uint64_t)(end.tv_usec - begin.tv_usec))));
+
+       if (!eagainThresholdMicros || (readElapsedMicros < eagainThresholdMicros)) {
+         if (retries++ < maxRecvRetries_) {
+@@ -564,7 +559,7 @@ uint32_t TSocket::write_partial(const uint8_t* buf, uint32_t len) {
+   flags |= MSG_NOSIGNAL;
+ #endif // ifdef MSG_NOSIGNAL
+
+-  int b = send(socket_, const_cast_sockopt(buf + sent), len - sent, flags);
++  int b = static_cast<int>(send(socket_, const_cast_sockopt(buf + sent), len - sent, flags));
+   ++g_socket_syscalls;
+
+   if (b < 0) {
+diff --git a/lib/cpp/src/thrift/transport/TSocket.h b/lib/cpp/src/thrift/transport/TSocket.h
+index ecf6d79..ff5e541 100644
+--- a/lib/cpp/src/thrift/transport/TSocket.h
++++ b/lib/cpp/src/thrift/transport/TSocket.h
+@@ -28,6 +28,12 @@
+ #include "TVirtualTransport.h"
+ #include "TServerSocket.h"
+
++#ifdef HAVE_ARPA_INET_H
++#include <arpa/inet.h>
++#endif
++#ifdef HAVE_SYS_SOCKET_H
++#include <sys/socket.h>
++#endif
+ #ifdef HAVE_SYS_TIME_H
+ #include <sys/time.h>
+ #endif
+diff --git a/lib/cpp/src/thrift/windows/tr1/functional b/lib/cpp/src/thrift/windows/tr1/functional
+index ebee384..e69de29 100644
+--- a/lib/cpp/src/thrift/windows/tr1/functional
++++ b/lib/cpp/src/thrift/windows/tr1/functional
+@@ -1,20 +0,0 @@
+-/*
+- * Licensed to the Apache Software Foundation (ASF) under one
+- * or more contributor license agreements. See the NOTICE file
+- * distributed with this work for additional information
+- * regarding copyright ownership. The ASF licenses this file
+- * to you under the Apache License, Version 2.0 (the
+- * "License"); you may not use this file except in compliance
+- * with the License. You may obtain a copy of the License at
+- *
+- *   http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing,
+- * software distributed under the License is distributed on an
+- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+- * KIND, either express or implied. See the License for the
+- * specific language governing permissions and limitations
+- * under the License.
+- */
+-
+-#include <functional>
+diff --git a/compiler/cpp/src/generate/t_cpp_generator.cc b/compiler/cpp/src/generate/t_cpp_generator.cc
+index 6145612..ec4a55f 100644
+--- a/compiler/cpp/src/generate/t_cpp_generator.cc
++++ b/compiler/cpp/src/generate/t_cpp_generator.cc
+@@ -2428,12 +2428,12 @@ void t_cpp_generator::generate_service_client(t_service* tservice, string style)
+       if (!(*f_iter)->is_oneway()) {
+         out <<
+           indent() << _this << "channel_->sendAndRecvMessage(" <<
+-          "std::tr1::bind(cob, this), " << _this << "otrans_.get(), " <<
++          "::apache::thrift::stdcxx::bind(cob, this), " << _this << "otrans_.get(), " <<
+           _this << "itrans_.get());" << endl;
+       } else {
+         out <<
+         indent() << _this << "channel_->sendMessage(" <<
+-          "std::tr1::bind(cob, this), " << _this << "otrans_.get());" << endl;
++          "::apache::thrift::stdcxx::bind(cob, this), " << _this << "otrans_.get());" << endl;
+       }
+     }
+     scope_down(out);
+@@ -2734,8 +2734,8 @@ ProcessorGenerator::ProcessorGenerator(t_cpp_generator* generator,
+     class_name_ = service_name_ + pstyle_ + "Processor";
+     if_name_ = service_name_ + "CobSvIf";
+
+-    finish_cob_ = "std::tr1::function<void(bool ok)> cob, ";
+-    finish_cob_decl_ = "std::tr1::function<void(bool ok)>, ";
++    finish_cob_ = "::apache::thrift::stdcxx::function<void(bool ok)> cob, ";
++    finish_cob_decl_ = "::apache::thrift::stdcxx::function<void(bool ok)>, ";
+     cob_arg_ = "cob, ";
+     ret_type_ = "void ";
+   } else {
+@@ -2869,25 +2869,25 @@ void ProcessorGenerator::generate_class_definition() {
+                         : ", const " + type_name((*f_iter)->get_returntype()) + "& _return");
+       f_header_ <<
+         indent() << "void return_" << (*f_iter)->get_name() <<
+-        "(std::tr1::function<void(bool ok)> cob, int32_t seqid, " <<
++        "(::apache::thrift::stdcxx::function<void(bool ok)> cob, int32_t seqid, " <<
+         "::apache::thrift::protocol::TProtocol* oprot, " <<
+         "void* ctx" << ret_arg << ");" << endl;
+       if (generator_->gen_templates_) {
+         f_header_ <<
+           indent() << "void return_" << (*f_iter)->get_name() <<
+-          "(std::tr1::function<void(bool ok)> cob, int32_t seqid, " <<
++          "(::apache::thrift::stdcxx::function<void(bool ok)> cob, int32_t seqid, " <<
+           "Protocol_* oprot, void* ctx" << ret_arg << ");" << endl;
+       }
+       // XXX Don't declare throw if it doesn't exist
+       f_header_ <<
+         indent() << "void throw_" << (*f_iter)->get_name() <<
+-        "(std::tr1::function<void(bool ok)> cob, int32_t seqid, " <<
++        "(::apache::thrift::stdcxx::function<void(bool ok)> cob, int32_t seqid, " <<
+         "::apache::thrift::protocol::TProtocol* oprot, void* ctx, " <<
+         "::apache::thrift::TDelayedException* _throw);" << endl;
+       if (generator_->gen_templates_) {
+         f_header_ <<
+           indent() << "void throw_" << (*f_iter)->get_name() <<
+-          "(std::tr1::function<void(bool ok)> cob, int32_t seqid, " <<
++          "(::apache::thrift::stdcxx::function<void(bool ok)> cob, int32_t seqid, " <<
+           "Protocol_* oprot, void* ctx, " <<
+           "::apache::thrift::TDelayedException* _throw);" << endl;
+       }
+@@ -3383,7 +3383,7 @@ void t_cpp_generator::generate_process_function(t_service* tservice,
+     out <<
+       "void " << tservice->get_name() << "AsyncProcessor" << class_suffix <<
+       "::process_" << tfunction->get_name() <<
+-      "(std::tr1::function<void(bool ok)> cob, int32_t seqid, " <<
++      "(::apache::thrift::stdcxx::function<void(bool ok)> cob, int32_t seqid, " <<
+       prot_type << "* iprot, " << prot_type << "* oprot)" << endl;
+     scope_up(out);
+
+@@ -3441,7 +3441,7 @@ void t_cpp_generator::generate_process_function(t_service* tservice,
+
+     // TODO(dreiss): Handle TExceptions?  Expose to server?
+     out <<
+-      indent() << "catch (const std::exception& exn) {" << endl <<
++      indent() << "catch (const std::exception&) {" << endl <<
+       indent() << "  if (this->eventHandler_.get() != NULL) {" << endl <<
+       indent() << "    this->eventHandler_->handlerError(ctx, " <<
+         service_func_name << ");" << endl <<
+@@ -3464,14 +3464,14 @@ void t_cpp_generator::generate_process_function(t_service* tservice,
+       // TODO(dreiss): Call the cob immediately?
+       out <<
+         indent() << "iface_->" << tfunction->get_name() << "(" <<
+-        "std::tr1::bind(cob, true)" << endl;
++        "::apache::thrift::stdcxx::bind(cob, true)" << endl;
+       indent_up(); indent_up();
+     } else {
+       string ret_arg, ret_placeholder;
+       if (!tfunction->get_returntype()->is_void()) {
+         ret_arg = ", const " + type_name(tfunction->get_returntype()) +
+           "& _return";
+-        ret_placeholder = ", std::tr1::placeholders::_1";
++        ret_placeholder = ", ::apache::thrift::stdcxx::placeholders::_1";
+       }
+
+       // When gen_templates_ is true, the return_ and throw_ functions are
+@@ -3479,7 +3479,7 @@ void t_cpp_generator::generate_process_function(t_service* tservice,
+       // can resolve the correct overloaded version.
+       out <<
+         indent() << "void (" << tservice->get_name() << "AsyncProcessor" <<
+-        class_suffix << "::*return_fn)(std::tr1::function<void(bool ok)> " <<
++        class_suffix << "::*return_fn)(::apache::thrift::stdcxx::function<void(bool ok)> " <<
+         "cob, int32_t seqid, " << prot_type << "* oprot, void* ctx" <<
+         ret_arg << ") =" << endl;
+       out <<
+@@ -3488,7 +3488,7 @@ void t_cpp_generator::generate_process_function(t_service* tservice,
+       if (!xceptions.empty()) {
+         out <<
+           indent() << "void (" << tservice->get_name() << "AsyncProcessor" <<
+-          class_suffix << "::*throw_fn)(std::tr1::function<void(bool ok)> " <<
++          class_suffix << "::*throw_fn)(::apache::thrift::stdcxx::function<void(bool ok)> " <<
+           "cob, int32_t seqid, " << prot_type << "* oprot, void* ctx, " <<
+           "::apache::thrift::TDelayedException* _throw) =" << endl;
+         out <<
+@@ -3500,13 +3500,13 @@ void t_cpp_generator::generate_process_function(t_service* tservice,
+         indent() << "iface_->" << tfunction->get_name() << "(" << endl;
+       indent_up(); indent_up();
+       out <<
+-        indent() << "std::tr1::bind(return_fn, this, cob, seqid, oprot, ctx" <<
++        indent() << "::apache::thrift::stdcxx::bind(return_fn, this, cob, seqid, oprot, ctx" <<
+         ret_placeholder << ")";
+       if (!xceptions.empty()) {
+         out
+           << ',' << endl <<
+-          indent() << "std::tr1::bind(throw_fn, this, cob, seqid, oprot, " <<
+-          "ctx, std::tr1::placeholders::_1)";
++          indent() << "::apache::thrift::stdcxx::bind(throw_fn, this, cob, seqid, oprot, " <<
++          "ctx, ::apache::thrift::stdcxx::placeholders::_1)";
+       }
+     }
+
+@@ -3536,7 +3536,7 @@ void t_cpp_generator::generate_process_function(t_service* tservice,
+       out <<
+         "void " << tservice->get_name() << "AsyncProcessor" << class_suffix <<
+         "::return_" << tfunction->get_name() <<
+-        "(std::tr1::function<void(bool ok)> cob, int32_t seqid, " <<
++        "(::apache::thrift::stdcxx::function<void(bool ok)> cob, int32_t seqid, " <<
+         prot_type << "* oprot, void* ctx" << ret_arg_decl << ')' << endl;
+       scope_up(out);
+
+@@ -3605,7 +3605,7 @@ void t_cpp_generator::generate_process_function(t_service* tservice,
+       out <<
+         "void " << tservice->get_name() << "AsyncProcessor" << class_suffix <<
+         "::throw_" << tfunction->get_name() <<
+-        "(std::tr1::function<void(bool ok)> cob, int32_t seqid, " <<
++        "(::apache::thrift::stdcxx::function<void(bool ok)> cob, int32_t seqid, " <<
+         prot_type << "* oprot, void* ctx, " <<
+         "::apache::thrift::TDelayedException* _throw)" << endl;
+       scope_up(out);
+@@ -4466,7 +4466,7 @@ string t_cpp_generator::function_signature(t_function* tfunction,
+                   ? "()"
+                   : ("(" + type_name(ttype) + " const& _return)"));
+       if (has_xceptions) {
+-        exn_cob = ", std::tr1::function<void(::apache::thrift::TDelayedException* _throw)> /* exn_cob */";
++        exn_cob = ", ::apache::thrift::stdcxx::function<void(::apache::thrift::TDelayedException* _throw)> /* exn_cob */";
+       }
+     } else {
+       throw "UNKNOWN STYLE";
+@@ -4474,7 +4474,7 @@ string t_cpp_generator::function_signature(t_function* tfunction,
+
+     return
+       "void " + prefix + tfunction->get_name() +
+-      "(std::tr1::function<void" + cob_type + "> cob" + exn_cob +
++      "(::apache::thrift::stdcxx::function<void" + cob_type + "> cob" + exn_cob +
+       argument_list(arglist, name_params, true) + ")";
+   } else {
+     throw "UNKNOWN STYLE";

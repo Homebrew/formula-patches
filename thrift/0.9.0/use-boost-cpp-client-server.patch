@@ -1,0 +1,52 @@
+diff --git a/tutorial/cpp/CppClient.cpp b/tutorial/cpp/CppClient.cpp
+index ba71caa..b91df2e 100644
+--- a/tutorial/cpp/CppClient.cpp
++++ b/tutorial/cpp/CppClient.cpp
+@@ -38,9 +38,9 @@ using namespace shared;
+ using namespace boost;
+
+ int main(int argc, char** argv) {
+-  shared_ptr<TTransport> socket(new TSocket("localhost", 9090));
+-  shared_ptr<TTransport> transport(new TBufferedTransport(socket));
+-  shared_ptr<TProtocol> protocol(new TBinaryProtocol(transport));
++  boost::shared_ptr<TTransport> socket(new TSocket("localhost", 9090));
++  boost::shared_ptr<TTransport> transport(new TBufferedTransport(socket));
++  boost::shared_ptr<TProtocol> protocol(new TBinaryProtocol(transport));
+   CalculatorClient client(protocol);
+
+   try {
+diff --git a/tutorial/cpp/CppServer.cpp b/tutorial/cpp/CppServer.cpp
+index d0dbad9..f19258c 100644
+--- a/tutorial/cpp/CppServer.cpp
++++ b/tutorial/cpp/CppServer.cpp
+@@ -113,11 +113,11 @@ protected:
+
+ int main(int argc, char **argv) {
+
+-  shared_ptr<TProtocolFactory> protocolFactory(new TBinaryProtocolFactory());
+-  shared_ptr<CalculatorHandler> handler(new CalculatorHandler());
+-  shared_ptr<TProcessor> processor(new CalculatorProcessor(handler));
+-  shared_ptr<TServerTransport> serverTransport(new TServerSocket(9090));
+-  shared_ptr<TTransportFactory> transportFactory(new TBufferedTransportFactory());
++  boost::shared_ptr<TProtocolFactory> protocolFactory(new TBinaryProtocolFactory());
++  boost::shared_ptr<CalculatorHandler> handler(new CalculatorHandler());
++  boost::shared_ptr<TProcessor> processor(new CalculatorProcessor(handler));
++  boost::shared_ptr<TServerTransport> serverTransport(new TServerSocket(9090));
++  boost::shared_ptr<TTransportFactory> transportFactory(new TBufferedTransportFactory());
+
+   TSimpleServer server(processor,
+                        serverTransport,
+@@ -128,10 +128,10 @@ int main(int argc, char **argv) {
+   /**
+    * Or you could do one of these
+
+-  shared_ptr<ThreadManager> threadManager =
++  boost::shared_ptr<ThreadManager> threadManager =
+     ThreadManager::newSimpleThreadManager(workerCount);
+-  shared_ptr<PosixThreadFactory> threadFactory =
+-    shared_ptr<PosixThreadFactory>(new PosixThreadFactory());
++  boost::shared_ptr<PosixThreadFactory> threadFactory =
++    boost::shared_ptr<PosixThreadFactory>(new PosixThreadFactory());
+   threadManager->threadFactory(threadFactory);
+   threadManager->start();
+   TThreadPoolServer server(processor,
