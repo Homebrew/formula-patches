@@ -1,0 +1,48 @@
+diff --git a/gio/gdbusprivate.c b/gio/gdbusprivate.c
+index 54659c1..7e9d49e 100644
+--- a/gio/gdbusprivate.c
++++ b/gio/gdbusprivate.c
+@@ -2099,7 +2099,7 @@ _g_dbus_get_machine_id (GError **error)
+   /* TODO: use PACKAGE_LOCALSTATEDIR ? */
+   ret = NULL;
+   first_error = NULL;
+-  if (!g_file_get_contents ("/var/lib/dbus/machine-id",
++  if (!g_file_get_contents ("@@HOMEBREW_PREFIX@@/var/lib/dbus/machine-id",
+                             &ret,
+                             NULL,
+                             &first_error) &&
+@@ -2109,7 +2109,7 @@ _g_dbus_get_machine_id (GError **error)
+                             NULL))
+     {
+       g_propagate_prefixed_error (error, first_error,
+-                                  _("Unable to load /var/lib/dbus/machine-id or /etc/machine-id: "));
++                                  _("Unable to load @@HOMEBREW_PREFIX@@ or /etc/machine-id: "));
+     }
+   else
+     {
+diff --git a/gio/xdgmime/xdgmime.c b/gio/xdgmime/xdgmime.c
+index 42dda58..06f9947 100644
+--- a/gio/xdgmime/xdgmime.c
++++ b/gio/xdgmime/xdgmime.c
+@@ -255,7 +255,7 @@ xdg_run_command_on_dirs (XdgDirectoryFunc  func,
+ 
+   xdg_data_dirs = getenv ("XDG_DATA_DIRS");
+   if (xdg_data_dirs == NULL)
+-    xdg_data_dirs = "/usr/local/share/:/usr/share/";
++    xdg_data_dirs = "@@HOMEBREW_PREFIX@@/share/:/usr/share/";
+ 
+   ptr = xdg_data_dirs;
+ 
+diff --git a/glib/gutils.c b/glib/gutils.c
+index e229d0d..aba028c 100644
+--- a/glib/gutils.c
++++ b/glib/gutils.c
+@@ -1938,7 +1938,7 @@ g_get_system_data_dirs (void)
+       gchar *data_dirs = (gchar *) g_getenv ("XDG_DATA_DIRS");
+ 
+       if (!data_dirs || !data_dirs[0])
+-          data_dirs = "/usr/local/share/:/usr/share/";
++          data_dirs = "@@HOMEBREW_PREFIX@@/share/:/usr/share/";
+ 
+       data_dir_vector = g_strsplit (data_dirs, G_SEARCHPATH_SEPARATOR_S, 0);
+ #endif
