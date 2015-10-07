@@ -1,0 +1,40 @@
+--- Makefile.in.orig	2013-08-06 10:46:42.000000000 -0500
++++ Makefile.in	2013-08-06 20:10:49.000000000 -0500
+@@ -5,8 +5,9 @@
+ CPP = @CPP@
+ CFLAGS = @CFLAGS@
+ LDFLAGS = @LDFLAGS@
+-CPPFLAGS = -D_GNU_SOURCE -I/usr/include/slang @CPPFLAGS@ 
++CPPFLAGS = -D_GNU_SOURCE @CPPFLAGS@ 
+ GNU_LD = @GNU_LD@
++UNAME = $(shell uname -s)
+ 
+ VERSION = @VERSION@
+ TAG = r$(subst .,-,$(VERSION))
+@@ -35,7 +36,7 @@
+ ifneq ($(GNU_LD),)
+ SHLIBFLAGS= -Wl,--version-script,newt.0.52.ver -Wl,-soname,$(LIBNEWTSONAME)
+ else
+-SHLIBFLAGS=
++SHLIBFLAGS= -install_name $(libdir)/$(LIBNEWTSH) -current_version $(VERSION) -compatibility_version $(SONAME)
+ endif
+ 
+ SHCFLAGS = -fPIC
+@@ -106,7 +107,7 @@
+ 	$(CC) -g -o whiptail $(NDIALOGOBJS) -L. $(LDFLAGS) -lnewt $(LIBS) -lpopt
+ 
+ whiptcl.$(SOEXT): $(WHIPTCLOBJS) $(LIBNEWTSH)
+-	$(CC) -shared $(SHCFLAGS) $(LDFLAGS) -o whiptcl.$(SOEXT) $(WHIPTCLOBJS) -L. -lnewt  $(LIBTCL) -lpopt $(LIBS)
++	$(CC) -dynamiclib $(SHCFLAGS) $(LDFLAGS) -o whiptcl.$(SOEXT) $(WHIPTCLOBJS) -L. -lnewt  $(LIBTCL) -lpopt $(LIBS)
+ 
+ $(LIBNEWT): $(LIBOBJS)
+ 	ar rv $@ $^
+@@ -129,7 +130,7 @@
+ sharedlib: $(LIBNEWTSH)
+ 
+ $(LIBNEWTSH): $(SHAREDDIR) $(SHAREDOBJS)
+-	$(CC) -shared -o $(LIBNEWTSH) $(SHLIBFLAGS) $(SHAREDOBJS) $(LDFLAGS) $(LIBS)
++	$(CC) -dynamiclib -o $(LIBNEWTSH) $(SHLIBFLAGS) $(SHAREDOBJS) $(LDFLAGS) $(LIBS)
+ 	ln -fs $(LIBNEWTSONAME) libnewt.$(SOEXT)
+ 	ln -fs $(LIBNEWTSH) $(LIBNEWTSONAME)
+ 
