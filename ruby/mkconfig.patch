@@ -1,0 +1,36 @@
+From 2b41316953cdc92ab4d82b987bd1bf6870b2e752 Mon Sep 17 00:00:00 2001
+From: Misty De Meo <mistydemeo@gmail.com>
+Date: Mon, 28 Dec 2015 16:46:19 -0400
+Subject: [PATCH] Revert "mkconfig.rb: SDKROOT"
+
+This reverts commit e98f7ea423b08222b6eceda945613040c7b08a09.
+---
+ tool/mkconfig.rb | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/tool/mkconfig.rb b/tool/mkconfig.rb
+index fdba709..ef9a4b0 100755
+--- a/tool/mkconfig.rb
++++ b/tool/mkconfig.rb
+@@ -131,8 +131,6 @@ def config.write(arg)
+       if universal
+         val.sub!(/universal/, %q[#{arch && universal[/(?:\A|\s)#{Regexp.quote(arch)}=(\S+)/, 1] || '\&'}])
+       end
+-    when /^includedir$/
+-      val = '"$(SDKROOT)"'+val if /darwin/ =~ arch
+     end
+     v = "  CONFIG[\"#{name}\"] #{eq} #{val}\n"
+     if fast[name]
+@@ -245,9 +243,6 @@ module RbConfig
+ 
+ print(*v_fast)
+ print(*v_others)
+-print <<EOS if /darwin/ =~ arch
+-  CONFIG["SDKROOT"] = ENV["SDKROOT"] || "" # don't run xcrun everytime, usually useless.
+-EOS
+ print <<EOS
+   CONFIG["archdir"] = "$(rubyarchdir)"
+   CONFIG["topdir"] = File.dirname(__FILE__)
+-- 
+2.6.4
+
