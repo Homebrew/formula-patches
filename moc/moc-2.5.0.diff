@@ -1,0 +1,51 @@
+diff --git a/decoder_plugins/ffmpeg/ffmpeg.c b/decoder_plugins/ffmpeg/ffmpeg.c
+index 206b2b1..ed57323 100644
+--- a/decoder_plugins/ffmpeg/ffmpeg.c
++++ b/decoder_plugins/ffmpeg/ffmpeg.c
+@@ -56,6 +56,7 @@
+ #endif
+
+ #if HAVE_LIBAVFORMAT_AVFORMAT_H
++
+ /* This warning reset suppresses a deprecation warning message for
+  * av_metadata_set()'s use of an AVMetadata parameter.  Although it
+  * only occurs in FFmpeg release 0.7, the non-linear versioning of
+@@ -63,14 +64,19 @@
+  * particular release as it seems to have been introduced in avformat
+  * version 53.1.0 and resolved in version 52.108.0. */
+ GCC_DIAG_OFF(deprecated-declarations)
+-#include <libavformat/avformat.h>
++# include <libavformat/avformat.h>
+ GCC_DIAG_ON(deprecated-declarations)
+-#include <libavutil/mathematics.h>
+-#ifdef HAVE_AV_GET_CHANNEL_LAYOUT_NB_CHANNELS
+-#include <libavutil/audioconvert.h>
+-#endif
++# include <libavutil/mathematics.h>
++# ifdef HAVE_AV_GET_CHANNEL_LAYOUT_NB_CHANNELS
++#  if HAVE_LIBAVUTIL_CHANNEL_LAYOUT_H
++#   include <libavutil/channel_layout.h>
++#  else
++#   include <libavutil/audioconvert.h>
++#  endif
++# endif
++
+ #else
+-#include <ffmpeg/avformat.h>
++# include <ffmpeg/avformat.h>
+ #endif
+
+ /* FFmpeg also likes common names, without that, our common.h and log.h
+diff --git a/decoder_plugins/ffmpeg/ffmpeg.m4 b/decoder_plugins/ffmpeg/ffmpeg.m4
+index d0ea340..645a475 100644
+--- a/decoder_plugins/ffmpeg/ffmpeg.m4
++++ b/decoder_plugins/ffmpeg/ffmpeg.m4
+@@ -59,6 +59,8 @@ then
+ 			AC_CHECK_MEMBERS([struct AVCodecContext.request_channels], [], [],
+ 		                     [#include <libavcodec/avcodec.h>])
+ 		fi
++		AC_CHECK_HEADERS([ffmpeg/avformat.h \
++		                  libavformat/avformat.h libavutil/channel_layout.h])
+ 		AC_SEARCH_LIBS(avcodec_open2, avcodec,
+ 			[AC_DEFINE([HAVE_AVCODEC_OPEN2], 1,
+ 				[Define to 1 if you have the `avcodec_open2' function.])])
