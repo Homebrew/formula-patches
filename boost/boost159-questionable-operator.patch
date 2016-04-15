@@ -1,0 +1,541 @@
+From 7da193fde1a9c1bc925ee980339f4df2e1a66fa7 Mon Sep 17 00:00:00 2001
+From: Andrey Semashev <andrey.semashev@gmail.com>
+Date: Sun, 23 Aug 2015 17:27:20 +0300
+Subject: [PATCH] Fixed compilation of operator<< into a record ostream, when
+ the operator right hand argument is not directly supported by
+ formatting_ostream. Fixed #11549.
+
+---
+ include/boost/log/sources/record_ostream.hpp     |  61 +++++
+ include/boost/log/utility/formatting_ostream.hpp |   7 +
+ test/common/make_record.hpp                      |   4 +-
+ test/run/src_record_ostream.cpp                  | 328 +++++++++++++++++++++++
+ test/run/util_formatting_ostream.cpp             |  64 +++++
+ 5 files changed, 462 insertions(+), 2 deletions(-)
+ create mode 100644 test/run/src_record_ostream.cpp
+
+diff --git a/boost/log/sources/record_ostream.hpp b/boost/log/sources/record_ostream.hpp
+index b3c58e2..c1e8059 100644
+--- a/boost/log/sources/record_ostream.hpp
++++ b/boost/log/sources/record_ostream.hpp
+@@ -39,6 +39,18 @@ namespace boost {
+ 
+ BOOST_LOG_OPEN_NAMESPACE
+ 
++template< typename CharT >
++class basic_record_ostream;
++
++namespace aux {
++
++template< typename StreamT, typename R >
++struct enable_if_record_ostream {};
++template< typename CharT, typename R >
++struct enable_if_record_ostream< basic_record_ostream< CharT >, R > { typedef R type; };
++
++} // namespace aux
++
+ /*!
+  * \brief Logging record adapter with a streaming capability
+  *
+@@ -174,6 +186,55 @@ typedef basic_record_ostream< char > record_ostream;        //!< Convenience typ
+ typedef basic_record_ostream< wchar_t > wrecord_ostream;    //!< Convenience typedef for wide-character logging
+ #endif
+ 
++// Implementation note: these operators below should be the least attractive for the compiler
++// so that user's overloads are chosen, when present. We use function template partial ordering for this purpose.
++// We also don't use perfect forwarding for the right hand argument because in ths case the generic overload
++// would be more preferred than the typical one written by users:
++//
++// record_ostream& operator<< (record_ostream& strm, my_type const& arg);
++//
++// This is because my_type rvalues require adding const to the type, which counts as a conversion that is not required
++// if there is a perfect forwarding overload.
++template< typename StreamT, typename T >
++inline typename boost::log::aux::enable_if_record_ostream< StreamT, StreamT& >::type
++operator<< (StreamT& strm, T const& value)
++{
++    typedef basic_formatting_ostream< typename StreamT::char_type > formatting_ostream_type;
++    static_cast< formatting_ostream_type& >(strm) << value;
++    return strm;
++}
++
++template< typename StreamT, typename T >
++inline typename boost::log::aux::enable_if_record_ostream< StreamT, StreamT& >::type
++operator<< (StreamT& strm, T& value)
++{
++    typedef basic_formatting_ostream< typename StreamT::char_type > formatting_ostream_type;
++    static_cast< formatting_ostream_type& >(strm) << value;
++    return strm;
++}
++
++#if !defined(BOOST_NO_CXX11_RVALUE_REFERENCES)
++
++template< typename StreamT, typename T >
++inline typename boost::log::aux::enable_if_record_ostream< StreamT, StreamT& >::type
++operator<< (StreamT&& strm, T const& value)
++{
++    typedef basic_formatting_ostream< typename StreamT::char_type > formatting_ostream_type;
++    static_cast< formatting_ostream_type& >(strm) << value;
++    return strm;
++}
++
++template< typename StreamT, typename T >
++inline typename boost::log::aux::enable_if_record_ostream< StreamT, StreamT& >::type
++operator<< (StreamT&& strm, T& value)
++{
++    typedef basic_formatting_ostream< typename StreamT::char_type > formatting_ostream_type;
++    static_cast< formatting_ostream_type& >(strm) << value;
++    return strm;
++}
++
++#endif // !defined(BOOST_NO_CXX11_RVALUE_REFERENCES)
++
+ namespace aux {
+ 
+ //! Internal class that provides formatting streams for record pumps
+diff --git a/boost/log/utility/formatting_ostream.hpp b/boost/log/utility/formatting_ostream.hpp
+index 4345206..744acc0 100644
+--- a/boost/log/utility/formatting_ostream.hpp
++++ b/boost/log/utility/formatting_ostream.hpp
+@@ -779,6 +779,13 @@ void basic_formatting_ostream< CharT, TraitsT, AllocatorT >::aligned_write(const
+ 
+ // Implementation note: these operators below should be the least attractive for the compiler
+ // so that user's overloads are chosen, when present. We use function template partial ordering for this purpose.
++// We also don't use perfect forwarding for the right hand argument because in ths case the generic overload
++// would be more preferred than the typical one written by users:
++//
++// formatting_ostream& operator<< (formatting_ostream& strm, my_type const& arg);
++//
++// This is because my_type rvalues require adding const to the type, which counts as a conversion that is not required
++// if there is a perfect forwarding overload.
+ template< typename StreamT, typename T >
+ inline typename boost::log::aux::enable_if_formatting_ostream< StreamT, StreamT& >::type
+ operator<< (StreamT& strm, T const& value)
+diff --git a/libs/log/test/common/make_record.hpp b/libs/log/test/common/make_record.hpp
+index d2e514f..bb81589 100644
+--- a/libs/log/test/common/make_record.hpp
++++ b/libs/log/test/common/make_record.hpp
+@@ -19,12 +19,12 @@
+ #include <boost/log/core.hpp>
+ #include <boost/log/attributes/attribute_set.hpp>
+ 
+-inline boost::log::record make_record(boost::log::attribute_set const& src_attrs)
++inline boost::log::record make_record(boost::log::attribute_set const& src_attrs = boost::log::attribute_set())
+ {
+     return boost::log::core::get()->open_record(src_attrs);
+ }
+ 
+-inline boost::log::record_view make_record_view(boost::log::attribute_set const& src_attrs)
++inline boost::log::record_view make_record_view(boost::log::attribute_set const& src_attrs = boost::log::attribute_set())
+ {
+     return make_record(src_attrs).lock();
+ }
+diff --git a/libs/log/test/run/src_record_ostream.cpp b/libs/log/test/run/src_record_ostream.cpp
+new file mode 100644
+index 0000000..0d690e6
+--- /dev/null
++++ b/libs/log/test/run/src_record_ostream.cpp
+@@ -0,0 +1,328 @@
++/*
++ *          Copyright Andrey Semashev 2007 - 2015.
++ * Distributed under the Boost Software License, Version 1.0.
++ *    (See accompanying file LICENSE_1_0.txt or copy at
++ *          http://www.boost.org/LICENSE_1_0.txt)
++ */
++/*!
++ * \file   src_record_ostream.cpp
++ * \author Andrey Semashev
++ * \date   23.08.2015
++ *
++ * \brief  This header contains tests for the log record formatting output stream.
++ */
++
++#define BOOST_TEST_MODULE src_record_ostream
++
++#include <locale>
++#include <string>
++#include <iomanip>
++#include <sstream>
++#include <iostream>
++#include <algorithm>
++#include <boost/config.hpp>
++#include <boost/test/unit_test.hpp>
++#include <boost/utility/string_ref.hpp>
++#include <boost/log/core/record.hpp>
++#include <boost/log/sources/record_ostream.hpp>
++#include <boost/log/expressions/message.hpp>
++#include <boost/log/attributes/value_extraction.hpp>
++#include "char_definitions.hpp"
++#include "make_record.hpp"
++
++namespace logging = boost::log;
++namespace expr = boost::log::expressions;
++
++namespace {
++
++template< typename CharT >
++struct test_impl
++{
++    typedef CharT char_type;
++    typedef test_data< char_type > strings;
++    typedef std::basic_string< char_type > string_type;
++    typedef std::basic_ostringstream< char_type > ostream_type;
++    typedef logging::basic_record_ostream< char_type > record_ostream_type;
++
++    template< typename StringT >
++    static void width_formatting()
++    {
++        // Check that widening works
++        {
++            logging::record rec = make_record();
++            BOOST_REQUIRE(!!rec);
++            record_ostream_type strm_fmt(rec);
++            strm_fmt << strings::abc() << std::setw(8) << (StringT)strings::abcd() << strings::ABC();
++            strm_fmt.flush();
++            string_type rec_message = logging::extract_or_throw< string_type >(expr::message.get_name(), rec);
++
++            ostream_type strm_correct;
++            strm_correct << strings::abc() << std::setw(8) << (StringT)strings::abcd() << strings::ABC();
++
++            BOOST_CHECK(equal_strings(rec_message, strm_correct.str()));
++        }
++
++        // Check that the string is not truncated
++        {
++            logging::record rec = make_record();
++            BOOST_REQUIRE(!!rec);
++            record_ostream_type strm_fmt(rec);
++            strm_fmt << strings::abc() << std::setw(1) << (StringT)strings::abcd() << strings::ABC();
++            strm_fmt.flush();
++            string_type rec_message = logging::extract_or_throw< string_type >(expr::message.get_name(), rec);
++
++            ostream_type strm_correct;
++            strm_correct << strings::abc() << std::setw(1) << (StringT)strings::abcd() << strings::ABC();
++
++            BOOST_CHECK(equal_strings(rec_message, strm_correct.str()));
++        }
++    }
++
++    template< typename StringT >
++    static void fill_formatting()
++    {
++        logging::record rec = make_record();
++        BOOST_REQUIRE(!!rec);
++        record_ostream_type strm_fmt(rec);
++        strm_fmt << strings::abc() << std::setfill(static_cast< char_type >('x')) << std::setw(8) << (StringT)strings::abcd() << strings::ABC();
++        strm_fmt.flush();
++        string_type rec_message = logging::extract_or_throw< string_type >(expr::message.get_name(), rec);
++
++        ostream_type strm_correct;
++        strm_correct << strings::abc() << std::setfill(static_cast< char_type >('x')) << std::setw(8) << (StringT)strings::abcd() << strings::ABC();
++
++        BOOST_CHECK(equal_strings(rec_message, strm_correct.str()));
++    }
++
++    template< typename StringT >
++    static void alignment()
++    {
++        // Left alignment
++        {
++            logging::record rec = make_record();
++            BOOST_REQUIRE(!!rec);
++            record_ostream_type strm_fmt(rec);
++            strm_fmt << strings::abc() << std::setw(8) << std::left << (StringT)strings::abcd() << strings::ABC();
++            strm_fmt.flush();
++            string_type rec_message = logging::extract_or_throw< string_type >(expr::message.get_name(), rec);
++
++            ostream_type strm_correct;
++            strm_correct << strings::abc() << std::setw(8) << std::left << (StringT)strings::abcd() << strings::ABC();
++
++            BOOST_CHECK(equal_strings(rec_message, strm_correct.str()));
++        }
++
++        // Right alignment
++        {
++            logging::record rec = make_record();
++            BOOST_REQUIRE(!!rec);
++            record_ostream_type strm_fmt(rec);
++            strm_fmt << strings::abc() << std::setw(8) << std::right << (StringT)strings::abcd() << strings::ABC();
++            strm_fmt.flush();
++            string_type rec_message = logging::extract_or_throw< string_type >(expr::message.get_name(), rec);
++
++            ostream_type strm_correct;
++            strm_correct << strings::abc() << std::setw(8) << std::right << (StringT)strings::abcd() << strings::ABC();
++
++            BOOST_CHECK(equal_strings(rec_message, strm_correct.str()));
++        }
++    }
++
++#if !defined(BOOST_NO_CXX11_RVALUE_REFERENCES)
++    template< typename StringT >
++    static void rvalue_stream()
++    {
++        logging::record rec = make_record();
++        BOOST_REQUIRE(!!rec);
++        record_ostream_type(rec) << strings::abc() << std::setw(8) << (StringT)strings::abcd() << strings::ABC() << std::flush;
++        string_type rec_message = logging::extract_or_throw< string_type >(expr::message.get_name(), rec);
++
++        ostream_type strm_correct;
++        strm_correct << strings::abc() << std::setw(8) << (StringT)strings::abcd() << strings::ABC();
++
++        BOOST_CHECK(equal_strings(rec_message, strm_correct.str()));
++    }
++#endif
++};
++
++} // namespace
++
++// Test support for width formatting
++BOOST_AUTO_TEST_CASE_TEMPLATE(width_formatting, CharT, char_types)
++{
++    typedef test_impl< CharT > test;
++    test::BOOST_NESTED_TEMPLATE width_formatting< const CharT* >();
++    test::BOOST_NESTED_TEMPLATE width_formatting< typename test::string_type >();
++    test::BOOST_NESTED_TEMPLATE width_formatting< boost::basic_string_ref< CharT > >();
++}
++
++// Test support for filler character setup
++BOOST_AUTO_TEST_CASE_TEMPLATE(fill_formatting, CharT, char_types)
++{
++    typedef test_impl< CharT > test;
++    test::BOOST_NESTED_TEMPLATE fill_formatting< const CharT* >();
++    test::BOOST_NESTED_TEMPLATE fill_formatting< typename test::string_type >();
++    test::BOOST_NESTED_TEMPLATE fill_formatting< boost::basic_string_ref< CharT > >();
++}
++
++// Test support for text alignment
++BOOST_AUTO_TEST_CASE_TEMPLATE(alignment, CharT, char_types)
++{
++    typedef test_impl< CharT > test;
++    test::BOOST_NESTED_TEMPLATE alignment< const CharT* >();
++    test::BOOST_NESTED_TEMPLATE alignment< typename test::string_type >();
++    test::BOOST_NESTED_TEMPLATE alignment< boost::basic_string_ref< CharT > >();
++}
++
++#if !defined(BOOST_NO_CXX11_RVALUE_REFERENCES)
++// Test support for rvalue stream objects
++BOOST_AUTO_TEST_CASE_TEMPLATE(rvalue_stream, CharT, char_types)
++{
++    typedef test_impl< CharT > test;
++    test::BOOST_NESTED_TEMPLATE rvalue_stream< const CharT* >();
++    test::BOOST_NESTED_TEMPLATE rvalue_stream< typename test::string_type >();
++    test::BOOST_NESTED_TEMPLATE rvalue_stream< boost::basic_string_ref< CharT > >();
++}
++#endif
++
++namespace my_namespace {
++
++class A {};
++template< typename CharT, typename TraitsT >
++inline std::basic_ostream< CharT, TraitsT >& operator<< (std::basic_ostream< CharT, TraitsT >& strm, A const&)
++{
++    strm << "A";
++    return strm;
++}
++
++class B {};
++template< typename CharT, typename TraitsT >
++inline std::basic_ostream< CharT, TraitsT >& operator<< (std::basic_ostream< CharT, TraitsT >& strm, B&)
++{
++    strm << "B";
++    return strm;
++}
++
++class C {};
++template< typename CharT, typename TraitsT >
++inline std::basic_ostream< CharT, TraitsT >& operator<< (std::basic_ostream< CharT, TraitsT >& strm, C const&)
++{
++    strm << "C";
++    return strm;
++}
++
++} // namespace my_namespace
++
++// Test operator forwarding
++BOOST_AUTO_TEST_CASE_TEMPLATE(operator_forwarding, CharT, char_types)
++{
++    typedef CharT char_type;
++    typedef std::basic_string< char_type > string_type;
++    typedef std::basic_ostringstream< char_type > ostream_type;
++    typedef logging::basic_record_ostream< char_type > record_ostream_type;
++
++    logging::record rec = make_record();
++    BOOST_REQUIRE(!!rec);
++    record_ostream_type strm_fmt(rec);
++
++    const my_namespace::A a = my_namespace::A(); // const lvalue
++    my_namespace::B b; // lvalue
++    strm_fmt << a << b << my_namespace::C(); // rvalue
++    strm_fmt.flush();
++    string_type rec_message = logging::extract_or_throw< string_type >(expr::message.get_name(), rec);
++
++    ostream_type strm_correct;
++    strm_correct << a << b << my_namespace::C();
++
++    BOOST_CHECK(equal_strings(rec_message, strm_correct.str()));
++}
++
++namespace my_namespace2 {
++
++class A {};
++template< typename CharT >
++inline logging::basic_record_ostream< CharT >& operator<< (logging::basic_record_ostream< CharT >& strm, A const&)
++{
++    strm << "A";
++    return strm;
++}
++
++class B {};
++template< typename CharT >
++inline logging::basic_record_ostream< CharT >& operator<< (logging::basic_record_ostream< CharT >& strm, B&)
++{
++    strm << "B";
++    return strm;
++}
++
++class C {};
++template< typename CharT >
++inline logging::basic_record_ostream< CharT >& operator<< (logging::basic_record_ostream< CharT >& strm, C const&)
++{
++    strm << "C";
++    return strm;
++}
++
++class D {};
++template< typename CharT >
++inline logging::basic_record_ostream< CharT >& operator<< (logging::basic_record_ostream< CharT >& strm,
++#if !defined(BOOST_NO_CXX11_RVALUE_REFERENCES)
++    D&&
++#else
++    D const&
++#endif
++    )
++{
++    strm << "D";
++    return strm;
++}
++
++} // namespace my_namespace2
++
++// Test operator overriding
++BOOST_AUTO_TEST_CASE_TEMPLATE(operator_overriding, CharT, char_types)
++{
++    typedef CharT char_type;
++    typedef std::basic_string< char_type > string_type;
++    typedef std::basic_ostringstream< char_type > ostream_type;
++    typedef logging::basic_record_ostream< char_type > record_ostream_type;
++
++    logging::record rec = make_record();
++    BOOST_REQUIRE(!!rec);
++    record_ostream_type strm_fmt(rec);
++
++    const my_namespace2::A a = my_namespace2::A(); // const lvalue
++    my_namespace2::B b; // lvalue
++    strm_fmt << a << b << my_namespace2::C() << my_namespace2::D(); // rvalue
++    strm_fmt.flush();
++    string_type rec_message = logging::extract_or_throw< string_type >(expr::message.get_name(), rec);
++
++    ostream_type strm_correct;
++    strm_correct << "ABCD";
++
++    BOOST_CHECK(equal_strings(rec_message, strm_correct.str()));
++}
++
++// Test that operator<< returns a record_ostream
++BOOST_AUTO_TEST_CASE_TEMPLATE(operator_return_type, CharT, char_types)
++{
++    typedef CharT char_type;
++    typedef std::basic_string< char_type > string_type;
++    typedef std::basic_ostringstream< char_type > ostream_type;
++    typedef logging::basic_record_ostream< char_type > record_ostream_type;
++
++    logging::record rec = make_record();
++    BOOST_REQUIRE(!!rec);
++    record_ostream_type strm_fmt(rec);
++
++    // The test here verifies that the result of << "Hello" is a record_ostream, not std::ostream or logging::formatting_ostream.
++    // The subsequent << A() will only compile if the stream is record_ostream.
++    strm_fmt << "Hello " << my_namespace2::A();
++    strm_fmt.flush();
++    string_type rec_message = logging::extract_or_throw< string_type >(expr::message.get_name(), rec);
++
++    ostream_type strm_correct;
++    strm_correct << "Hello A";
++
++    BOOST_CHECK(equal_strings(rec_message, strm_correct.str()));
++}
+diff --git a/libs/log/test/run/util_formatting_ostream.cpp b/libs/log/test/run/util_formatting_ostream.cpp
+index 394a37b..61db5e4 100644
+--- a/libs/log/test/run/util_formatting_ostream.cpp
++++ b/libs/log/test/run/util_formatting_ostream.cpp
+@@ -229,6 +229,70 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(operator_forwarding, CharT, char_types)
+     BOOST_CHECK(equal_strings(strm_fmt.str(), strm_correct.str()));
+ }
+ 
++namespace my_namespace2 {
++
++class A {};
++template< typename CharT, typename TraitsT, typename AllocatorT >
++inline logging::basic_formatting_ostream< CharT, TraitsT, AllocatorT >& operator<< (logging::basic_formatting_ostream< CharT, TraitsT, AllocatorT >& strm, A const&)
++{
++    strm << "A";
++    return strm;
++}
++
++class B {};
++template< typename CharT, typename TraitsT, typename AllocatorT >
++inline logging::basic_formatting_ostream< CharT, TraitsT, AllocatorT >& operator<< (logging::basic_formatting_ostream< CharT, TraitsT, AllocatorT >& strm, B&)
++{
++    strm << "B";
++    return strm;
++}
++
++class C {};
++template< typename CharT, typename TraitsT, typename AllocatorT >
++inline logging::basic_formatting_ostream< CharT, TraitsT, AllocatorT >& operator<< (logging::basic_formatting_ostream< CharT, TraitsT, AllocatorT >& strm, C const&)
++{
++    strm << "C";
++    return strm;
++}
++
++class D {};
++template< typename CharT, typename TraitsT, typename AllocatorT >
++inline logging::basic_formatting_ostream< CharT, TraitsT, AllocatorT >& operator<< (logging::basic_formatting_ostream< CharT, TraitsT, AllocatorT >& strm,
++#if !defined(BOOST_NO_CXX11_RVALUE_REFERENCES)
++    D&&
++#else
++    D const&
++#endif
++    )
++{
++    strm << "D";
++    return strm;
++}
++
++} // namespace my_namespace2
++
++// Test operator overriding
++BOOST_AUTO_TEST_CASE_TEMPLATE(operator_overriding, CharT, char_types)
++{
++    typedef CharT char_type;
++    typedef std::basic_string< char_type > string_type;
++    typedef std::basic_ostringstream< char_type > ostream_type;
++    typedef logging::basic_formatting_ostream< char_type > formatting_ostream_type;
++
++    string_type str_fmt;
++    formatting_ostream_type strm_fmt(str_fmt);
++
++    const my_namespace2::A a = my_namespace2::A(); // const lvalue
++    my_namespace2::B b; // lvalue
++    strm_fmt << a << b << my_namespace2::C() << my_namespace2::D(); // rvalue
++    strm_fmt.flush();
++
++    ostream_type strm_correct;
++    strm_correct << "ABCD";
++
++    BOOST_CHECK(equal_strings(strm_fmt.str(), strm_correct.str()));
++}
++
+ #if defined(BOOST_LOG_USE_CHAR) && defined(BOOST_LOG_USE_WCHAR_T)
+ 
+ namespace {

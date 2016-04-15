@@ -1,0 +1,57 @@
+From 870284ed31792708a6139925d00a0aadf46bf09f Mon Sep 17 00:00:00 2001
+From: Christopher Moore <crmoore@gmail.com>
+Date: Mon, 24 Aug 2015 14:29:02 -0400
+Subject: [PATCH] Fixed missing symbols in libboost_log_setup (on mac/clang)
+
+---
+ include/boost/log/detail/setup_config.hpp | 29 +++++++++++++++++++----------
+ 1 file changed, 19 insertions(+), 10 deletions(-)
+
+diff --git a/boost/log/detail/setup_config.hpp b/boost/log/detail/setup_config.hpp
+index fec50fb..28c6671 100644
+--- a/boost/log/detail/setup_config.hpp
++++ b/boost/log/detail/setup_config.hpp
+@@ -30,11 +30,17 @@
+ #        define BOOST_LOG_SETUP_DLL
+ #   endif
+ 
+-#   if defined(BOOST_HAS_DECLSPEC) && defined(BOOST_LOG_SETUP_DLL)
+-#       define BOOST_LOG_SETUP_API __declspec(dllimport)
+-#   else
++#   if defined(BOOST_LOG_SETUP_DLL)
++#       if defined(BOOST_SYMBOL_IMPORT)
++#           define BOOST_LOG_SETUP_API BOOST_SYMBOL_IMPORT
++#       elif defined(BOOST_HAS_DECLSPEC)
++#           define BOOST_LOG_SETUP_API __declspec(dllimport)
++#       endif
++#   endif
++#   ifndef BOOST_LOG_SETUP_API
+ #       define BOOST_LOG_SETUP_API
+-#   endif // defined(BOOST_HAS_DECLSPEC)
++#   endif
++
+ //
+ // Automatically link to the correct build variant where possible.
+ //
+@@ -48,12 +54,15 @@
+ 
+ #else // !defined(BOOST_LOG_SETUP_BUILDING_THE_LIB)
+ 
+-#   if defined(BOOST_HAS_DECLSPEC) && defined(BOOST_LOG_SETUP_DLL)
+-#       define BOOST_LOG_SETUP_API __declspec(dllexport)
+-#   elif defined(__GNUC__) && __GNUC__ >= 4 && (defined(linux) || defined(__linux) || defined(__linux__))
+-#       define BOOST_LOG_SETUP_API __attribute__((visibility("default")))
+-#   else
+-#       define BOOST_LOG_SETUP_API
++#   if defined(BOOST_LOG_SETUP_DLL)
++#       if defined(BOOST_SYMBOL_EXPORT)
++#           define BOOST_LOG_SETUP_API BOOST_SYMBOL_EXPORT
++#       elif defined(BOOST_HAS_DECLSPEC)
++#           define BOOST_LOG_SETUP_API __declspec(dllexport)
++#       endif
++#   endif
++#   ifndef BOOST_LOG_SETUP_API
++#       define BOOST_LOG_SETUP_API BOOST_SYMBOL_VISIBLE
+ #   endif
+ 
+ #endif // !defined(BOOST_LOG_SETUP_BUILDING_THE_LIB)
