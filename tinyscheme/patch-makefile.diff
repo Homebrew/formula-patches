@@ -1,0 +1,47 @@
+diff --git a/makefile b/makefile
+index 7075379..9c0ea1e 100644
+--- a/makefile
++++ b/makefile
+@@ -21,7 +21,7 @@
+ CC = gcc -fpic -pedantic
+ DEBUG=-g -Wall -Wno-char-subscripts -O
+ Osuf=o
+-SOsuf=so
++SOsuf=dylib
+ LIBsuf=a
+ EXE_EXT=
+ LIBPREFIX=lib
+@@ -30,11 +30,11 @@ RM= -rm -f
+ AR= ar crs
+
+ # Linux
+-LD = gcc
+-LDFLAGS = -shared
+-DEBUG=-g -Wno-char-subscripts -O
+-SYS_LIBS= -ldl -lm
+-PLATFORM_FEATURES= -DSUN_DL=1
++# LD = gcc
++# LDFLAGS = -shared
++# DEBUG=-g -Wno-char-subscripts -O
++# SYS_LIBS= -ldl -lm
++# PLATFORM_FEATURES= -DSUN_DL=1
+
+ # Cygwin
+ #PLATFORM_FEATURES = -DUSE_STRLWR=0
+@@ -44,11 +44,11 @@ PLATFORM_FEATURES= -DSUN_DL=1
+ #PLATFORM_FEATURES = -DUSE_STRLWR=0
+
+ # Mac OS X
+-#LD = gcc
+-#LDFLAGS = --dynamiclib
+-#DEBUG=-g -Wno-char-subscripts -O
+-#SYS_LIBS= -ldl
+-#PLATFORM_FEATURES= -DUSE_STRLWR=1 -D__APPLE__=1 -DOSX=1
++LD = gcc
++LDFLAGS = --shared
++DEBUG=-g -Wno-char-subscripts -O
++SYS_LIBS= -ldl
++PLATFORM_FEATURES= -DUSE_STRLWR=1 -D__APPLE__=1 -DOSX=1
+
+
+ # Solaris
