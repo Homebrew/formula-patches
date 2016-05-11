@@ -1,7 +1,5 @@
-diff --git a/makefile b/makefile
-index 7075379..9c0ea1e 100644
---- a/makefile
-+++ b/makefile
+--- makefile
++++ makefile
 @@ -21,7 +21,7 @@
  CC = gcc -fpic -pedantic
  DEBUG=-g -Wall -Wno-char-subscripts -O
