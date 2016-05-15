@@ -1,0 +1,16 @@
+diff --git a/src/cli.c b/src/cli.c
+index 102438e..b029329 100644
+--- a/src/cli.c
++++ b/src/cli.c
+@@ -892,6 +892,11 @@ cli_compile_cfile(void *arg)
+ 	args[idx++] = "-I/usr/local/include";
+ #endif
+ 
++#if defined(__MACH__)
++	args[idx++] = "-I/opt/local/include";
++	args[idx++] = "-I/usr/local/opt/openssl/include";
++#endif
++
+ #if defined(KORE_USE_PGSQL)
+ 	(void)cli_vasprintf(&ppath, "-I%s", PGSQL_INCLUDE_PATH);
+ 	args[idx++] = ppath;
