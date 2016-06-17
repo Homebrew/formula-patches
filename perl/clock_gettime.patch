@@ -1,0 +1,28 @@
+From 76264435f3fcc23c80831f940059bfb80122dcc9 Mon Sep 17 00:00:00 2001
+From: Misty De Meo <mistydemeo@github.com>
+Date: Fri, 17 Jun 2016 12:49:44 -0700
+Subject: [PATCH] Time::HiRes: fix Darwins with clock_gettime
+
+Not all of the Darwin time code was guarded by the same set of #ifdefs,
+leading to bugs on Darwin platforms with clock_gettime where a struct
+would not be defined but would still be used elsewhere.
+---
+ dist/Time-HiRes/HiRes.xs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/dist/Time-HiRes/HiRes.xs b/dist/Time-HiRes/HiRes.xs
+index 38ca0dc..ed60336 100644
+--- a/dist/Time-HiRes/HiRes.xs
++++ b/dist/Time-HiRes/HiRes.xs
+@@ -940,7 +940,7 @@ BOOT:
+   }
+ #   endif
+ #endif
+-#if defined(PERL_DARWIN)
++#if defined(PERL_DARWIN) && !defined(CLOCK_REALTIME)
+ #  ifdef USE_ITHREADS
+   MUTEX_INIT(&darwin_time_mutex);
+ #  endif
+-- 
+2.9.0
+
