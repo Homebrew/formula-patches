@@ -1,0 +1,100 @@
+From 1633f5a176320faa162c1a55df6c8bd66a9865d6 Mon Sep 17 00:00:00 2001
+From: Alexandru Croitor <alexandru.croitor@qt.io>
+Date: Tue, 21 Jun 2016 11:58:03 +0200
+Subject: [PATCH] Fix build with Xcode 5.1.1.
+
+Work around the ambiguous scoped_ptr assignment operator issue.
+Fix static_cast<id>'s into __bridge statements.
+
+Change-Id: I89c57e97e8d82f6fd479c27e4d5a6faf2a2bb46e
+Task-number: QTBUG-54190
+Reviewed-by: Allan Sandfeld Jensen <allan.jensen@qt.io>
+---
+ .../chromium/content/browser/compositor/software_output_device_mac.mm | 8 ++++----
+ .../chromium/content/common/gpu/ca_layer_partial_damage_tree_mac.mm   | 2 +-
+ .../chromium/content/common/gpu/ca_layer_tree_mac.mm                  | 2 +-
+ .../chromium/device/bluetooth/bluetooth_socket_mac.mm                 | 7 +++----
+ .../chromium/ui/accelerated_widget_mac/accelerated_widget_mac.mm      | 2 +-
+ 5 files changed, 10 insertions(+), 11 deletions(-)
+
+diff --git a/qtwebengine/src/3rdparty/chromium/content/browser/compositor/software_output_device_mac.mm b/qtwebengine/src/3rdparty/chromium/content/browser/compositor/software_output_device_mac.mm
+index e71f678..e266c74 100644
+--- a/qtwebengine/src/3rdparty/chromium/content/browser/compositor/software_output_device_mac.mm
++++ b/qtwebengine/src/3rdparty/chromium/content/browser/compositor/software_output_device_mac.mm
+@@ -89,10 +89,10 @@
+       unsigned pixel_format = 'BGRA';
+       unsigned bytes_per_element = 4;
+       NSDictionary* options = @{
+-        static_cast<id>(kIOSurfaceWidth) : @(pixel_size_.width()),
+-        static_cast<id>(kIOSurfaceHeight) : @(pixel_size_.height()),
+-        static_cast<id>(kIOSurfacePixelFormat) : @(pixel_format),
+-        static_cast<id>(kIOSurfaceBytesPerElement) : @(bytes_per_element),
++        (__bridge id)(kIOSurfaceWidth) : @(pixel_size_.width()),
++        (__bridge id)(kIOSurfaceHeight) : @(pixel_size_.height()),
++        (__bridge id)(kIOSurfacePixelFormat) : @(pixel_format),
++        (__bridge id)(kIOSurfaceBytesPerElement) : @(bytes_per_element),
+       };
+       io_surfaces_[i].reset(IOSurfaceCreate(base::mac::NSToCFCast(options)));
+     }
+diff --git a/qtwebengine/src/3rdparty/chromium/content/common/gpu/ca_layer_partial_damage_tree_mac.mm b/qtwebengine/src/3rdparty/chromium/content/common/gpu/ca_layer_partial_damage_tree_mac.mm
+index f427389..41e4d50 100644
+--- a/qtwebengine/src/3rdparty/chromium/content/common/gpu/ca_layer_partial_damage_tree_mac.mm
++++ b/qtwebengine/src/3rdparty/chromium/content/common/gpu/ca_layer_partial_damage_tree_mac.mm
+@@ -60,7 +60,7 @@ void UpdateProperties(float scale_factor) {
+     if (layer_needs_update) {
+       [ca_layer setOpaque:YES];
+ 
+-      id new_contents = static_cast<id>(io_surface.get());
++      id new_contents = (__bridge id)(io_surface.get());
+       if ([ca_layer contents] == new_contents)
+         [ca_layer setContentsChanged];
+       else
+diff --git a/qtwebengine/src/3rdparty/chromium/content/common/gpu/ca_layer_tree_mac.mm b/qtwebengine/src/3rdparty/chromium/content/common/gpu/ca_layer_tree_mac.mm
+index 8c7d938..d89c05d 100644
+--- a/qtwebengine/src/3rdparty/chromium/content/common/gpu/ca_layer_tree_mac.mm
++++ b/qtwebengine/src/3rdparty/chromium/content/common/gpu/ca_layer_tree_mac.mm
+@@ -408,7 +408,7 @@
+                          update_ca_edge_aa_mask || update_opacity;
+ 
+   if (update_contents) {
+-    [ca_layer setContents:static_cast<id>(io_surface.get())];
++    [ca_layer setContents:(__bridge id)(io_surface.get())];
+     if ([ca_layer respondsToSelector:(@selector(setContentsScale:))])
+       [ca_layer setContentsScale:scale_factor];
+   }
+diff --git a/qtwebengine/src/3rdparty/chromium/device/bluetooth/bluetooth_socket_mac.mm b/qtwebengine/src/3rdparty/chromium/device/bluetooth/bluetooth_socket_mac.mm
+index c82e5d2..d2789d1 100644
+--- a/qtwebengine/src/3rdparty/chromium/device/bluetooth/bluetooth_socket_mac.mm
++++ b/qtwebengine/src/3rdparty/chromium/device/bluetooth/bluetooth_socket_mac.mm
+@@ -600,12 +600,11 @@ BluetoothSDPServiceRecordHandle RegisterL2capService(
+   connect_callbacks_->error_callback = error_callback;
+ 
+   if (rfcomm_channel_id != kInvalidRfcommChannelId) {
+-    channel_ = BluetoothRfcommChannelMac::OpenAsync(
+-        this, device, rfcomm_channel_id, &status);
++    channel_.reset(BluetoothRfcommChannelMac::OpenAsync(
++        this, device, rfcomm_channel_id, &status).release());
+   } else {
+     DCHECK_NE(l2cap_psm, kInvalidL2capPsm);
+-    channel_ =
+-        BluetoothL2capChannelMac::OpenAsync(this, device, l2cap_psm, &status);
++    channel_.reset(BluetoothL2capChannelMac::OpenAsync(this, device, l2cap_psm, &status).release());
+   }
+   if (status != kIOReturnSuccess) {
+     ReleaseChannel();
+diff --git a/qtwebengine/src/3rdparty/chromium/ui/accelerated_widget_mac/accelerated_widget_mac.mm b/qtwebengine/src/3rdparty/chromium/ui/accelerated_widget_mac/accelerated_widget_mac.mm
+index 135f64c..2c44acc 100644
+--- a/qtwebengine/src/3rdparty/chromium/ui/accelerated_widget_mac/accelerated_widget_mac.mm
++++ b/qtwebengine/src/3rdparty/chromium/ui/accelerated_widget_mac/accelerated_widget_mac.mm
+@@ -194,7 +194,7 @@ - (void)setContentsChanged;
+   // If there is not a layer for local frames, create one.
+   EnsureLocalLayer();
+ 
+-  id new_contents = static_cast<id>(io_surface.get());
++  id new_contents = (__bridge id)(io_surface.get());
+ 
+   if (new_contents && new_contents == [local_layer_ contents]) {
+     [local_layer_ setContentsChanged];
+-- 
+2.7.4 (Apple Git-66)
+
