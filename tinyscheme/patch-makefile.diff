@@ -39,7 +39,7 @@
 +LDFLAGS = --shared
 +DEBUG=-g -Wno-char-subscripts -O
 +SYS_LIBS= -ldl
-+PLATFORM_FEATURES= -DUSE_STRLWR=1 -D__APPLE__=1 -DOSX=1
++PLATFORM_FEATURES= -DUSE_STRLWR=1 -D__APPLE__=1 -DOSX=1 -DInitFile="\"$(INITDEST)/init.scm\""
 
 
  # Solaris
