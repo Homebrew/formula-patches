@@ -1,0 +1,44 @@
+diff --git a/NEWS b/NEWS
+index b83d5a8..b76f517 100644
+--- a/NEWS
++++ b/NEWS
+@@ -70,6 +70,7 @@ where XXXXXX is the bug number as listed below.
+ 353920  unhandled amd64-solaris syscall: 170
+ 354392  unhandled amd64-solaris syscall: 171
+ 354797  Added vbit tester support for PPC 64 isa 2.07 iops
++354883  tst->os_state.pthread - magic_delta assertion failure on OSX 10.11
+ 354933  Fix documentation of --kernel-variant=android-no-hw-tls option
+ 355188  valgrind should intercept all malloc related global functions
+ 355455  stderr.exp of test cases wrapmalloc and wrapmallocstatic overconstrained
+diff --git a/coregrind/m_syswrap/syswrap-amd64-darwin.c b/coregrind/m_syswrap/syswrap-amd64-darwin.c
+index 8f13e71..7fb8b2c 100644
+--- a/coregrind/m_syswrap/syswrap-amd64-darwin.c
++++ b/coregrind/m_syswrap/syswrap-amd64-darwin.c
+@@ -479,10 +479,8 @@ void wqthread_hijack(Addr self, Addr kport, Addr stackaddr, Addr workitem,
+        UWord magic_delta = 0;
+ #      elif DARWIN_VERS == DARWIN_10_7 || DARWIN_VERS == DARWIN_10_8
+        UWord magic_delta = 0x60;
+-#      elif DARWIN_VERS == DARWIN_10_9 || DARWIN_VERS == DARWIN_10_10
++#      elif DARWIN_VERS == DARWIN_10_9 || DARWIN_VERS == DARWIN_10_10 || DARWIN_VERS == DARWIN_10_11
+        UWord magic_delta = 0xE0;
+-#      elif DARWIN_VERS == DARWIN_10_11
+-       UWord magic_delta = 0x100;
+ #      else
+ #        error "magic_delta: to be computed on new OS version"
+          // magic_delta = tst->os_state.pthread - self
+diff --git a/coregrind/m_syswrap/syswrap-x86-darwin.c b/coregrind/m_syswrap/syswrap-x86-darwin.c
+index a9282ee..37bbbc3 100644
+--- a/coregrind/m_syswrap/syswrap-x86-darwin.c
++++ b/coregrind/m_syswrap/syswrap-x86-darwin.c
+@@ -427,10 +427,8 @@ void wqthread_hijack(Addr self, Addr kport, Addr stackaddr, Addr workitem,
+       UWord magic_delta = 0;
+ #     elif DARWIN_VERS == DARWIN_10_7 || DARWIN_VERS == DARWIN_10_8
+       UWord magic_delta = 0x48;
+-#     elif DARWIN_VERS == DARWIN_10_9 || DARWIN_VERS == DARWIN_10_10
++#     elif DARWIN_VERS == DARWIN_10_9 || DARWIN_VERS == DARWIN_10_10 || DARWIN_VERS == DARWIN_10_11
+       UWord magic_delta = 0xB0;
+-#     elif DARWIN_VERS == DARWIN_10_11
+-      UWord magic_delta = 0x100;
+ #     else
+ #       error "magic_delta: to be computed on new OS version"
+         // magic_delta = tst->os_state.pthread - self
