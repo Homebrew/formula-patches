@@ -1,0 +1,18 @@
+diff --git a/configure.ac b/configure.ac
+index 8404638..358219f 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -110,10 +110,10 @@ PKG_PROG_PKG_CONFIG
+ #search for xraylib and other modules
+ PKG_CHECK_MODULES([xraylib],libxrl >= 3.1.0)
+ PKG_CHECK_MODULES([xraylib_f2003],libxrlf03 >= 3.1.0)
+-PKG_CHECK_MODULES([gsl],gsl >= 1.10)
++PKG_CHECK_MODULES([gsl],gsl >= 2.2)
+ PKG_CHECK_MODULES([xml2],libxml-2.0 >= 2.7.0)
+ PKG_CHECK_MODULES([xslt],libxslt >= 1.1.26)
+-PKG_CHECK_MODULES([fgsl],fgsl >= 1.0.0)
++PKG_CHECK_MODULES([fgsl],fgsl >= 1.1.0)
+ PKG_CHECK_MODULES([glib2],glib-2.0 >= 2.18.0)
+ PKG_CHECK_MODULES([gmodule],gmodule-2.0)
+ PKG_CHECK_MODULES([gthread2],gthread-2.0 >= 2.18.0)
+
