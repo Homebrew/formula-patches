@@ -15,4 +15,17 @@ index 8404638..358219f 100644
  PKG_CHECK_MODULES([glib2],glib-2.0 >= 2.18.0)
  PKG_CHECK_MODULES([gmodule],gmodule-2.0)
  PKG_CHECK_MODULES([gthread2],gthread-2.0 >= 2.18.0)
+diff --git a/src/xmi_detector_f.F90 b/src/xmi_detector_f.F90
+index 2880903..e0259dc 100644
+--- a/src/xmi_detector_f.F90
++++ b/src/xmi_detector_f.F90
+@@ -73,7 +73,7 @@ SUBROUTINE xmi_detector_sum_peaks(inputF, channels)
+ 
+         !prepare discrete distribution
+         preproc = &
+-        fgsl_ran_discrete_preproc(INT(nchannels,KIND=fgsl_size_t),channels)
++        fgsl_ran_discrete_preproc(channels)
+ 
+ 
+         max_threads = 1 
 
