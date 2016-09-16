@@ -1,15 +1,3 @@
-diff --git a/NEWS b/NEWS
-index b83d5a8..b76f517 100644
---- a/NEWS
-+++ b/NEWS
-@@ -70,6 +70,7 @@ where XXXXXX is the bug number as listed below.
- 353920  unhandled amd64-solaris syscall: 170
- 354392  unhandled amd64-solaris syscall: 171
- 354797  Added vbit tester support for PPC 64 isa 2.07 iops
-+354883  tst->os_state.pthread - magic_delta assertion failure on OSX 10.11
- 354933  Fix documentation of --kernel-variant=android-no-hw-tls option
- 355188  valgrind should intercept all malloc related global functions
- 355455  stderr.exp of test cases wrapmalloc and wrapmallocstatic overconstrained
 diff --git a/coregrind/m_syswrap/syswrap-amd64-darwin.c b/coregrind/m_syswrap/syswrap-amd64-darwin.c
 index 8f13e71..7fb8b2c 100644
 --- a/coregrind/m_syswrap/syswrap-amd64-darwin.c
