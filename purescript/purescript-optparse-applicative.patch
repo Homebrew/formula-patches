@@ -1,0 +1,332 @@
+From bdbf4e28a3f734cf853b8a5a46d6441a4c17547b Mon Sep 17 00:00:00 2001
+From: Charles O'Farrell <charleso@charleso.org>
+Date: Sun, 21 Aug 2016 12:03:18 +1000
+Subject: [PATCH] Add explicit import of Monoid <>  (#2278)
+
+* Use bind instead of deprecated bindSocket
+
+* Add explicit import of Monoid <>
+
+optparse-applicative 0.13.* no longer exports this.
+
+* Add charleso to contributors file
+
+* Import Options.Applicative as qualified for future proofing
+---
+ hierarchy/Main.hs      | 33 +++++++++++++++++--------------
+ psc-bundle/Main.hs     | 53 ++++++++++++++++++++++++++------------------------
+ psc-ide-client/Main.hs | 13 ++++++++-----
+ psc-ide-server/Main.hs | 25 ++++++++++++------------
+ psc-publish/Main.hs    | 23 ++++++++++++----------
+ 6 files changed, 81 insertions(+), 67 deletions(-)
+
+diff --git a/hierarchy/Main.hs b/hierarchy/Main.hs
+index 5857dd4..e9d17b4 100644
+--- a/hierarchy/Main.hs
++++ b/hierarchy/Main.hs
+@@ -18,13 +18,16 @@
+ 
+ module Main where
+ 
++import Control.Applicative (optional)
+ import Control.Monad (unless)
+ 
+ import Data.List (intercalate,nub,sort)
+ import Data.Foldable (for_)
+ import Data.Version (showVersion)
++import Data.Monoid ((<>))
+ 
+-import Options.Applicative
++import Options.Applicative (Parser)
++import qualified Options.Applicative as Opts
+ import System.Directory (createDirectoryIfMissing)
+ import System.FilePath ((</>))
+ import System.FilePath.Glob (glob)
+@@ -90,26 +93,26 @@ superClasses (P.PositionedDeclaration _ _ decl) = superClasses decl
+ superClasses _ = []
+ 
+ inputFile :: Parser FilePath
+-inputFile = strArgument $
+-     metavar "FILE"
+-  <> value "main.purs"
+-  <> showDefault
+-  <> help "The input file to generate a hierarchy from"
++inputFile = Opts.strArgument $
++     Opts.metavar "FILE"
++  <> Opts.value "main.purs"
++  <> Opts.showDefault
++  <> Opts.help "The input file to generate a hierarchy from"
+ 
+ outputFile :: Parser (Maybe FilePath)
+-outputFile = optional . strOption $
+-     short 'o'
+-  <> long "output"
+-  <> help "The output directory"
++outputFile = optional . Opts.strOption $
++     Opts.short 'o'
++  <> Opts.long "output"
++  <> Opts.help "The output directory"
+ 
+ pscOptions :: Parser HierarchyOptions
+ pscOptions = HierarchyOptions <$> inputFile
+                               <*> outputFile
+ 
+ main :: IO ()
+-main = execParser opts >>= compile
++main = Opts.execParser opts >>= compile
+   where
+-  opts        = info (helper <*> pscOptions) infoModList
+-  infoModList = fullDesc <> headerInfo <> footerInfo
+-  headerInfo  = header   "hierarchy - Creates a GraphViz directed graph of PureScript TypeClasses"
+-  footerInfo  = footer $ "hierarchy " ++ showVersion Paths.version
++  opts        = Opts.info (Opts.helper <*> pscOptions) infoModList
++  infoModList = Opts.fullDesc <> headerInfo <> footerInfo
++  headerInfo  = Opts.header "hierarchy - Creates a GraphViz directed graph of PureScript TypeClasses"
++  footerInfo  = Opts.footer $ "hierarchy " ++ showVersion Paths.version
+diff --git a/psc-bundle/Main.hs b/psc-bundle/Main.hs
+index 92ff4f2..7caeac3 100644
+--- a/psc-bundle/Main.hs
++++ b/psc-bundle/Main.hs
+@@ -8,6 +8,7 @@ module Main (main) where
+ 
+ import Data.Traversable (for)
+ import Data.Version (showVersion)
++import Data.Monoid ((<>))
+ 
+ import Control.Applicative
+ import Control.Monad
+@@ -24,7 +25,8 @@ import System.Directory (createDirectoryIfMissing)
+ 
+ import Language.PureScript.Bundle
+ 
+-import Options.Applicative as Opts
++import Options.Applicative (Parser, ParseError (..))
++import qualified Options.Applicative as Opts
+ 
+ import qualified Paths_purescript as Paths
+ 
+@@ -64,41 +66,41 @@ options = Options <$> some inputFile
+                   <*> namespace
+   where
+   inputFile :: Parser FilePath
+-  inputFile = strArgument $
+-       metavar "FILE"
+-    <> help "The input .js file(s)"
++  inputFile = Opts.strArgument $
++       Opts.metavar "FILE"
++    <> Opts.help "The input .js file(s)"
+ 
+   outputFile :: Parser FilePath
+-  outputFile = strOption $
+-       short 'o'
+-    <> long "output"
+-    <> help "The output .js file"
++  outputFile = Opts.strOption $
++       Opts.short 'o'
++    <> Opts.long "output"
++    <> Opts.help "The output .js file"
+ 
+   entryPoint :: Parser String
+-  entryPoint = strOption $
+-       short 'm'
+-    <> long "module"
+-    <> help "Entry point module name(s). All code which is not a transitive dependency of an entry point module will be removed."
++  entryPoint = Opts.strOption $
++       Opts.short 'm'
++    <> Opts.long "module"
++    <> Opts.help "Entry point module name(s). All code which is not a transitive dependency of an entry point module will be removed."
+ 
+   mainModule :: Parser String
+-  mainModule = strOption $
+-       long "main"
+-    <> help "Generate code to run the main method in the specified module."
++  mainModule = Opts.strOption $
++       Opts.long "main"
++    <> Opts.help "Generate code to run the main method in the specified module."
+ 
+   namespace :: Parser String
+-  namespace = strOption $
+-       short 'n'
+-    <> long "namespace"
++  namespace = Opts.strOption $
++       Opts.short 'n'
++    <> Opts.long "namespace"
+     <> Opts.value "PS"
+-    <> showDefault
+-    <> help "Specify the namespace that PureScript modules will be exported to when running in the browser."
++    <> Opts.showDefault
++    <> Opts.help "Specify the namespace that PureScript modules will be exported to when running in the browser."
+ 
+ -- | Make it go.
+ main :: IO ()
+ main = do
+   hSetEncoding stdout utf8
+   hSetEncoding stderr utf8
+-  opts <- execParser (info (version <*> helper <*> options) infoModList)
++  opts <- Opts.execParser (Opts.info (version <*> Opts.helper <*> options) infoModList)
+   output <- runExceptT (app opts)
+   case output of
+     Left err -> do
+@@ -111,9 +113,10 @@ main = do
+           writeFile outputFile js
+         Nothing -> putStrLn js
+   where
+-  infoModList = fullDesc <> headerInfo <> footerInfo
+-  headerInfo  = header   "psc-bundle - Bundles compiled PureScript modules for the browser"
+-  footerInfo  = footer $ "psc-bundle " ++ showVersion Paths.version
++  infoModList = Opts.fullDesc <> headerInfo <> footerInfo
++  headerInfo  = Opts.header   "psc-bundle - Bundles compiled PureScript modules for the browser"
++  footerInfo  = Opts.footer $ "psc-bundle " ++ showVersion Paths.version
+ 
+   version :: Parser (a -> a)
+-  version = abortOption (InfoMsg (showVersion Paths.version)) $ long "version" <> help "Show the version number" <> hidden
++  version = Opts.abortOption (InfoMsg (showVersion Paths.version)) $
++    Opts.long "version" <> Opts.help "Show the version number" <> Opts.hidden
+diff --git a/psc-ide-client/Main.hs b/psc-ide-client/Main.hs
+index ec4c761..85d56a6 100644
+--- a/psc-ide-client/Main.hs
++++ b/psc-ide-client/Main.hs
+@@ -8,8 +8,10 @@ import           Control.Exception
+ import qualified Data.ByteString.Char8 as BS8
+ import qualified Data.Text.IO          as T
+ import           Data.Version          (showVersion)
++import           Data.Monoid           ((<>))
+ import           Network
+-import           Options.Applicative
++import           Options.Applicative   (ParseError (..))
++import qualified Options.Applicative   as Opts
+ import           System.Exit
+ import           System.IO
+ 
+@@ -21,15 +23,16 @@ data Options = Options
+ 
+ main :: IO ()
+ main = do
+-    Options port <- execParser opts
++    Options port <- Opts.execParser opts
+     client port
+   where
+     parser =
+         Options <$>
+         (PortNumber . fromIntegral <$>
+-         option auto (long "port" <> short 'p' <> value (4242 :: Integer)))
+-    opts = info (version <*> helper <*> parser) mempty
+-    version = abortOption (InfoMsg (showVersion Paths.version)) $ long "version" <> help "Show the version number" <> hidden
++         Opts.option Opts.auto (Opts.long "port" <> Opts.short 'p' <> Opts.value (4242 :: Integer)))
++    opts = Opts.info (version <*> Opts.helper <*> parser) mempty
++    version = Opts.abortOption (InfoMsg (showVersion Paths.version)) $
++      Opts.long "version" <> Opts.help "Show the version number" <> Opts.hidden
+ 
+ client :: PortID -> IO ()
+ client port = do
+diff --git a/psc-ide-server/Main.hs b/psc-ide-server/Main.hs
+index ce51302..675966a 100644
+--- a/psc-ide-server/Main.hs
++++ b/psc-ide-server/Main.hs
+@@ -38,7 +38,8 @@ import           Network                           hiding (socketPort, accept)
+ import           Network.BSD                       (getProtocolNumber)
+ import           Network.Socket                    hiding (PortNumber, Type,
+                                                     sClose)
+-import           Options.Applicative               hiding ((<>))
++import           Options.Applicative               (ParseError (..))
++import qualified Options.Applicative               as Opts
+ import           System.Directory
+ import           System.FilePath
+ import           System.IO                         hiding (putStrLn, print)
+@@ -55,7 +56,7 @@ listenOnLocalhost port = do
+     sClose
+     (\sock -> do
+       setSocketOption sock ReuseAddr 1
+-      bindSocket sock (SockAddrInet port localhost)
++      bind sock (SockAddrInet port localhost)
+       listen sock maxListenQueue
+       pure sock)
+ 
+@@ -70,7 +71,7 @@ data Options = Options
+ 
+ main :: IO ()
+ main = do
+-  Options dir globs outputPath port noWatch debug <- execParser opts
++  Options dir globs outputPath port noWatch debug <- Opts.execParser opts
+   maybe (pure ()) setCurrentDirectory dir
+   ideState <- newTVarIO emptyIdeState
+   cwd <- getCurrentDirectory
+@@ -91,17 +92,17 @@ main = do
+   where
+     parser =
+       Options
+-        <$> optional (strOption (long "directory" `mappend` short 'd'))
+-        <*> many (argument str (metavar "Source GLOBS..."))
+-        <*> strOption (long "output-directory" `mappend` value "output/")
++        <$> optional (Opts.strOption (Opts.long "directory" `mappend` Opts.short 'd'))
++        <*> many (Opts.argument Opts.str (Opts.metavar "Source GLOBS..."))
++        <*> Opts.strOption (Opts.long "output-directory" `mappend` Opts.value "output/")
+         <*> (fromIntegral <$>
+-             option auto (long "port" `mappend` short 'p' `mappend` value (4242 :: Integer)))
+-        <*> switch (long "no-watch")
+-        <*> switch (long "debug")
+-    opts = info (version <*> helper <*> parser) mempty
+-    version = abortOption
++             Opts.option Opts.auto (Opts.long "port" `mappend` Opts.short 'p' `mappend` Opts.value (4242 :: Integer)))
++        <*> Opts.switch (Opts.long "no-watch")
++        <*> Opts.switch (Opts.long "debug")
++    opts = Opts.info (version <*> Opts.helper <*> parser) mempty
++    version = Opts.abortOption
+       (InfoMsg (showVersion Paths.version))
+-      (long "version" `mappend` help "Show the version number")
++      (Opts.long "version" `mappend` Opts.help "Show the version number")
+ 
+ startServer :: PortNumber -> IdeEnvironment -> IO ()
+ startServer port env = withSocketsDo $ do
+diff --git a/psc-publish/Main.hs b/psc-publish/Main.hs
+index 7242235..dd8f663 100644
+--- a/psc-publish/Main.hs
++++ b/psc-publish/Main.hs
+@@ -4,8 +4,10 @@ module Main where
+ import Data.Version (Version(..), showVersion)
+ import qualified Data.Aeson as A
+ import qualified Data.ByteString.Lazy.Char8 as BL
++import Data.Monoid ((<>))
+ 
+-import Options.Applicative hiding (str)
++import Options.Applicative (Parser, ParseError (..))
++import qualified Options.Applicative as Opts
+ 
+ import System.IO (hSetEncoding, stderr, stdout, utf8)
+ 
+@@ -14,9 +16,9 @@ import Language.PureScript.Publish
+ import Language.PureScript.Publish.ErrorsWarnings
+ 
+ dryRun :: Parser Bool
+-dryRun = switch $
+-     long "dry-run"
+-  <> help "Produce no output, and don't require a tagged version to be checked out."
++dryRun = Opts.switch $
++     Opts.long "dry-run"
++  <> Opts.help "Produce no output, and don't require a tagged version to be checked out."
+ 
+ dryRunOptions :: PublishOptions
+ dryRunOptions = defaultPublishOptions
+@@ -29,15 +31,16 @@ main :: IO ()
+ main = do
+   hSetEncoding stdout utf8
+   hSetEncoding stderr utf8
+-  execParser opts >>= publish
++  Opts.execParser opts >>= publish
+   where
+-  opts        = info (version <*> helper <*> dryRun) infoModList
+-  infoModList = fullDesc <> headerInfo <> footerInfo
+-  headerInfo  = header "psc-publish - Generates documentation packages for upload to http://pursuit.purescript.org"
+-  footerInfo  = footer $ "psc-publish " ++ showVersion Paths.version
++  opts        = Opts.info (version <*> Opts.helper <*> dryRun) infoModList
++  infoModList = Opts.fullDesc <> headerInfo <> footerInfo
++  headerInfo  = Opts.header "psc-publish - Generates documentation packages for upload to http://pursuit.purescript.org"
++  footerInfo  = Opts.footer $ "psc-publish " ++ showVersion Paths.version
+ 
+   version :: Parser (a -> a)
+-  version = abortOption (InfoMsg (showVersion Paths.version)) $ long "version" <> help "Show the version number" <> hidden
++  version = Opts.abortOption (InfoMsg (showVersion Paths.version)) $
++    Opts.long "version" <> Opts.help "Show the version number" <> Opts.hidden
+ 
+ publish :: Bool -> IO ()
+ publish isDryRun =
