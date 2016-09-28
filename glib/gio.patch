@@ -1,17 +1,26 @@
 diff --git a/gio/Makefile.am b/gio/Makefile.am
-index e993e2f..6eab656 100644
+index ffe5ee2..242f8ea 100644
 --- a/gio/Makefile.am
 +++ b/gio/Makefile.am
-@@ -131,7 +131,7 @@ endif
+@@ -135,7 +135,7 @@ endif
  
  if OS_COCOA
- settings_sources += \
+ cocoa_settings_sources = \
 -	gnextstepsettingsbackend.c
 +	gnextstepsettingsbackend.m
+ 
+ settings_sources += $(cocoa_settings_sources)
+ endif
+@@ -280,7 +280,7 @@ unix_sources = \
+ appinfo_sources += $(unix_appinfo_sources)
+ 
+ if OS_COCOA
+-unix_sources += gcocoanotificationbackend.c
++unix_sources += gcocoanotificationbackend.m
  endif
  
- application_headers = \
-@@ -516,8 +516,6 @@ libgio_2_0_la_LDFLAGS = $(GLIB_LINK_FLAGS) \
+ giounixincludedir=$(includedir)/gio-unix-2.0/gio
+@@ -581,8 +581,6 @@ libgio_2_0_la_LDFLAGS = $(GLIB_LINK_FLAGS) \
  	-export-dynamic $(no_undefined)
  
  if OS_COCOA
@@ -21,91 +30,57 @@ index e993e2f..6eab656 100644
  endif
  
 diff --git a/gio/Makefile.in b/gio/Makefile.in
-index 5c0791f..e4fd4bd 100644
+index caf7090..a96f846 100644
 --- a/gio/Makefile.in
 +++ b/gio/Makefile.in
-@@ -133,7 +133,7 @@ TESTS = $(am__EXEEXT_2)
- @OS_WIN32_TRUE@	gregistrysettingsbackend.c
- 
- @OS_COCOA_TRUE@am__append_18 = \
--@OS_COCOA_TRUE@	gnextstepsettingsbackend.c
-+@OS_COCOA_TRUE@	gnextstepsettingsbackend.m
- 
- @HAVE_INOTIFY_TRUE@am__append_19 = inotify
- @HAVE_INOTIFY_TRUE@am__append_20 = inotify/libinotify.la
-@@ -160,8 +160,6 @@ TESTS = $(am__EXEEXT_2)
- @OS_WIN32_TRUE@am__append_34 = gwin32appinfo.c gwin32appinfo.h
- @OS_WIN32_TRUE@am__append_35 = -lshlwapi -lws2_32 -ldnsapi -liphlpapi
- 
--# This is dumb.  The ObjC source file should be properly named .m
--@OS_COCOA_TRUE@am__append_36 = -xobjective-c
- @OS_COCOA_TRUE@am__append_37 = -Wl,-framework,Foundation -Wl,-framework,AppKit
- bin_PROGRAMS = gio-querymodules$(EXEEXT) glib-compile-schemas$(EXEEXT) \
- 	glib-compile-resources$(EXEEXT) gsettings$(EXEEXT) \
-@@ -305,7 +303,7 @@ am__libgio_2_0_la_SOURCES_DIST = gappinfo.c gappinfoprivate.h \
- 	gsettingsschema.h gsettingsschema-internal.h gsettingsschema.c \
- 	gsettings-mapping.h gsettings-mapping.c gsettings.c \
- 	gregistrysettingsbackend.h gregistrysettingsbackend.c \
--	gnextstepsettingsbackend.c gdbusutils.h gdbusutils.c \
-+	gnextstepsettingsbackend.m gdbusutils.h gdbusutils.c \
- 	gdbusaddress.h gdbusaddress.c gdbusauthobserver.h \
- 	gdbusauthobserver.c gdbusauth.h gdbusauth.c \
- 	gdbusauthmechanism.h gdbusauthmechanism.c \
-@@ -3438,12 +3436,12 @@ libgio_2_0_la-gregistrysettingsbackend.lo: gregistrysettingsbackend.c
- @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
- @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -c -o libgio_2_0_la-gregistrysettingsbackend.lo `test -f 'gregistrysettingsbackend.c' || echo '$(srcdir)/'`gregistrysettingsbackend.c
- 
--libgio_2_0_la-gnextstepsettingsbackend.lo: gnextstepsettingsbackend.c
--@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -MT libgio_2_0_la-gnextstepsettingsbackend.lo -MD -MP -MF $(DEPDIR)/libgio_2_0_la-gnextstepsettingsbackend.Tpo -c -o libgio_2_0_la-gnextstepsettingsbackend.lo `test -f 'gnextstepsettingsbackend.c' || echo '$(srcdir)/'`gnextstepsettingsbackend.c
-+libgio_2_0_la-gnextstepsettingsbackend.lo: gnextstepsettingsbackend.m
-+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -MT libgio_2_0_la-gnextstepsettingsbackend.lo -MD -MP -MF $(DEPDIR)/libgio_2_0_la-gnextstepsettingsbackend.Tpo -c -o libgio_2_0_la-gnextstepsettingsbackend.lo `test -f 'gnextstepsettingsbackend.m' || echo '$(srcdir)/'`gnextstepsettingsbackend.m
- @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libgio_2_0_la-gnextstepsettingsbackend.Tpo $(DEPDIR)/libgio_2_0_la-gnextstepsettingsbackend.Plo
--@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='gnextstepsettingsbackend.c' object='libgio_2_0_la-gnextstepsettingsbackend.lo' libtool=yes @AMDEPBACKSLASH@
-+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='gnextstepsettingsbackend.m' object='libgio_2_0_la-gnextstepsettingsbackend.lo' libtool=yes @AMDEPBACKSLASH@
- @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
--@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -c -o libgio_2_0_la-gnextstepsettingsbackend.lo `test -f 'gnextstepsettingsbackend.c' || echo '$(srcdir)/'`gnextstepsettingsbackend.c
-+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -c -o libgio_2_0_la-gnextstepsettingsbackend.lo `test -f 'gnextstepsettingsbackend.m' || echo '$(srcdir)/'`gnextstepsettingsbackend.m
- 
- libgio_2_0_la-gdbusutils.lo: gdbusutils.c
- @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -MT libgio_2_0_la-gdbusutils.lo -MD -MP -MF $(DEPDIR)/libgio_2_0_la-gdbusutils.Tpo -c -o libgio_2_0_la-gdbusutils.lo `test -f 'gdbusutils.c' || echo '$(srcdir)/'`gdbusutils.c
-diff --git a/gio/Makefile.am b/gio/Makefile.am
-index 4d2569d..f9be7ff 100644
---- a/gio/Makefile.am
-+++ b/gio/Makefile.am
-@@ -266,7 +266,7 @@ unix_sources = \
- 	$(NULL)
- 
- if OS_COCOA
--unix_sources += gcocoanotificationbackend.c
-+unix_sources += gcocoanotificationbackend.m
- endif
- 
- giounixincludedir=$(includedir)/gio-unix-2.0/gio
-diff --git a/gio/Makefile.in b/gio/Makefile.in
-index 3c59e20..f5caca2 100644
---- a/gio/Makefile.in
-+++ b/gio/Makefile.in
-@@ -181,7 +181,7 @@ TESTS = $(am__EXEEXT_2)
- @OS_UNIX_TRUE@am__append_29 = gdesktopappinfo.c
+@@ -172,7 +172,7 @@ TESTS = $(am__EXEEXT_2)
+ @OS_UNIX_TRUE@am__append_29 = xdgmime/libxdgmime.la
  @OS_UNIX_TRUE@am__append_30 = xdgmime/libxdgmime.la
- @OS_UNIX_TRUE@am__append_31 = xdgmime/libxdgmime.la
+ @OS_UNIX_TRUE@am__append_31 = $(unix_appinfo_sources)
 -@OS_COCOA_TRUE@@OS_UNIX_TRUE@am__append_32 = gcocoanotificationbackend.c
 +@OS_COCOA_TRUE@@OS_UNIX_TRUE@am__append_32 = gcocoanotificationbackend.m
  @HAVE_NETLINK_TRUE@@OS_UNIX_TRUE@am__append_33 = \
  @HAVE_NETLINK_TRUE@@OS_UNIX_TRUE@	gnetworkmonitornetlink.c \
  @HAVE_NETLINK_TRUE@@OS_UNIX_TRUE@	gnetworkmonitornetlink.h \
-@@ -315,7 +315,7 @@ am__libgio_2_0_la_SOURCES_DIST = gappinfo.c gappinfoprivate.h \
- 	gunixvolume.c gunixvolume.h gunixvolumemonitor.c \
- 	gunixvolumemonitor.h gunixinputstream.c gunixoutputstream.c \
- 	gcontenttype.c gcontenttypeprivate.h gfdonotificationbackend.c \
--	ggtknotificationbackend.c gcocoanotificationbackend.c \
-+	ggtknotificationbackend.c gcocoanotificationbackend.m \
- 	gnetworkmonitornetlink.c gnetworkmonitornetlink.h \
- 	gnetworkmonitornm.c gnetworkmonitornm.h gdbusdaemon.c \
- 	gdbusdaemon.h gdbus-daemon-generated.c \
-@@ -3322,12 +3322,12 @@ libgio_2_0_la-ggtknotificationbackend.lo: ggtknotificationbackend.c
+@@ -183,8 +183,6 @@ TESTS = $(am__EXEEXT_2)
+ @OS_WIN32_TRUE@am__append_34 = -lshlwapi -lws2_32 -ldnsapi -liphlpapi
+ @OS_WIN32_TRUE@am__append_35 = $(win32_appinfo_sources)
+ 
+-# This is dumb.  The ObjC source file should be properly named .m
+-@OS_COCOA_TRUE@am__append_36 = -xobjective-c
+ @OS_COCOA_TRUE@am__append_37 = -Wl,-framework,Foundation -Wl,-framework,AppKit
+ @HAVE_LIBMOUNT_TRUE@am__append_38 = $(LIBMOUNT_CFLAGS)
+ @HAVE_LIBMOUNT_TRUE@am__append_39 = $(LIBMOUNT_LIBS)
+@@ -360,7 +358,7 @@ am__libgio_2_0_la_SOURCES_DIST = gappinfo.c gappinfoprivate.h \
+ 	gportalsupport.h gnetworkmonitorportal.c \
+ 	gnetworkmonitorportal.h gproxyresolverportal.c \
+ 	gproxyresolverportal.h xdp-dbus.c xdp-dbus.h \
+-	gcocoanotificationbackend.c gnetworkmonitornetlink.c \
++	gcocoanotificationbackend.m gnetworkmonitornetlink.c \
+ 	gnetworkmonitornetlink.h gnetworkmonitornm.c \
+ 	gnetworkmonitornm.h gdbusdaemon.c gdbusdaemon.h \
+ 	gdbus-daemon-generated.c gdbus-daemon-generated.h \
+@@ -376,7 +374,7 @@ am__libgio_2_0_la_SOURCES_DIST = gappinfo.c gappinfoprivate.h \
+ 	gsettingsschema-internal.h gsettingsschema.c \
+ 	gsettings-mapping.h gsettings-mapping.c gsettings.c \
+ 	gregistrysettingsbackend.h gregistrysettingsbackend.c \
+-	gnextstepsettingsbackend.c
++	gnextstepsettingsbackend.m
+ am__objects_1 =
+ am__objects_2 = libgio_2_0_la-gapplication.lo \
+ 	libgio_2_0_la-gapplicationcommandline.lo \
+@@ -1396,7 +1394,7 @@ settings_sources = $(settings_base_sources) $(am__append_17) \
+ @OS_WIN32_TRUE@	gregistrysettingsbackend.c
+ 
+ @OS_COCOA_TRUE@cocoa_settings_sources = \
+-@OS_COCOA_TRUE@	gnextstepsettingsbackend.c
++@OS_COCOA_TRUE@	gnextstepsettingsbackend.m
+ 
+ application_headers = \
+ 	gapplication.h			\
+@@ -3960,12 +3958,12 @@ libgio_2_0_la-xdp-dbus.lo: xdp-dbus.c
  @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
- @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -c -o libgio_2_0_la-ggtknotificationbackend.lo `test -f 'ggtknotificationbackend.c' || echo '$(srcdir)/'`ggtknotificationbackend.c
+ @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -c -o libgio_2_0_la-xdp-dbus.lo `test -f 'xdp-dbus.c' || echo '$(srcdir)/'`xdp-dbus.c
  
 -libgio_2_0_la-gcocoanotificationbackend.lo: gcocoanotificationbackend.c
 -@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -MT libgio_2_0_la-gcocoanotificationbackend.lo -MD -MP -MF $(DEPDIR)/libgio_2_0_la-gcocoanotificationbackend.Tpo -c -o libgio_2_0_la-gcocoanotificationbackend.lo `test -f 'gcocoanotificationbackend.c' || echo '$(srcdir)/'`gcocoanotificationbackend.c
@@ -120,4 +95,20 @@ index 3c59e20..f5caca2 100644
  
  libgio_2_0_la-gnetworkmonitornetlink.lo: gnetworkmonitornetlink.c
  @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -MT libgio_2_0_la-gnetworkmonitornetlink.lo -MD -MP -MF $(DEPDIR)/libgio_2_0_la-gnetworkmonitornetlink.Tpo -c -o libgio_2_0_la-gnetworkmonitornetlink.lo `test -f 'gnetworkmonitornetlink.c' || echo '$(srcdir)/'`gnetworkmonitornetlink.c
-
+@@ -4107,12 +4105,12 @@ libgio_2_0_la-gregistrysettingsbackend.lo: gregistrysettingsbackend.c
+ @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+ @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -c -o libgio_2_0_la-gregistrysettingsbackend.lo `test -f 'gregistrysettingsbackend.c' || echo '$(srcdir)/'`gregistrysettingsbackend.c
+ 
+-libgio_2_0_la-gnextstepsettingsbackend.lo: gnextstepsettingsbackend.c
+-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -MT libgio_2_0_la-gnextstepsettingsbackend.lo -MD -MP -MF $(DEPDIR)/libgio_2_0_la-gnextstepsettingsbackend.Tpo -c -o libgio_2_0_la-gnextstepsettingsbackend.lo `test -f 'gnextstepsettingsbackend.c' || echo '$(srcdir)/'`gnextstepsettingsbackend.c
++libgio_2_0_la-gnextstepsettingsbackend.lo: gnextstepsettingsbackend.m
++@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -MT libgio_2_0_la-gnextstepsettingsbackend.lo -MD -MP -MF $(DEPDIR)/libgio_2_0_la-gnextstepsettingsbackend.Tpo -c -o libgio_2_0_la-gnextstepsettingsbackend.lo `test -f 'gnextstepsettingsbackend.m' || echo '$(srcdir)/'`gnextstepsettingsbackend.m
+ @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libgio_2_0_la-gnextstepsettingsbackend.Tpo $(DEPDIR)/libgio_2_0_la-gnextstepsettingsbackend.Plo
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='gnextstepsettingsbackend.c' object='libgio_2_0_la-gnextstepsettingsbackend.lo' libtool=yes @AMDEPBACKSLASH@
++@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='gnextstepsettingsbackend.m' object='libgio_2_0_la-gnextstepsettingsbackend.lo' libtool=yes @AMDEPBACKSLASH@
+ @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -c -o libgio_2_0_la-gnextstepsettingsbackend.lo `test -f 'gnextstepsettingsbackend.c' || echo '$(srcdir)/'`gnextstepsettingsbackend.c
++@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -c -o libgio_2_0_la-gnextstepsettingsbackend.lo `test -f 'gnextstepsettingsbackend.m' || echo '$(srcdir)/'`gnextstepsettingsbackend.m
+ 
+ gvdb-builder.o: gvdb/gvdb-builder.c
+ @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT gvdb-builder.o -MD -MP -MF $(DEPDIR)/gvdb-builder.Tpo -c -o gvdb-builder.o `test -f 'gvdb/gvdb-builder.c' || echo '$(srcdir)/'`gvdb/gvdb-builder.c
