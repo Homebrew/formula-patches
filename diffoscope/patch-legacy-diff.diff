@@ -1,0 +1,28 @@
+From 261be7c7bd911092d6703f2f9e370818055b9b9e Mon Sep 17 00:00:00 2001
+From: Mike McQuaid <mike@mikemcquaid.com>
+Date: Wed, 2 Dec 2015 13:16:36 +0200
+Subject: Support older versions of GNU diff.
+
+OS X 10.11 ships with an older GPLv2 version (`2.8.1`) which does not
+support the `diff -u7` flag but instead wants to use `diff -U7` which
+appears from the newer manpage to be forward compatible.
+---
+ diffoscope/difference.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/diffoscope/difference.py b/diffoscope/difference.py
+index 132f471..554e29e 100644
+--- a/diffoscope/difference.py
++++ b/diffoscope/difference.py
+@@ -127,7 +127,7 @@ DIFF_CHUNK = 4096
+ 
+ @tool_required('diff')
+ def run_diff(fd1, fd2, end_nl_q1, end_nl_q2):
+-    cmd = ['diff', '-au7', '/dev/fd/%d' % fd1, '/dev/fd/%d' % fd2]
++    cmd = ['diff', '-aU7', '/dev/fd/%d' % fd1, '/dev/fd/%d' % fd2]
+     logger.debug('running %s', cmd)
+     if hasattr(os, 'set_inheritable'): # new in Python 3.4
+         os.set_inheritable(fd1, True)
+-- 
+cgit v0.11.2
+
