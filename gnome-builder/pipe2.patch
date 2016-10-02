@@ -1,0 +1,62 @@
+diff --git a/libide/subprocess/ide-breakout-subprocess.c b/libide/subprocess/ide-breakout-subprocess.c
+index 5a1a0ea..3cd7ce4 100644
+--- a/libide/subprocess/ide-breakout-subprocess.c
++++ b/libide/subprocess/ide-breakout-subprocess.c
+@@ -180,6 +180,57 @@ static CommunicateState *ide_breakout_subprocess_communicate_internal (IdeBreako
+                                                                        GAsyncReadyCallback     callback,
+                                                                        gpointer                user_data);
+ 
++static int
++pipe2(int fd[2], int flags)
++{
++/* Check the supported flags.  */
++	if ((flags & ~(O_CLOEXEC | O_NONBLOCK)) != 0)
++	{
++		errno = EINVAL;
++		return -1;
++	}
++
++	if (pipe (fd) < 0)
++		return -1;
++
++/* POSIX <http://www.opengroup.org/onlinepubs/9699919799/functions/pipe.html>
++   says that initially, the O_NONBLOCK and FD_CLOEXEC flags are cleared on
++   both fd[0] amd fd[1].  */
++	if (flags & O_NONBLOCK)
++	{
++		int fcntl_flags;
++
++		if ((fcntl_flags = fcntl (fd[1], F_GETFL, 0)) < 0
++			|| fcntl (fd[1], F_SETFL, fcntl_flags | O_NONBLOCK) == -1
++			|| (fcntl_flags = fcntl (fd[0], F_GETFL, 0)) < 0
++			|| fcntl (fd[0], F_SETFL, fcntl_flags | O_NONBLOCK) == -1)
++			goto fail;
++	}
++
++	if (flags & O_CLOEXEC)
++	{
++		int fcntl_flags;
++
++		if ((fcntl_flags = fcntl (fd[1], F_GETFD, 0)) < 0
++			|| fcntl (fd[1], F_SETFD, fcntl_flags | FD_CLOEXEC) == -1
++			|| (fcntl_flags = fcntl (fd[0], F_GETFD, 0)) < 0
++			|| fcntl (fd[0], F_SETFD, fcntl_flags | FD_CLOEXEC) == -1)
++			goto fail;
++	}
++
++	return 0;
++
++fail:
++	{
++		int saved_errno = errno;
++		close (fd[0]);
++		close (fd[1]);
++		errno = saved_errno;
++		return -1;
++	}
++}
++
++
+ static GParamSpec *properties [N_PROPS];
+ 
+ static const gchar *
