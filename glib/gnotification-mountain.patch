@@ -1,8 +1,8 @@
 diff --git a/configure b/configure
-index 5c8bd02..48f128e 100755
+index b1f949a..1c8417c 100755
 --- a/configure
 +++ b/configure
-@@ -6029,30 +6029,6 @@ $as_echo "#define HAVE_COCOA 1" >>confdefs.h
+@@ -6044,30 +6044,6 @@ $as_echo "#define HAVE_COCOA 1" >>confdefs.h
    COCOA_LIBS="-Wl,-framework,Foundation"
    LDFLAGS="$LDFLAGS $COCOA_LIBS"
  
@@ -34,10 +34,10 @@ index 5c8bd02..48f128e 100755
    COCOA_LIBS=""
  fi
 diff --git a/configure.ac b/configure.ac
-index e4dc647..3b00181 100644
+index e8e7553..77967b8 100644
 --- a/configure.ac
 +++ b/configure.ac
-@@ -223,15 +223,6 @@ AS_IF([test "x$glib_have_cocoa" = "xyes"], [
+@@ -228,15 +228,6 @@ AS_IF([test "x$glib_have_cocoa" = "xyes"], [
    AC_DEFINE(HAVE_COCOA, 1, [define to 1 if Cocoa is available])
    COCOA_LIBS="-Wl,-framework,Foundation"
    LDFLAGS="$LDFLAGS $COCOA_LIBS"
@@ -54,12 +54,12 @@ index e4dc647..3b00181 100644
  
  AC_SUBST([COCOA_LIBS])
 diff --git a/gio/Makefile.am b/gio/Makefile.am
-index f9be7ff..a941cb2 100644
+index 242f8ea..7bae14d 100644
 --- a/gio/Makefile.am
 +++ b/gio/Makefile.am
-@@ -265,10 +265,6 @@ unix_sources = \
- 	ggtknotificationbackend.c \
- 	$(NULL)
+@@ -279,10 +279,6 @@ unix_sources = \
+ 
+ appinfo_sources += $(unix_appinfo_sources)
  
 -if OS_COCOA
 -unix_sources += gcocoanotificationbackend.m
@@ -68,7 +68,7 @@ index f9be7ff..a941cb2 100644
  giounixincludedir=$(includedir)/gio-unix-2.0/gio
  giounixinclude_HEADERS = \
  	gdesktopappinfo.h	\
-@@ -525,7 +521,7 @@ libgio_2_0_la_LDFLAGS = $(GLIB_LINK_FLAGS) \
+@@ -581,7 +577,7 @@ libgio_2_0_la_LDFLAGS = $(GLIB_LINK_FLAGS) \
  	-export-dynamic $(no_undefined)
  
  if OS_COCOA
@@ -76,37 +76,37 @@ index f9be7ff..a941cb2 100644
 +libgio_2_0_la_LDFLAGS += -Wl,-framework,Foundation
  endif
  
- libgio_2_0_la_DEPENDENCIES = $(gio_win32_res) $(gio_def) $(platform_deps)
+ if HAVE_LIBMOUNT
 diff --git a/gio/Makefile.in b/gio/Makefile.in
-index f5caca2..6043d76 100644
+index a96f846..656f73a 100644
 --- a/gio/Makefile.in
 +++ b/gio/Makefile.in
-@@ -181,7 +181,6 @@ TESTS = $(am__EXEEXT_2)
- @OS_UNIX_TRUE@am__append_29 = gdesktopappinfo.c
+@@ -172,7 +172,6 @@ TESTS = $(am__EXEEXT_2)
+ @OS_UNIX_TRUE@am__append_29 = xdgmime/libxdgmime.la
  @OS_UNIX_TRUE@am__append_30 = xdgmime/libxdgmime.la
- @OS_UNIX_TRUE@am__append_31 = xdgmime/libxdgmime.la
+ @OS_UNIX_TRUE@am__append_31 = $(unix_appinfo_sources)
 -@OS_COCOA_TRUE@@OS_UNIX_TRUE@am__append_32 = gcocoanotificationbackend.m
  @HAVE_NETLINK_TRUE@@OS_UNIX_TRUE@am__append_33 = \
  @HAVE_NETLINK_TRUE@@OS_UNIX_TRUE@	gnetworkmonitornetlink.c \
  @HAVE_NETLINK_TRUE@@OS_UNIX_TRUE@	gnetworkmonitornetlink.h \
-@@ -315,7 +314,7 @@ am__libgio_2_0_la_SOURCES_DIST = gappinfo.c gappinfoprivate.h \
- 	gunixvolume.c gunixvolume.h gunixvolumemonitor.c \
- 	gunixvolumemonitor.h gunixinputstream.c gunixoutputstream.c \
- 	gcontenttype.c gcontenttypeprivate.h gfdonotificationbackend.c \
--	ggtknotificationbackend.c gcocoanotificationbackend.m \
-+	ggtknotificationbackend.c \
- 	gnetworkmonitornetlink.c gnetworkmonitornetlink.h \
- 	gnetworkmonitornm.c gnetworkmonitornm.h gdbusdaemon.c \
- 	gdbusdaemon.h gdbus-daemon-generated.c \
-@@ -371,7 +370,6 @@ am__libgio_2_0_la_SOURCES_DIST = gappinfo.c gappinfoprivate.h \
- @OS_WIN32_TRUE@am__objects_2 = libgio_2_0_la-gwin32appinfo.lo
- am__objects_3 = $(am__objects_1) $(am__objects_2)
- am__objects_4 =
--@OS_COCOA_TRUE@@OS_UNIX_TRUE@am__objects_5 = libgio_2_0_la-gcocoanotificationbackend.lo
- @HAVE_NETLINK_TRUE@@OS_UNIX_TRUE@am__objects_6 = libgio_2_0_la-gnetworkmonitornetlink.lo \
+@@ -358,7 +357,7 @@ am__libgio_2_0_la_SOURCES_DIST = gappinfo.c gappinfoprivate.h \
+ 	gportalsupport.h gnetworkmonitorportal.c \
+ 	gnetworkmonitorportal.h gproxyresolverportal.c \
+ 	gproxyresolverportal.h xdp-dbus.c xdp-dbus.h \
+-	gcocoanotificationbackend.m gnetworkmonitornetlink.c \
++	gnetworkmonitornetlink.c \
+ 	gnetworkmonitornetlink.h gnetworkmonitornm.c \
+ 	gnetworkmonitornm.h gdbusdaemon.c gdbusdaemon.h \
+ 	gdbus-daemon-generated.c gdbus-daemon-generated.h \
+@@ -519,7 +518,6 @@ am__objects_11 = libgio_2_0_la-xdp-dbus.lo
+ am__objects_12 = libgio_2_0_la-gnetworkmonitorportal.lo \
+ 	libgio_2_0_la-gproxyresolverportal.lo $(am__objects_11) \
+ 	$(am__objects_1)
+-@OS_COCOA_TRUE@@OS_UNIX_TRUE@am__objects_13 = libgio_2_0_la-gcocoanotificationbackend.lo
+ @HAVE_NETLINK_TRUE@@OS_UNIX_TRUE@am__objects_14 = libgio_2_0_la-gnetworkmonitornetlink.lo \
  @HAVE_NETLINK_TRUE@@OS_UNIX_TRUE@	libgio_2_0_la-gnetworkmonitornm.lo \
- @HAVE_NETLINK_TRUE@@OS_UNIX_TRUE@	$(am__objects_4)
-@@ -2204,7 +2202,6 @@ distclean-compile:
+ @HAVE_NETLINK_TRUE@@OS_UNIX_TRUE@	$(am__objects_1)
+@@ -2354,7 +2352,6 @@ distclean-compile:
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libgio_2_0_la-gbytesicon.Plo@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libgio_2_0_la-gcancellable.Plo@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libgio_2_0_la-gcharsetconverter.Plo@am__quote@
@@ -399,11 +399,11 @@ index 8a78c99..0000000
 -  backend_class->withdraw_notification = g_cocoa_notification_backend_withdraw_notification;
 -}
 diff --git a/gio/giomodule.c b/gio/giomodule.c
-index 11581b4..f559c74 100644
+index dcd523b..f2fc34c 100644
 --- a/gio/giomodule.c
 +++ b/gio/giomodule.c
-@@ -911,10 +911,6 @@ extern GType g_fdo_notification_backend_get_type (void);
- extern GType g_gtk_notification_backend_get_type (void);
+@@ -918,10 +918,6 @@ extern GType g_proxy_resolver_portal_get_type (void);
+ extern GType g_network_monitor_portal_get_type (void);
  #endif
  
 -#ifdef HAVE_COCOA
@@ -413,9 +413,9 @@ index 11581b4..f559c74 100644
  #ifdef G_PLATFORM_WIN32
  
  #include <windows.h>
-@@ -1088,9 +1084,6 @@ _g_io_modules_ensure_loaded (void)
-       g_type_ensure (g_fdo_notification_backend_get_type ());
-       g_type_ensure (g_gtk_notification_backend_get_type ());
+@@ -1121,9 +1117,6 @@ _g_io_modules_ensure_loaded (void)
+       g_type_ensure (g_network_monitor_portal_get_type ());
+       g_type_ensure (g_proxy_resolver_portal_get_type ());
  #endif
 -#ifdef HAVE_COCOA
 -      g_type_ensure (g_cocoa_notification_backend_get_type ());
