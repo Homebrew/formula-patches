@@ -1,0 +1,12 @@
+diff --git a/gstreamer/gstreamermm/caps.h b/gstreamer/gstreamermm/caps.h
+index 127ab92..3428b66 100644
+--- a/gstreamer/gstreamermm/caps.h
++++ b/gstreamer/gstreamermm/caps.h
+@@ -26,6 +26,7 @@
+  */
+ 
+ #include <gstreamermm/miniobject.h>
++#include <gstreamermm/structure.h>
+ 
+ 
+ namespace Gst
