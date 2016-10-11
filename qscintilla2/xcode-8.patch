@@ -1,0 +1,45 @@
+diff --git a/Qt4Qt5/Qsci/qsciscintilla.h b/Qt4Qt5/Qsci/qsciscintilla.h
+index 3da9883..7c2aec2 100644
+--- a/Qt4Qt5/Qsci/qsciscintilla.h
++++ b/Qt4Qt5/Qsci/qsciscintilla.h
+@@ -22,10 +22,6 @@
+ #ifndef QSCISCINTILLA_H
+ #define QSCISCINTILLA_H
+ 
+-#ifdef __APPLE__
+-extern "C++" {
+-#endif
+-
+ #include <QByteArray>
+ #include <QList>
+ #include <QObject>
+@@ -2135,7 +2131,6 @@ private:
+     int ct_cursor;
+     QList<int> ct_shifts;
+     AutoCompletionUseSingle use_single;
+-    QPointer<QsciLexer> lex;
+     QsciCommandSet *stdCmds;
+     QsciDocument doc;
+     QColor nl_text_colour;
+@@ -2157,8 +2152,4 @@ private:
+     QsciScintilla &operator=(const QsciScintilla &);
+ };
+ 
+-#ifdef __APPLE__
+-}
+-#endif
+-
+ #endif
+diff --git a/Qt4Qt5/qsciscintilla.cpp b/Qt4Qt5/qsciscintilla.cpp
+index 193d7b4..5bc3d2f 100644
+--- a/Qt4Qt5/qsciscintilla.cpp
++++ b/Qt4Qt5/qsciscintilla.cpp
+@@ -41,6 +41,8 @@
+ #include "Qsci/qscistyle.h"
+ #include "Qsci/qscistyledtext.h"
+ 
++QPointer<QsciLexer> lex;
++
+ 
+ // Make sure these match the values in Scintilla.h.  We don't #include that
+ // file because it just causes more clashes.
