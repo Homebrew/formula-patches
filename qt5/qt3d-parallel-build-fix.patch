@@ -1,0 +1,31 @@
+From db3baec236841f9390e9450772838cb7ba878069 Mon Sep 17 00:00:00 2001
+From: Sean Harmer <sean.harmer@kdab.com>
+Date: Thu, 4 Aug 2016 15:08:14 +0100
+Subject: Add missing build dep
+
+Fixes parallel builds where they were sometimes failing on macOS with
+static builds.
+
+Task-number: QTBUG-54152
+Change-Id: I8e3ab43031fcfe29bfb85a37d4215f02c461c40f
+Reviewed-by: Paul Lemire <paul.lemire@kdab.com>
+---
+ qt3d/src/src.pro | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/qt3d/src/src.pro b/qt3d/src/src.pro
+index 9d51e6b..61ceeb5 100644
+--- a/qt3d/src/src.pro
++++ b/qt3d/src/src.pro
+@@ -59,7 +59,7 @@ src_quick3d_imports_logic.depends = src_logic
+ 
+ src_quick3d_imports_extras.file = $$PWD/quick3d/imports/extras/importsextras.pro
+ src_quick3d_imports_extras.target = sub-quick3d-imports-extras
+-src_quick3d_imports_extras.depends = src_extras
++src_quick3d_imports_extras.depends = src_extras src_quick3d_extras
+ 
+ # Qt3D Scene Parser plugins
+ src_plugins_sceneparsers.file = $$PWD/plugins/sceneparsers/sceneparsers.pro
+-- 
+cgit v1.0-4-g1e03
+
