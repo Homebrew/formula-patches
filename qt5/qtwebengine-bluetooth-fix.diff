@@ -1,5 +1,5 @@
 diff --git a/qtwebengine/src/3rdparty/chromium/base/mac/sdk_forward_declarations.h b/qtwebengine/src/3rdparty/chromium/base/mac/sdk_forward_declarations.h
-index e45ab43..1ba35cb 100644
+index 769d762..3569e04 100644
 --- a/qtwebengine/src/3rdparty/chromium/base/mac/sdk_forward_declarations.h
 +++ b/qtwebengine/src/3rdparty/chromium/base/mac/sdk_forward_declarations.h
 @@ -15,6 +15,7 @@
@@ -7,6 +7,6 @@ index e45ab43..1ba35cb 100644
  #import <ImageCaptureCore/ImageCaptureCore.h>
  #import <IOBluetooth/IOBluetooth.h>
 +#import <CoreBluetooth/CoreBluetooth.h>
+ #include <stdint.h>
  
  #include "base/base_export.h"
- 
