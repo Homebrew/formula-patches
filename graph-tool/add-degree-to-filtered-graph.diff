@@ -1,0 +1,33 @@
+diff --git a/src/boost-workaround/boost/graph/filtered_graph.hpp b/src/boost-workaround/boost/graph/filtered_graph.hpp
+index 679d431..b5f61b7 100644
+--- a/src/boost-workaround/boost/graph/filtered_graph.hpp
++++ b/src/boost-workaround/boost/graph/filtered_graph.hpp
+@@ -458,6 +458,28 @@ template <typename G, typename EP, typename VP>
+ 
+   template <typename G, typename EP, typename VP>
+   inline __attribute__((always_inline))
++  typename enable_if<typename is_directed_graph<G>::type,
++    typename filtered_graph<G, EP, VP>::degree_size_type
++  >::type
++  degree(typename filtered_graph<G, EP, VP>::vertex_descriptor u,
++          const filtered_graph<G, EP, VP>& g)
++  {
++    return out_degree(u, g) + in_degree(u, g);
++  }
++
++  template <typename G, typename EP, typename VP>
++  inline __attribute__((always_inline))
++  typename disable_if<typename is_directed_graph<G>::type,
++    typename filtered_graph<G, EP, VP>::degree_size_type
++  >::type
++  degree(typename filtered_graph<G, EP, VP>::vertex_descriptor u,
++          const filtered_graph<G, EP, VP>& g)
++  {
++    return out_degree(u, g);
++  }
++
++  template <typename G, typename EP, typename VP>
++  inline __attribute__((always_inline))
+   std::pair<typename filtered_graph<G, EP, VP>::edge_descriptor, bool>
+   edge(typename filtered_graph<G, EP, VP>::vertex_descriptor u,
+        typename filtered_graph<G, EP, VP>::vertex_descriptor v,
