@@ -279,3 +279,17 @@ index 17c2c82e..34e09fe 100644
  
  SET_AND_EXPOSE_TO_BUILD(ENABLE_DEVELOPER_MODE ${DEVELOPER_MODE})
  if (DEVELOPER_MODE)
+ diff --git a/Source/WebCore/PlatformGTK.cmake b/Source/WebCore/PlatformGTK.cmake
+index 567bd79..81ac465 100644
+--- a/Source/WebCore/PlatformGTK.cmake
++++ b/Source/WebCore/PlatformGTK.cmake
+@@ -202,8 +202,6 @@ list(APPEND WebCorePlatformGTK_SOURCES
+     page/gtk/DragControllerGtk.cpp
+     page/gtk/EventHandlerGtk.cpp
+ 
+-    platform/graphics/PlatformDisplay.cpp
+-
+     platform/graphics/freetype/FontPlatformDataFreeType.cpp
+ 
+     platform/graphics/gtk/ColorGtk.cpp
+
