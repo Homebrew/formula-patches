@@ -34,81 +34,6 @@ index f228d6b..812dda1 100644
  
  private:
      static std::unique_ptr<PlatformDisplay> createPlatformDisplay();
-diff --git a/Source/WebCore/platform/graphics/wayland/PlatformDisplayWayland.cpp b/Source/WebCore/platform/graphics/wayland/PlatformDisplayWayland.cpp
-index 1039288..8761443 100644
---- a/Source/WebCore/platform/graphics/wayland/PlatformDisplayWayland.cpp
-+++ b/Source/WebCore/platform/graphics/wayland/PlatformDisplayWayland.cpp
-@@ -66,6 +66,7 @@ void PlatformDisplayWayland::initialize(wl_display* display)
-     wl_registry_add_listener(m_registry.get(), &s_registryListener, this);
-     wl_display_roundtrip(m_display);
- 
-+#if USE(EGL)
- #if defined(EGL_KHR_platform_wayland)
-     const char* extensions = eglQueryString(nullptr, EGL_EXTENSIONS);
-     if (GLContext::isExtensionSupported(extensions, "EGL_KHR_platform_base")) {
-@@ -79,6 +80,7 @@ void PlatformDisplayWayland::initialize(wl_display* display)
-         m_eglDisplay = eglGetDisplay(m_display);
- 
-     PlatformDisplay::initializeEGLDisplay();
-+#endif
- }
- 
- void PlatformDisplayWayland::registryGlobal(const char* interface, uint32_t name)
-diff --git a/Source/WebCore/platform/graphics/x11/PlatformDisplayX11.cpp b/Source/WebCore/platform/graphics/x11/PlatformDisplayX11.cpp
-index b492ec6..1ca3fa1 100644
---- a/Source/WebCore/platform/graphics/x11/PlatformDisplayX11.cpp
-+++ b/Source/WebCore/platform/graphics/x11/PlatformDisplayX11.cpp
-@@ -56,8 +56,10 @@ PlatformDisplayX11::PlatformDisplayX11(Display* display)
- 
- PlatformDisplayX11::~PlatformDisplayX11()
- {
-+#if USE(EGL) || USE(GLX)
-     // Clear the sharing context before releasing the display.
-     m_sharingGLContext = nullptr;
-+#endif
-     if (m_ownedDisplay)
-         XCloseDisplay(m_display);
- }
-diff --git a/Source/WebKit2/ChangeLog b/Source/WebKit2/ChangeLog
-index 15f4e15..10b5aef 100644
---- a/Source/WebKit2/ChangeLog
-+++ b/Source/WebKit2/ChangeLog
-@@ -1,3 +1,35 @@
-+2016-10-20  Carlos Garcia Campos  <cgarcia@igalia.com>
-+
-+        [GTK] Configures but fails to link with ENABLE_OPENGL=OFF
-+        https://bugs.webkit.org/show_bug.cgi?id=163449
-+
-+        Reviewed by Michael Catanzaro.
-+
-+        * UIProcess/API/gtk/WebKitWebViewBase.cpp:
-+        (webkitWebViewBaseRealize): Check TEXTURE_MAPPER_GL instead of TEXTURE_MAPPER and also ensure the current
-+        display is X11.
-+        (webkitWebViewBaseUnrealize): Ditto.
-+        (webkitWebViewBaseDidRelaunchWebProcess): Check TEXTURE_MAPPER_GL instead of TEXTURE_MAPPER.
-+        (webkitWebViewBasePageClosed): Ditto.
-+        * UIProcess/AcceleratedDrawingAreaProxy.cpp:
-+        (WebKit::AcceleratedDrawingAreaProxy::didUpdateBackingStoreState): Ditto.
-+        (WebKit::AcceleratedDrawingAreaProxy::waitForAndDispatchDidUpdateBackingStoreState): Check EGL is enabled before
-+        trying to use the WaylandCompositor.
-+        * UIProcess/AcceleratedDrawingAreaProxy.h:
-+        * UIProcess/WebProcessPool.cpp:
-+        (WebKit::WebProcessPool::createNewWebProcess): Ditto.
-+        * UIProcess/gtk/AcceleratedBackingStore.cpp:
-+        (WebKit::AcceleratedBackingStore::create): Ditto.
-+        * UIProcess/gtk/AcceleratedBackingStoreWayland.cpp:
-+        * UIProcess/gtk/WaylandCompositor.cpp:
-+        * UIProcess/gtk/WaylandCompositor.h:
-+        * WebProcess/WebPage/AcceleratedDrawingArea.cpp:
-+        (WebKit::AcceleratedDrawingArea::enterAcceleratedCompositingMode): Check TEXTURE_MAPPER_GL instead of TEXTURE_MAPPER.
-+        * WebProcess/WebPage/AcceleratedDrawingArea.h:
-+        * WebProcess/WebPage/DrawingArea.h:
-+        * WebProcess/WebPage/DrawingArea.messages.in:
-+        * WebProcess/WebPage/LayerTreeHost.h:
-+
- 2016-10-20  Chris Dumez  <cdumez@apple.com>
- 
-         "Download Linked File" context menu action should use 'download' attribute as suggested filename
 diff --git a/Source/WebKit2/UIProcess/API/gtk/WebKitWebViewBase.cpp b/Source/WebKit2/UIProcess/API/gtk/WebKitWebViewBase.cpp
 index 6740216..1c89a30 100644
 --- a/Source/WebKit2/UIProcess/API/gtk/WebKitWebViewBase.cpp
@@ -254,44 +179,6 @@ index 51e22c2..12e03c4 100644
  #include "WaylandCompositor.h"
  #include "WebPageProxy.h"
 @@ -162,4 +162,4 @@ bool AcceleratedBackingStoreWayland::paint(cairo_t* cr, const IntRect& clipRect)
- 
- } // namespace WebKit
- 
--#endif // PLATFORM(WAYLAND)
-+#endif // PLATFORM(WAYLAND) && USE(EGL)
-diff --git a/Source/WebKit2/UIProcess/gtk/WaylandCompositor.cpp b/Source/WebKit2/UIProcess/gtk/WaylandCompositor.cpp
-index a6fb661..cf1f52a 100644
---- a/Source/WebKit2/UIProcess/gtk/WaylandCompositor.cpp
-+++ b/Source/WebKit2/UIProcess/gtk/WaylandCompositor.cpp
-@@ -26,7 +26,7 @@
- #include "config.h"
- #include "WaylandCompositor.h"
- 
--#if PLATFORM(WAYLAND)
-+#if PLATFORM(WAYLAND) && USE(EGL)
- 
- #include "WebKit2WaylandServerProtocol.h"
- #include <EGL/egl.h>
-@@ -516,4 +516,4 @@ void WaylandCompositor::unregisterWebPage(WebPageProxy& webPage)
- 
- } // namespace WebKit
- 
--#endif // PLATFORM(WAYLAND)
-+#endif // PLATFORM(WAYLAND) && USE(EGL)
-diff --git a/Source/WebKit2/UIProcess/gtk/WaylandCompositor.h b/Source/WebKit2/UIProcess/gtk/WaylandCompositor.h
-index 626ec3a..a7fd948 100644
---- a/Source/WebKit2/UIProcess/gtk/WaylandCompositor.h
-+++ b/Source/WebKit2/UIProcess/gtk/WaylandCompositor.h
-@@ -25,7 +25,7 @@
- 
- #pragma once
- 
--#if PLATFORM(WAYLAND)
-+#if PLATFORM(WAYLAND) && USE(EGL)
- 
- #include "WebPageProxy.h"
- #include <WebCore/RefPtrCairo.h>
-@@ -126,4 +126,4 @@ class WaylandCompositor {
  
  } // namespace WebKit
  
