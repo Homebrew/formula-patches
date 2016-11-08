@@ -1,0 +1,295 @@
+diff --git a/Source/WebCore/platform/graphics/PlatformDisplay.cpp b/Source/WebCore/platform/graphics/PlatformDisplay.cpp
+index 18517d2..bf1a857 100644
+--- a/Source/WebCore/platform/graphics/PlatformDisplay.cpp
++++ b/Source/WebCore/platform/graphics/PlatformDisplay.cpp
+@@ -132,7 +132,7 @@ PlatformDisplay::~PlatformDisplay()
+ #endif
+ }
+ 
+-#if !PLATFORM(EFL)
++#if !PLATFORM(EFL) && (USE(EGL) || USE(GLX))
+ GLContext* PlatformDisplay::sharingGLContext()
+ {
+     if (!m_sharingGLContext)
+diff --git a/Source/WebCore/platform/graphics/PlatformDisplay.h b/Source/WebCore/platform/graphics/PlatformDisplay.h
+index f228d6b..812dda1 100644
+--- a/Source/WebCore/platform/graphics/PlatformDisplay.h
++++ b/Source/WebCore/platform/graphics/PlatformDisplay.h
+@@ -58,7 +58,7 @@ class PlatformDisplay {
+ 
+     virtual Type type() const = 0;
+ 
+-#if !PLATFORM(EFL)
++#if !PLATFORM(EFL) && (USE(EGL) || USE(GLX))
+     // FIXME: This should not have any platform ifdef, but EFL has its own EGLContext class
+     // instead of using the GLContext common API.
+     GLContext* sharingGLContext();
+@@ -80,7 +80,9 @@ class PlatformDisplay {
+     EGLDisplay m_eglDisplay;
+ #endif
+ 
++#if USE(EGL) || USE(GLX)
+     std::unique_ptr<GLContext> m_sharingGLContext;
++#endif
+ 
+ private:
+     static std::unique_ptr<PlatformDisplay> createPlatformDisplay();
+diff --git a/Source/WebKit2/UIProcess/API/gtk/WebKitWebViewBase.cpp b/Source/WebKit2/UIProcess/API/gtk/WebKitWebViewBase.cpp
+index 6740216..1c89a30 100644
+--- a/Source/WebKit2/UIProcess/API/gtk/WebKitWebViewBase.cpp
++++ b/Source/WebKit2/UIProcess/API/gtk/WebKitWebViewBase.cpp
+@@ -377,9 +377,11 @@ static void webkitWebViewBaseRealize(GtkWidget* widget)
+     gtk_widget_set_window(widget, window);
+     gdk_window_set_user_data(window, widget);
+ 
+-#if USE(TEXTURE_MAPPER) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
+-    if (DrawingAreaProxyImpl* drawingArea = static_cast<DrawingAreaProxyImpl*>(priv->pageProxy->drawingArea()))
+-        drawingArea->setNativeSurfaceHandleForCompositing(GDK_WINDOW_XID(window));
++#if USE(TEXTURE_MAPPER_GL) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
++    if (PlatformDisplay::sharedDisplay().type() == PlatformDisplay::Type::X11) {
++        if (DrawingAreaProxyImpl* drawingArea = static_cast<DrawingAreaProxyImpl*>(priv->pageProxy->drawingArea()))
++            drawingArea->setNativeSurfaceHandleForCompositing(GDK_WINDOW_XID(window));
++    }
+ #endif
+ 
+     gtk_style_context_set_background(gtk_widget_get_style_context(widget), window);
+@@ -390,9 +392,11 @@ static void webkitWebViewBaseRealize(GtkWidget* widget)
+ static void webkitWebViewBaseUnrealize(GtkWidget* widget)
+ {
+     WebKitWebViewBase* webView = WEBKIT_WEB_VIEW_BASE(widget);
+-#if USE(TEXTURE_MAPPER) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
+-    if (DrawingAreaProxyImpl* drawingArea = static_cast<DrawingAreaProxyImpl*>(webView->priv->pageProxy->drawingArea()))
+-        drawingArea->destroyNativeSurfaceHandleForCompositing();
++#if USE(TEXTURE_MAPPER_GL) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
++    if (PlatformDisplay::sharedDisplay().type() == PlatformDisplay::Type::X11) {
++        if (DrawingAreaProxyImpl* drawingArea = static_cast<DrawingAreaProxyImpl*>(webView->priv->pageProxy->drawingArea()))
++            drawingArea->destroyNativeSurfaceHandleForCompositing();
++    }
+ #endif
+     gtk_im_context_set_client_window(webView->priv->inputMethodFilter.context(), nullptr);
+ 
+@@ -1476,7 +1480,7 @@ void webkitWebViewBaseDidRelaunchWebProcess(WebKitWebViewBase* webkitWebViewBase
+     // Queue a resize to ensure the new DrawingAreaProxy is resized.
+     gtk_widget_queue_resize_no_redraw(GTK_WIDGET(webkitWebViewBase));
+ 
+-#if PLATFORM(X11) && USE(TEXTURE_MAPPER) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
++#if PLATFORM(X11) && USE(TEXTURE_MAPPER_GL) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
+     if (PlatformDisplay::sharedDisplay().type() != PlatformDisplay::Type::X11)
+         return;
+ 
+@@ -1498,7 +1502,7 @@ void webkitWebViewBasePageClosed(WebKitWebViewBase* webkitWebViewBase)
+ {
+     if (webkitWebViewBase->priv->acceleratedBackingStore)
+         webkitWebViewBase->priv->acceleratedBackingStore->update(LayerTreeContext());
+-#if PLATFORM(X11) && USE(TEXTURE_MAPPER) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
++#if PLATFORM(X11) && USE(TEXTURE_MAPPER_GL) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
+     if (PlatformDisplay::sharedDisplay().type() != PlatformDisplay::Type::X11)
+         return;
+ 
+diff --git a/Source/WebKit2/UIProcess/AcceleratedDrawingAreaProxy.cpp b/Source/WebKit2/UIProcess/AcceleratedDrawingAreaProxy.cpp
+index 31655cb..0e3c6e0 100644
+--- a/Source/WebKit2/UIProcess/AcceleratedDrawingAreaProxy.cpp
++++ b/Source/WebKit2/UIProcess/AcceleratedDrawingAreaProxy.cpp
+@@ -139,7 +139,7 @@ void AcceleratedDrawingAreaProxy::didUpdateBackingStoreState(uint64_t backingSto
+     else {
+         m_hasReceivedFirstUpdate = true;
+ 
+-#if USE(TEXTURE_MAPPER) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
++#if USE(TEXTURE_MAPPER_GL) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
+         if (m_pendingNativeSurfaceHandleForCompositing) {
+             setNativeSurfaceHandleForCompositing(m_pendingNativeSurfaceHandleForCompositing);
+             m_pendingNativeSurfaceHandleForCompositing = 0;
+@@ -223,7 +223,7 @@ void AcceleratedDrawingAreaProxy::waitForAndDispatchDidUpdateBackingStoreState()
+     if (!m_webPageProxy.isViewVisible())
+         return;
+ 
+-#if PLATFORM(WAYLAND)
++#if PLATFORM(WAYLAND) && USE(EGL)
+     // Never block the UI process in Wayland when waiting for DidUpdateBackingStoreState after a resize,
+     // because the nested compositor needs to handle the web process requests that happens while resizing.
+     if (PlatformDisplay::sharedDisplay().type() == PlatformDisplay::Type::Wayland && WaylandCompositor::singleton().isRunning())
+@@ -263,7 +263,7 @@ void AcceleratedDrawingAreaProxy::updateAcceleratedCompositingMode(const LayerTr
+     m_webPageProxy.updateAcceleratedCompositingMode(layerTreeContext);
+ }
+ 
+-#if USE(TEXTURE_MAPPER) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
++#if USE(TEXTURE_MAPPER_GL) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
+ void AcceleratedDrawingAreaProxy::setNativeSurfaceHandleForCompositing(uint64_t handle)
+ {
+     if (!m_hasReceivedFirstUpdate) {
+diff --git a/Source/WebKit2/UIProcess/AcceleratedDrawingAreaProxy.h b/Source/WebKit2/UIProcess/AcceleratedDrawingAreaProxy.h
+index ca37bf6..7b8e616 100644
+--- a/Source/WebKit2/UIProcess/AcceleratedDrawingAreaProxy.h
++++ b/Source/WebKit2/UIProcess/AcceleratedDrawingAreaProxy.h
+@@ -46,7 +46,7 @@ class AcceleratedDrawingAreaProxy : public DrawingAreaProxy {
+     CoordinatedLayerTreeHostProxy& coordinatedLayerTreeHostProxy() const { return *m_coordinatedLayerTreeHostProxy.get(); }
+ #endif
+ 
+-#if USE(TEXTURE_MAPPER) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
++#if USE(TEXTURE_MAPPER_GL) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
+     void setNativeSurfaceHandleForCompositing(uint64_t);
+     void destroyNativeSurfaceHandleForCompositing();
+ #endif
+@@ -99,7 +99,7 @@ class AcceleratedDrawingAreaProxy : public DrawingAreaProxy {
+     // For a new Drawing Area don't draw anything until the WebProcess has sent over the first content.
+     bool m_hasReceivedFirstUpdate { false };
+ 
+-#if USE(TEXTURE_MAPPER) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
++#if USE(TEXTURE_MAPPER_GL) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
+     uint64_t m_pendingNativeSurfaceHandleForCompositing { 0 };
+ #endif
+ };
+diff --git a/Source/WebKit2/UIProcess/WebProcessPool.cpp b/Source/WebKit2/UIProcess/WebProcessPool.cpp
+index ad7502b..83c60b4 100644
+--- a/Source/WebKit2/UIProcess/WebProcessPool.cpp
++++ b/Source/WebKit2/UIProcess/WebProcessPool.cpp
+@@ -647,7 +647,7 @@ WebProcessProxy& WebProcessPool::createNewWebProcess()
+         parameters.memoryPressureMonitorHandle = MemoryPressureMonitor::singleton().createHandle();
+ #endif
+ 
+-#if PLATFORM(WAYLAND)
++#if PLATFORM(WAYLAND) && USE(EGL)
+     if (PlatformDisplay::sharedDisplay().type() == PlatformDisplay::Type::Wayland)
+         parameters.waylandCompositorDisplayName = WaylandCompositor::singleton().displayName();
+ #endif
+diff --git a/Source/WebKit2/UIProcess/gtk/AcceleratedBackingStore.cpp b/Source/WebKit2/UIProcess/gtk/AcceleratedBackingStore.cpp
+index c162a3b..86885c8 100644
+--- a/Source/WebKit2/UIProcess/gtk/AcceleratedBackingStore.cpp
++++ b/Source/WebKit2/UIProcess/gtk/AcceleratedBackingStore.cpp
+@@ -44,7 +44,7 @@ namespace WebKit {
+ 
+ std::unique_ptr<AcceleratedBackingStore> AcceleratedBackingStore::create(WebPageProxy& webPage)
+ {
+-#if PLATFORM(WAYLAND)
++#if PLATFORM(WAYLAND) && USE(EGL)
+     if (PlatformDisplay::sharedDisplay().type() == PlatformDisplay::Type::Wayland)
+         return AcceleratedBackingStoreWayland::create(webPage);
+ #endif
+diff --git a/Source/WebKit2/UIProcess/gtk/AcceleratedBackingStoreWayland.cpp b/Source/WebKit2/UIProcess/gtk/AcceleratedBackingStoreWayland.cpp
+index 51e22c2..12e03c4 100644
+--- a/Source/WebKit2/UIProcess/gtk/AcceleratedBackingStoreWayland.cpp
++++ b/Source/WebKit2/UIProcess/gtk/AcceleratedBackingStoreWayland.cpp
+@@ -26,7 +26,7 @@
+ #include "config.h"
+ #include "AcceleratedBackingStoreWayland.h"
+ 
+-#if PLATFORM(WAYLAND)
++#if PLATFORM(WAYLAND) && USE(EGL)
+ 
+ #include "WaylandCompositor.h"
+ #include "WebPageProxy.h"
+@@ -162,4 +162,4 @@ bool AcceleratedBackingStoreWayland::paint(cairo_t* cr, const IntRect& clipRect)
+ 
+ } // namespace WebKit
+ 
+-#endif // PLATFORM(WAYLAND)
++#endif // PLATFORM(WAYLAND) && USE(EGL)
+diff --git a/Source/WebKit2/WebProcess/WebPage/AcceleratedDrawingArea.cpp b/Source/WebKit2/WebProcess/WebPage/AcceleratedDrawingArea.cpp
+index 086d690..1326c10 100644
+--- a/Source/WebKit2/WebProcess/WebPage/AcceleratedDrawingArea.cpp
++++ b/Source/WebKit2/WebProcess/WebPage/AcceleratedDrawingArea.cpp
+@@ -320,7 +320,7 @@ void AcceleratedDrawingArea::enterAcceleratedCompositingMode(GraphicsLayer* grap
+ 
+     ASSERT(!m_layerTreeHost);
+     m_layerTreeHost = LayerTreeHost::create(m_webPage);
+-#if USE(TEXTURE_MAPPER) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
++#if USE(TEXTURE_MAPPER_GL) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
+     if (m_nativeSurfaceHandleForCompositing)
+         m_layerTreeHost->setNativeSurfaceHandleForCompositing(m_nativeSurfaceHandleForCompositing);
+ #endif
+@@ -352,7 +352,7 @@ void AcceleratedDrawingArea::didReceiveCoordinatedLayerTreeHostMessage(IPC::Conn
+ }
+ #endif
+ 
+-#if USE(TEXTURE_MAPPER) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
++#if USE(TEXTURE_MAPPER_GL) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
+ void AcceleratedDrawingArea::setNativeSurfaceHandleForCompositing(uint64_t handle)
+ {
+     m_nativeSurfaceHandleForCompositing = handle;
+diff --git a/Source/WebKit2/WebProcess/WebPage/AcceleratedDrawingArea.h b/Source/WebKit2/WebProcess/WebPage/AcceleratedDrawingArea.h
+index c6a9164..6a0ffcb 100644
+--- a/Source/WebKit2/WebProcess/WebPage/AcceleratedDrawingArea.h
++++ b/Source/WebKit2/WebProcess/WebPage/AcceleratedDrawingArea.h
+@@ -63,7 +63,7 @@ class AcceleratedDrawingArea : public DrawingArea {
+     void didReceiveCoordinatedLayerTreeHostMessage(IPC::Connection&, IPC::Decoder&) override;
+ #endif
+ 
+-#if USE(TEXTURE_MAPPER) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
++#if USE(TEXTURE_MAPPER_GL) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
+     void setNativeSurfaceHandleForCompositing(uint64_t) override;
+     void destroyNativeSurfaceHandleForCompositing(bool&) override;
+ #endif
+diff --git a/Source/WebKit2/WebProcess/WebPage/DrawingArea.h b/Source/WebKit2/WebProcess/WebPage/DrawingArea.h
+index 9536f57..abeda34 100644
+--- a/Source/WebKit2/WebProcess/WebPage/DrawingArea.h
++++ b/Source/WebKit2/WebProcess/WebPage/DrawingArea.h
+@@ -146,7 +146,7 @@ class DrawingArea : public IPC::MessageReceiver {
+     DrawingAreaType m_type;
+     WebPage& m_webPage;
+ 
+-#if USE(TEXTURE_MAPPER) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
++#if USE(TEXTURE_MAPPER_GL) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
+     uint64_t m_nativeSurfaceHandleForCompositing { 0 };
+ #endif
+ 
+@@ -172,7 +172,7 @@ class DrawingArea : public IPC::MessageReceiver {
+     virtual void addTransactionCallbackID(uint64_t callbackID) { ASSERT_NOT_REACHED(); }
+ #endif
+ 
+-#if USE(TEXTURE_MAPPER) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
++#if USE(TEXTURE_MAPPER_GL) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
+     virtual void setNativeSurfaceHandleForCompositing(uint64_t) = 0;
+     virtual void destroyNativeSurfaceHandleForCompositing(bool&) = 0;
+ #endif
+diff --git a/Source/WebKit2/WebProcess/WebPage/DrawingArea.messages.in b/Source/WebKit2/WebProcess/WebPage/DrawingArea.messages.in
+index 2ebde66..84832b3 100644
+--- a/Source/WebKit2/WebProcess/WebPage/DrawingArea.messages.in
++++ b/Source/WebKit2/WebProcess/WebPage/DrawingArea.messages.in
+@@ -40,7 +40,7 @@ messages -> DrawingArea {
+     AddTransactionCallbackID(uint64_t callbackID)
+ #endif
+ 
+-#if USE(TEXTURE_MAPPER) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
++#if USE(TEXTURE_MAPPER_GL) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
+     SetNativeSurfaceHandleForCompositing(uint64_t handle)
+     DestroyNativeSurfaceHandleForCompositing() -> (bool handled)
+ #endif
+diff --git a/Source/WebKit2/WebProcess/WebPage/LayerTreeHost.h b/Source/WebKit2/WebProcess/WebPage/LayerTreeHost.h
+index 2e5a2c5..739214a 100644
+--- a/Source/WebKit2/WebProcess/WebPage/LayerTreeHost.h
++++ b/Source/WebKit2/WebProcess/WebPage/LayerTreeHost.h
+@@ -92,7 +92,7 @@ class LayerTreeHost : public RefCounted<LayerTreeHost> {
+     virtual void scheduleAnimation() = 0;
+ #endif
+ 
+-#if USE(TEXTURE_MAPPER) && PLATFORM(GTK)
++#if USE(TEXTURE_MAPPER_GL) && PLATFORM(GTK)
+     virtual void setNativeSurfaceHandleForCompositing(uint64_t) { };
+ #endif
+ 
+diff --git a/Source/cmake/OptionsGTK.cmake b/Source/cmake/OptionsGTK.cmake
+index 17c2c82e..34e09fe 100644
+--- a/Source/cmake/OptionsGTK.cmake
++++ b/Source/cmake/OptionsGTK.cmake
+@@ -110,7 +110,6 @@ WEBKIT_OPTION_DEPEND(USE_REDIRECTED_XCOMPOSITE_WINDOW ENABLE_X11_TARGET)
+ WEBKIT_OPTION_DEPEND(USE_GSTREAMER_GL ENABLE_OPENGL)
+ WEBKIT_OPTION_DEPEND(USE_GSTREAMER_GL ENABLE_VIDEO)
+ WEBKIT_OPTION_DEPEND(USE_GSTREAMER_MPEGTS ENABLE_VIDEO)
+-WEBKIT_OPTION_DEPEND(ENABLE_WAYLAND_TARGET ENABLE_OPENGL)
+ 
+ SET_AND_EXPOSE_TO_BUILD(ENABLE_DEVELOPER_MODE ${DEVELOPER_MODE})
+ if (DEVELOPER_MODE)
+ diff --git a/Source/WebCore/PlatformGTK.cmake b/Source/WebCore/PlatformGTK.cmake
+index 567bd79..81ac465 100644
+--- a/Source/WebCore/PlatformGTK.cmake
++++ b/Source/WebCore/PlatformGTK.cmake
+@@ -202,8 +202,6 @@ list(APPEND WebCorePlatformGTK_SOURCES
+     page/gtk/DragControllerGtk.cpp
+     page/gtk/EventHandlerGtk.cpp
+ 
+-    platform/graphics/PlatformDisplay.cpp
+-
+     platform/graphics/freetype/FontPlatformDataFreeType.cpp
+ 
+     platform/graphics/gtk/ColorGtk.cpp
+
