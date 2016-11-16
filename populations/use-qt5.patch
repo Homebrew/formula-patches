@@ -1,0 +1,29 @@
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 101cc91..5c243a4 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -2,10 +2,8 @@
+ # this command finds Qt4 libraries and sets all required variables
+ # note that it's Qt4, not QT4 or qt4
+ #/usr/share/cmake-2.6/Modules/FindQt4.cmake
+-SET (QT_USE_QTXML true)
+-FIND_PACKAGE( Qt4 REQUIRED )
++FIND_PACKAGE( Qt5Core REQUIRED )
+ 
+-INCLUDE( ${QT_USE_FILE} )
+ 
+ #FIND_PACKAGE(X11 REQUIRED)
+ #FIND_PACKAGE(FindThreads REQUIRED)
+@@ -32,9 +30,9 @@ arbre.cpp arbreplus.cpp couleur.cpp vecteurs.cpp locus.cpp allele.cpp individu.c
+ 
+ 
+ IF(WIN32)
+-	target_link_libraries (populations ${QT_LIBRARIES})
++	target_link_libraries (populations Qt5::Core)
+ ELSE(WIN32)
+-	target_link_libraries (populations ${QT_LIBRARIES} m)
++	target_link_libraries (populations Qt5::Core m)
+ ENDIF(WIN32)
+ 
+  
+\ No newline at end of file
