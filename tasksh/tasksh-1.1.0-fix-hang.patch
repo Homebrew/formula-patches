@@ -1,0 +1,33 @@
+diff --git a/src/main.cpp b/src/main.cpp
+index 556e7b3..e5384ee 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -31,6 +31,7 @@
+ #include <cstring>
+ #include <stdlib.h>
+ #include <shared.h>
++#include <unistd.h>
+ 
+ #ifdef HAVE_READLINE
+ #include <readline/readline.h>
+@@ -124,7 +125,8 @@ static int commandLoop (bool autoClear)
+       // Deliberately ignoreѕ taskwarrior exit status, otherwise empty filters
+       // cause the shell to terminate.
+     }
+-  }
++  } else
++    return -1;
+ 
+   return status;
+ }
+@@ -155,7 +157,9 @@ int main (int argc, const char** argv)
+                    output == "yes\n"  ||
+                    output == "on\n");
+ 
+-      welcome ();
++      if (isatty(fileno(stdin)))
++        welcome ();
++
+       while ((status = commandLoop (autoClear)) == 0)
+         ;
+     }
