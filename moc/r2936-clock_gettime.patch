@@ -1,0 +1,168 @@
+diff --git a/common.c b/common.c
+index dd377e2..a3f58ee 100644
+--- a/common.c
++++ b/common.c
+@@ -361,6 +361,23 @@ char *create_file_name (const char *file)
+ 	return fname;
+ }
+ 
++int get_realtime (struct timespec *ts)
++{
++	int result;
++#ifdef HAVE_CLOCK_GETTIME
++	result = clock_gettime (CLOCK_REALTIME, ts);
++#else
++	struct timeval tv;
++
++	result = gettimeofday (&tv, NULL);
++	if (result == 0) {
++		ts->tv_sec = tv.tv_sec;
++		ts->tv_nsec = tv.tv_usec * 1000L;
++	}
++#endif
++    return result;
++}
++
+ /* Convert time in second to min:sec text format. buff must be 6 chars long. */
+ void sec_to_min (char *buff, const int seconds)
+ {
+diff --git a/common.h b/common.h
+index 67ceb20..bbb40f9 100644
+--- a/common.h
++++ b/common.h
+@@ -15,6 +15,8 @@
+ 
+ #include "compat.h"
+ 
++struct timespec;
++
+ #ifdef HAVE_FUNC_ATTRIBUTE_FORMAT
+ # define ATTR_PRINTF(x,y) __attribute__ ((format (printf, x, y)))
+ #else
+@@ -140,6 +142,7 @@ char *format_msg (const char *format, ...);
+ char *format_msg_va (const char *format, va_list va);
+ bool is_valid_symbol (const char *candidate);
+ char *create_file_name (const char *file);
++int get_realtime (struct timespec *ts);
+ void sec_to_min (char *buff, const int seconds);
+ const char *get_home ();
+ void common_cleanup ();
+diff --git a/compat.c b/compat.c
+index df02a1d..1f9cda2 100644
+--- a/compat.c
++++ b/compat.c
+@@ -48,28 +48,6 @@ char *strcasestr (const char *haystack, const char *needle)
+ }
+ #endif
+ 
+-/* OSX doesn't provide clock_gettime(3) so fall back to gettimeofday(2). */
+-#ifndef HAVE_CLOCK_GETTIME
+-#include <sys/time.h>
+-#include <assert.h>
+-
+-#include "common.h"
+-
+-int clock_gettime (int clk_id ASSERT_ONLY, struct timespec *ts)
+-{
+-	int result;
+-	struct timeval tv;
+-
+-	assert (clk_id == CLOCK_REALTIME);
+-
+-	result = gettimeofday (&tv, NULL);
+-	ts->tv_sec = tv.tv_sec;
+-	ts->tv_nsec = tv.tv_usec * 1000L;
+-
+-	return result;
+-}
+-#endif
+-
+ /* This is required to prevent an "empty translation unit" warning
+    if neither strcasestr() nor clock_gettime() get defined. */
+ #if defined(HAVE_STRCASESTR) && defined(HAVE_CLOCK_GETTIME)
+diff --git a/compat.h b/compat.h
+index 71a011e..5f1016c 100644
+--- a/compat.h
++++ b/compat.h
+@@ -50,12 +50,6 @@ extern "C" {
+ char *strcasestr (const char *haystack, const char *needle);
+ #endif
+ 
+-#ifndef HAVE_CLOCK_GETTIME
+-#define CLOCK_REALTIME 0
+-struct timespec;
+-int clock_gettime (int clk_id, struct timespec *ts);
+-#endif
+-
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/configure.in b/configure.in
+index f31a71e..ca0ad58 100644
+--- a/configure.in
++++ b/configure.in
+@@ -282,13 +282,30 @@ dnl optional functions
+ AC_FUNC_STRERROR_R
+ AC_CHECK_FUNCS([sched_get_priority_max syslog])
+ 
+-dnl OSX doesn't provide clock_gettime(3) so fall back to gettimeofday(2).
+-AC_CHECK_LIB([rt], [clock_gettime],
+-	[AC_DEFINE([HAVE_CLOCK_GETTIME], 1,
+-		[Define if you have clock_gettime(3)])],
+-	[AC_CHECK_FUNCS([gettimeofday],
++dnl OSX / MacOS doesn't provide clock_gettime(3) prior to darwin-16.0.0
++dnl so fall back to gettimeofday(2).
++case "$host_os" in
++[*darwin[1-9].*] | [*darwin1[0-5].*])
++	HAVE_CLOCK_GETTIME="no"
++	;;
++*darwin*)
++	HAVE_CLOCK_GETTIME="yes"
++	;;
++*)
++	AC_CHECK_LIB([rt], [clock_gettime],
++		[HAVE_CLOCK_GETTIME="yes"],
++		[HAVE_CLOCK_GETTIME="no"])
++	;;
++esac
++
++if test "$HAVE_CLOCK_GETTIME" = "yes"
++then
++	AC_DEFINE([HAVE_CLOCK_GETTIME], 1, [Define if you have clock_gettime(3)])
++else
++	AC_CHECK_FUNCS([gettimeofday],
+ 		[AC_MSG_WARN([Using the obsolete gettimeofday(2) function.])],
+-		[AC_MSG_ERROR([No suitable current time function found.])])])
++		[AC_MSG_ERROR([No suitable current time function found.])])
++fi
+ 
+ dnl strcasestr(3) is a GNU extension
+ AC_CHECK_DECLS([strcasestr], , , [[#include "${srcdir}/compiler.h"]
+diff --git a/interface.c b/interface.c
+index e8c3e08..0b44908 100644
+--- a/interface.c
++++ b/interface.c
+@@ -2581,8 +2581,8 @@ static time_t rounded_time ()
+ 	struct timespec exact_time;
+ 	time_t curr_time;
+ 
+-	if (clock_gettime (CLOCK_REALTIME, &exact_time) == -1)
+-		interface_fatal ("clock_gettime() failed: %s", xstrerror (errno));
++	if (get_realtime (&exact_time) == -1)
++		interface_fatal ("get_realtime() failed: %s", xstrerror (errno));
+ 
+ 	curr_time = exact_time.tv_sec;
+ 	if (exact_time.tv_nsec > 500000000L)
+diff --git a/log.c b/log.c
+index 9e3e18f..6f77b0e 100644
+--- a/log.c
++++ b/log.c
+@@ -106,7 +106,7 @@ static void locked_logit (const char *file, const int line,
+ 	if (logging_state == LOGGING && !logfp)
+ 		return;
+ 
+-	clock_gettime (CLOCK_REALTIME, &utc_time);
++	get_realtime (&utc_time);
+ 	tv_sec = utc_time.tv_sec;
+ 	localtime_r (&tv_sec, &tm_time);
+ 	strftime (time_str, sizeof (time_str), "%b %e %T", &tm_time);
