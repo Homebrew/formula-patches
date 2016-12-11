@@ -1,0 +1,15 @@
+diff --git a/qtconnectivity/src/bluetooth/qbluetoothdevicediscoveryagent_osx.mm b/qtconnectivity/src/bluetooth/qbluetoothdevicediscoveryagent_osx.mm
+index ebf9352d..0430723d 100644
+--- a/qtconnectivity/src/bluetooth/qbluetoothdevicediscoveryagent_osx.mm
++++ b/qtconnectivity/src/bluetooth/qbluetoothdevicediscoveryagent_osx.mm
+@@ -54,6 +54,10 @@
+ // Only after Foundation.h:
+ #include "osx/corebluetoothwrapper_p.h"
+
++#if QT_MAC_PLATFORM_SDK_EQUAL_OR_ABOVE(__MAC_10_12, __IPHONE_NA)
++#include <CoreBluetooth/CBPeripheral.h>
++#endif
++
+ QT_BEGIN_NAMESPACE
+
+ using OSXBluetooth::ObjCScopedPointer;
