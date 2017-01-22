@@ -1,0 +1,38 @@
+diff --git a/lib/Xm/VendorS.c b/lib/Xm/VendorS.c
+index b5b5a24..cbd0967 100644
+--- a/lib/Xm/VendorS.c
++++ b/lib/Xm/VendorS.c
+@@ -292,6 +292,25 @@ static unsigned short destroy_list_cnt ;
+ static Display * _XmDisplayHandle = NULL ;
+ static XtErrorMsgHandler previousWarningHandler = NULL;
+
++
++
++#if defined(__APPLE__)
++/* Hack necessary to handle Apple two-level namespaces */
++extern WidgetClass vendorShellWidgetClass; /* from Xt/Vendor.c */
++extern VendorShellClassRec _XmVendorShellClassRec;
++#define vendorShellClassRec _XmVendorShellClassRec
++
++__attribute__((constructor))
++static void __VendorShellHack(void)
++{
++    vendorShellWidgetClass = (WidgetClass)(&_XmVendorShellClassRec);
++    transientShellWidgetClass->core_class.superclass = vendorShellWidgetClass;
++    topLevelShellWidgetClass->core_class.superclass = vendorShellWidgetClass;
++}
++#endif
++
++
++
+ /***************************************************************************
+  *
+  * Vendor shell class record
+@@ -506,6 +525,8 @@ VendorShellClassRec vendorShellClassRec = {
+     }                            
+ };	   
+
++#undef vendorShellClassRec
++
+ externaldef(vendorshellwidgetclass) WidgetClass 
+   vendorShellWidgetClass = (WidgetClass) (&vendorShellClassRec);
