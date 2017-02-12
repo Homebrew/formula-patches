@@ -1,0 +1,193 @@
+From e547631789376d10519a9932e3e4cdab00932c9a Mon Sep 17 00:00:00 2001
+From: Misty De Meo <mistydemeo@gmail.com>
+Date: Sun, 12 Feb 2017 15:39:42 +1100
+Subject: [PATCH] Port CoreAudio code from QTKit to AVFoundation
+
+---
+ Makefile                  |  6 +++---
+ music/core-audio_midi.mm  | 34 ++++++++++++++--------------------
+ sound/core-audio_sound.mm | 22 +++++++++++-----------
+ 3 files changed, 28 insertions(+), 34 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index f1baad3..8f8bcfc 100644
+--- a/Makefile
++++ b/Makefile
+@@ -469,7 +469,7 @@ ifeq ($(BACKEND),sdl)
+     # Core Audio (Quicktime) base sound system routines
+     SOURCES += sound/core-audio_sound.mm
+     SOURCES += music/core-audio_midi.mm
+-    LIBS    += -framework Foundation -framework QTKit
++    LIBS    += -framework Foundation -framework AVFoundation
+   else
+     SOURCES  += sound/sdl_sound.cc
+     ifeq ($(findstring $(OSTYPE), cygwin mingw),)
+@@ -500,7 +500,7 @@ ifeq ($(BACKEND),sdl2)
+     # Core Audio (Quicktime) base sound system routines
+     SOURCES += sound/core-audio_sound.mm
+     SOURCES += music/core-audio_midi.mm
+-    LIBS    += -framework Foundation -framework QTKit
++    LIBS    += -framework Foundation -framework AVFoundation
+   else
+     SOURCES  += sound/sdl_sound.cc
+     ifeq ($(findstring $(OSTYPE), cygwin mingw),)
+@@ -546,7 +546,7 @@ ifeq ($(BACKEND),opengl)
+     # Core Audio (Quicktime) base sound system routines
+     SOURCES += sound/core-audio_sound.mm
+     SOURCES += music/core-audio_midi.mm
+-    LIBS    += -framework Foundation -framework QTKit
++    LIBS    += -framework Foundation -framework AVFoundation
+   else
+     SOURCES  += sound/sdl_sound.cc
+     ifeq ($(findstring $(OSTYPE), cygwin mingw),)
+diff --git a/music/core-audio_midi.mm b/music/core-audio_midi.mm
+index 010ded5..bc48bce 100644
+--- a/music/core-audio_midi.mm
++++ b/music/core-audio_midi.mm
+@@ -9,42 +9,36 @@
+ 
+ #import <Foundation/NSArray.h>
+ #import <Foundation/NSString.h>
+-#import <QTKit/QTMovie.h>
++#import <AVFoundation/AVFoundation.h>
+ 
+ 
+-static float defaultVolume = 0.5; // a nice default volume
+ static int   nowPlaying    = -1;  // the number of the track currently being played
+ 
+-static NSMutableArray* movies;
++static NSMutableArray* players;
+ 
+ 
+ void dr_set_midi_volume(int const vol)
+ {
+-	// We are given an integer from 0 - 255, we need a float between 0 and 1.
+-	defaultVolume = vol / 255.f;
+-	if (nowPlaying != -1) {
+-		[[movies objectAtIndex: nowPlaying] setVolume: defaultVolume];
+-	}
++	// Not supportd by AVMIDIPlayer
+ }
+ 
+ 
+ int dr_load_midi(char const* const filename)
+ {
+-	NSString* const s = [NSString stringWithUTF8String: filename];
+-	QTMovie*  const m = [QTMovie movieWithFile: s error: nil];
+-	if (m) {
+-		[movies addObject: m];
++	NSURL* const url = [NSURL fileURLWithPath: [NSString stringWithUTF8String: filename]];
++	AVMIDIPlayer*  const player = [[AVMIDIPlayer alloc] initWithContentsOfURL:url soundBankURL: nil error: nil];
++	if (player) {
++		[players addObject: player];
+ 	}
+-	return [movies count] - 1;
++	return [players count] - 1;
+ }
+ 
+ 
+ void dr_play_midi(int const key)
+ {
+ 	// Play the file referenced by the supplied key.
+-	QTMovie* const m = [movies objectAtIndex: key];
+-	[m setVolume:defaultVolume];
+-	[m play];
++	AVMIDIPlayer* const player = [players objectAtIndex: key];
++	[player play: ^{}];
+ 	nowPlaying = key;
+ }
+ 
+@@ -52,8 +46,8 @@ void dr_play_midi(int const key)
+ void dr_stop_midi()
+ {
+ 	// We assume the 'nowPlaying' key holds the most recently started track.
+-	QTMovie* const m = [movies objectAtIndex: nowPlaying];
+-	[m stop];
++	AVMIDIPlayer* const player = [players objectAtIndex: nowPlaying];
++	[player stop];
+ }
+ 
+ 
+@@ -62,7 +56,7 @@ sint32 dr_midi_pos()
+ 	if (nowPlaying == -1) {
+ 		return -1;
+ 	}
+-	float const rate = [[movies objectAtIndex: nowPlaying] rate];
++	float const rate = [[players objectAtIndex: nowPlaying] rate];
+ 	return rate > 0 ? 0 : -1;
+ }
+ 
+@@ -77,6 +71,6 @@ void dr_destroy_midi()
+ 
+ bool dr_init_midi()
+ {
+-	movies = [NSMutableArray arrayWithCapacity: MAX_MIDI];
++	players = [NSMutableArray arrayWithCapacity: MAX_MIDI];
+ 	return true;
+ }
+diff --git a/sound/core-audio_sound.mm b/sound/core-audio_sound.mm
+index 90da0e2..6370847 100644
+--- a/sound/core-audio_sound.mm
++++ b/sound/core-audio_sound.mm
+@@ -9,18 +9,18 @@
+ 
+ #import <Foundation/NSArray.h>
+ #import <Foundation/NSString.h>
+-#import <QTKit/QTMovie.h>
++#import <AVFoundation/AVFoundation.h>
+ #import <stdio.h>
+ 
+ 
+-static NSMutableArray* movies_WAV;
++static NSMutableArray* players_WAV;
+ 
+ 
+ bool dr_init_sound()
+ {
+ 	printf("Sound system Initialise\n");
+ 	printf("Wave File database\n");
+-	movies_WAV = [NSMutableArray arrayWithCapacity: 128];
++	players_WAV = [NSMutableArray arrayWithCapacity: 128];
+ 	printf("Sound system Initalisation complete\n");
+ 	return true;
+ }
+@@ -28,20 +28,20 @@ bool dr_init_sound()
+ 
+ int dr_load_sample(char const* const filename)
+ {
+-	NSString* const s = [NSString stringWithUTF8String: filename];
+-	QTMovie*  const m = [QTMovie movieWithFile: s error: nil];
+-	if (!m) {
++	NSURL* const url = [NSURL fileURLWithPath: [NSString stringWithUTF8String: filename]];
++	AVAudioPlayer* const player = [[AVAudioPlayer alloc] initWithContentsOfURL: url error: nil];
++	if (!player) {
+ 		printf("** Warning, unable to open wav file %s\n", filename);
+ 		return -1;
+ 	}
+ 
+ 	// Preload the file into memory.
+-	[m setVolume: 0];
+-	[m play];
++	[player setVolume: 0];
++	[player play];
+ 
+-	[movies_WAV addObject: m];
++	[players_WAV addObject: player];
+ 
+-	int const i = [movies_WAV count] - 1;
++	int const i = [players_WAV count] - 1;
+ 	printf("Load WAV (%d): %s\n", i, filename);
+ 	return i;
+ }
+@@ -49,7 +49,7 @@ int dr_load_sample(char const* const filename)
+ 
+ void dr_play_sample(int const key, int const volume)
+ {
+-	QTMovie* const m = [movies_WAV objectAtIndex: key];
++	AVAudioPlayer* const m = [players_WAV objectAtIndex: key];
+ 	[m setVolume: volume / 255.f];
+ 	[m play];
+ }
+-- 
+2.11.1
+
