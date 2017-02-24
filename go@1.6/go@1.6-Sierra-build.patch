@@ -24,7 +24,7 @@ diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
 index 469cabc..3ae60eb 100644
 --- a/src/runtime/sys_darwin_386.s
 +++ b/src/runtime/sys_darwin_386.s
-@@ -182,15 +182,16 @@ timeloop:
+@@ -196,15 +196,16 @@ timeloop:
  
  systime:
  	// Fall back to system call (usually first call in this thread)
@@ -48,7 +48,7 @@ diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
 index 8f845e5..fe9f384 100644
 --- a/src/runtime/sys_darwin_amd64.s
 +++ b/src/runtime/sys_darwin_amd64.s
-@@ -143,6 +143,7 @@ systime:
+@@ -157,6 +157,7 @@ systime:
  	// Fall back to system call (usually first call in this thread).
  	MOVQ	SP, DI
  	MOVQ	$0, SI
