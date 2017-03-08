@@ -1,0 +1,66 @@
+diff --git a/src/graph/draw/graph_cairo_draw.cc b/src/graph/draw/graph_cairo_draw.cc
+index c4cd8a2..9ba442b 100644
+--- a/src/graph/draw/graph_cairo_draw.cc
++++ b/src/graph/draw/graph_cairo_draw.cc
+@@ -29,7 +29,6 @@
+ 
+ #include <iostream>
+ #include <array>
+-#include <chrono>
+ 
+ #include "hash_map_wrap.hh"
+ #include "demangle.hh"
+@@ -44,6 +43,8 @@
+ 
+ #include <boost/mpl/map/map50.hpp>
+ 
++#include <chrono>
++
+ using namespace std;
+ using namespace boost;
+ using namespace graph_tool;
+@@ -1563,11 +1564,11 @@ void draw_vertices(Graph&, pair<VertexIterator, VertexIterator> v_range,
+         vs.draw(cr);
+         count++;
+ 
+-        if (chrono::high_resolution_clock::now() > max_time)
++        if (std::chrono::high_resolution_clock::now() > max_time)
+         {
+             yield(boost::python::object(count));
+-            max_time = chrono::high_resolution_clock::now() +
+-                chrono::milliseconds(dt);
++            max_time = std::chrono::high_resolution_clock::now() +
++                std::chrono::milliseconds(dt);
+         }
+     }
+ }
+@@ -1613,11 +1614,11 @@ void draw_edges(Graph& g, pair<EdgeIterator, EdgeIterator> e_range,
+                                                                      edefaults));
+         es.draw(cr, res);
+ 
+-        if (chrono::high_resolution_clock::now() > max_time)
++        if (std::chrono::high_resolution_clock::now() > max_time)
+         {
+             yield(boost::python::object(count));
+-            max_time = chrono::high_resolution_clock::now() +
+-                chrono::milliseconds(dt);
++            max_time = std::chrono::high_resolution_clock::now() +
++                std::chrono::milliseconds(dt);
+         }
+     }
+ }
+@@ -1819,11 +1820,11 @@ boost::python::object cairo_draw(GraphInterface& gi,
+                 eorder = no_order();
+ 
+             size_t count = 0;
+-            auto mtime = chrono::high_resolution_clock::now();
++            auto mtime = std::chrono::high_resolution_clock::now();
+             if (max_time < 0)
+-                mtime = chrono::high_resolution_clock::time_point::max();
++                mtime = std::chrono::high_resolution_clock::time_point::max();
+             else
+-                mtime += chrono::milliseconds(max_time);
++                mtime += std::chrono::milliseconds(max_time);
+             int64_t dt = max_time;
+ 
+             Cairo::Context cr(PycairoContext_GET(ocr.ptr()));
