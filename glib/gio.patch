@@ -1,5 +1,5 @@
 diff --git a/gio/Makefile.am b/gio/Makefile.am
-index 67db1b7..8a0c2c2 100644
+index 67db1b7..52d6c32 100644
 --- a/gio/Makefile.am
 +++ b/gio/Makefile.am
 @@ -137,7 +137,7 @@ endif
@@ -20,6 +20,15 @@ index 67db1b7..8a0c2c2 100644
  endif
  endif
  
+@@ -395,7 +395,7 @@ portal_sources = \
+ 
+ if OS_COCOA
+ contenttype_sources += gosxcontenttype.c
+-appinfo_sources += gosxappinfo.c gosxappinfo.h
++appinfo_sources += gosxappinfo.m gosxappinfo.h
+ endif
+ 
+ if OS_UNIX
 @@ -603,8 +603,6 @@ libgio_2_0_la_LDFLAGS = $(GLIB_LINK_FLAGS) \
  	-export-dynamic $(no_undefined)
  
@@ -30,7 +39,7 @@ index 67db1b7..8a0c2c2 100644
  endif
  
 diff --git a/gio/Makefile.in b/gio/Makefile.in
-index 8d01067..da523f5 100644
+index 8d01067..fa122ab 100644
 --- a/gio/Makefile.in
 +++ b/gio/Makefile.in
 @@ -177,7 +177,7 @@ TESTS = $(am__EXEEXT_2)
@@ -42,7 +51,12 @@ index 8d01067..da523f5 100644
  @HAVE_NETLINK_TRUE@@OS_UNIX_TRUE@am__append_33 = \
  @HAVE_NETLINK_TRUE@@OS_UNIX_TRUE@	gnetworkmonitornetlink.c \
  @HAVE_NETLINK_TRUE@@OS_UNIX_TRUE@	gnetworkmonitornetlink.h \
-@@ -193,8 +193,6 @@ TESTS = $(am__EXEEXT_2)
+@@ -189,12 +189,10 @@ TESTS = $(am__EXEEXT_2)
+ @OS_WIN32_TRUE@am__append_35 = gcontenttype-win32.c
+ @OS_WIN32_TRUE@am__append_36 = -lshlwapi -lws2_32 -ldnsapi -liphlpapi
+ @OS_COCOA_TRUE@am__append_37 = gosxcontenttype.c
+-@OS_COCOA_TRUE@am__append_38 = gosxappinfo.c gosxappinfo.h
++@OS_COCOA_TRUE@am__append_38 = gosxappinfo.m gosxappinfo.h
  @OS_COCOA_FALSE@@OS_UNIX_TRUE@am__append_39 = gcontenttype.c
  @OS_COCOA_FALSE@@OS_UNIX_TRUE@am__append_40 = gdesktopappinfo.c
  
@@ -51,6 +65,15 @@ index 8d01067..da523f5 100644
  @OS_COCOA_TRUE@am__append_42 = -Wl,-framework,Foundation -Wl,-framework,AppKit
  @HAVE_LIBMOUNT_TRUE@am__append_43 = $(LIBMOUNT_CFLAGS)
  @HAVE_LIBMOUNT_TRUE@am__append_44 = $(LIBMOUNT_LIBS)
+@@ -359,7 +357,7 @@ am__libgio_2_0_la_SOURCES_DIST = gappinfo.c gappinfoprivate.h \
+ 	glocalvfs.h gsocks4proxy.c gsocks4proxy.h gsocks4aproxy.c \
+ 	gsocks4aproxy.h gsocks5proxy.c gsocks5proxy.h \
+ 	thumbnail-verify.h thumbnail-verify.c gwin32appinfo.c \
+-	gwin32appinfo.h gosxappinfo.c gosxappinfo.h gdesktopappinfo.c \
++	gwin32appinfo.h gosxappinfo.m gosxappinfo.h gdesktopappinfo.c \
+ 	gcontenttype-win32.c gosxcontenttype.c gcontenttype.c \
+ 	gfiledescriptorbased.c gunixconnection.c \
+ 	gunixcredentialsmessage.c gunixfdlist.c gunixfdmessage.c \
 @@ -372,7 +370,7 @@ am__libgio_2_0_la_SOURCES_DIST = gappinfo.c gappinfoprivate.h \
  	gportalsupport.h gnetworkmonitorportal.c \
  	gnetworkmonitorportal.h gproxyresolverportal.c \
@@ -78,6 +101,23 @@ index 8d01067..da523f5 100644
  
  application_headers = \
  	gapplication.h			\
+@@ -3825,12 +3823,12 @@ libgio_2_0_la-gwin32appinfo.lo: gwin32appinfo.c
+ @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+ @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -c -o libgio_2_0_la-gwin32appinfo.lo `test -f 'gwin32appinfo.c' || echo '$(srcdir)/'`gwin32appinfo.c
+ 
+-libgio_2_0_la-gosxappinfo.lo: gosxappinfo.c
+-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -MT libgio_2_0_la-gosxappinfo.lo -MD -MP -MF $(DEPDIR)/libgio_2_0_la-gosxappinfo.Tpo -c -o libgio_2_0_la-gosxappinfo.lo `test -f 'gosxappinfo.c' || echo '$(srcdir)/'`gosxappinfo.c
++libgio_2_0_la-gosxappinfo.lo: gosxappinfo.m
++@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -MT libgio_2_0_la-gosxappinfo.lo -MD -MP -MF $(DEPDIR)/libgio_2_0_la-gosxappinfo.Tpo -c -o libgio_2_0_la-gosxappinfo.lo `test -f 'gosxappinfo.m' || echo '$(srcdir)/'`gosxappinfo.m
+ @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libgio_2_0_la-gosxappinfo.Tpo $(DEPDIR)/libgio_2_0_la-gosxappinfo.Plo
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='gosxappinfo.c' object='libgio_2_0_la-gosxappinfo.lo' libtool=yes @AMDEPBACKSLASH@
++@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='gosxappinfo.m' object='libgio_2_0_la-gosxappinfo.lo' libtool=yes @AMDEPBACKSLASH@
+ @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -c -o libgio_2_0_la-gosxappinfo.lo `test -f 'gosxappinfo.c' || echo '$(srcdir)/'`gosxappinfo.c
++@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -c -o libgio_2_0_la-gosxappinfo.lo `test -f 'gosxappinfo.m' || echo '$(srcdir)/'`gosxappinfo.m
+ 
+ libgio_2_0_la-gdesktopappinfo.lo: gdesktopappinfo.c
+ @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -MT libgio_2_0_la-gdesktopappinfo.lo -MD -MP -MF $(DEPDIR)/libgio_2_0_la-gdesktopappinfo.Tpo -c -o libgio_2_0_la-gdesktopappinfo.lo `test -f 'gdesktopappinfo.c' || echo '$(srcdir)/'`gdesktopappinfo.c
 @@ -4000,12 +3998,12 @@ libgio_2_0_la-xdp-dbus.lo: xdp-dbus.c
  @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
  @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -c -o libgio_2_0_la-xdp-dbus.lo `test -f 'xdp-dbus.c' || echo '$(srcdir)/'`xdp-dbus.c
