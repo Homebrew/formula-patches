@@ -1,8 +1,8 @@
 diff --git a/gio/Makefile.am b/gio/Makefile.am
-index ffe5ee2..242f8ea 100644
+index 67db1b7..8a0c2c2 100644
 --- a/gio/Makefile.am
 +++ b/gio/Makefile.am
-@@ -135,7 +135,7 @@ endif
+@@ -137,7 +137,7 @@ endif
  
  if OS_COCOA
  cocoa_settings_sources = \
@@ -11,16 +11,16 @@ index ffe5ee2..242f8ea 100644
  
  settings_sources += $(cocoa_settings_sources)
  endif
-@@ -280,7 +280,7 @@ unix_sources = \
- appinfo_sources += $(unix_appinfo_sources)
+@@ -288,7 +288,7 @@ unix_sources = \
  
  if OS_COCOA
+ if MAC_OS_X_9
 -unix_sources += gcocoanotificationbackend.c
 +unix_sources += gcocoanotificationbackend.m
  endif
+ endif
  
- giounixincludedir=$(includedir)/gio-unix-2.0/gio
-@@ -581,8 +581,6 @@ libgio_2_0_la_LDFLAGS = $(GLIB_LINK_FLAGS) \
+@@ -603,8 +603,6 @@ libgio_2_0_la_LDFLAGS = $(GLIB_LINK_FLAGS) \
  	-export-dynamic $(no_undefined)
  
  if OS_COCOA
@@ -30,28 +30,28 @@ index ffe5ee2..242f8ea 100644
  endif
  
 diff --git a/gio/Makefile.in b/gio/Makefile.in
-index caf7090..a96f846 100644
+index 8d01067..da523f5 100644
 --- a/gio/Makefile.in
 +++ b/gio/Makefile.in
-@@ -172,7 +172,7 @@ TESTS = $(am__EXEEXT_2)
- @OS_UNIX_TRUE@am__append_29 = xdgmime/libxdgmime.la
- @OS_UNIX_TRUE@am__append_30 = xdgmime/libxdgmime.la
- @OS_UNIX_TRUE@am__append_31 = $(unix_appinfo_sources)
--@OS_COCOA_TRUE@@OS_UNIX_TRUE@am__append_32 = gcocoanotificationbackend.c
-+@OS_COCOA_TRUE@@OS_UNIX_TRUE@am__append_32 = gcocoanotificationbackend.m
+@@ -177,7 +177,7 @@ TESTS = $(am__EXEEXT_2)
+ @OS_COCOA_FALSE@@OS_UNIX_TRUE@am__append_29 = xdgmime/libxdgmime.la
+ @OS_COCOA_FALSE@@OS_UNIX_TRUE@am__append_30 = xdgmime/libxdgmime.la
+ @OS_COCOA_FALSE@@OS_UNIX_TRUE@am__append_31 = gdesktopappinfo.h
+-@MAC_OS_X_9_TRUE@@OS_COCOA_TRUE@@OS_UNIX_TRUE@am__append_32 = gcocoanotificationbackend.c
++@MAC_OS_X_9_TRUE@@OS_COCOA_TRUE@@OS_UNIX_TRUE@am__append_32 = gcocoanotificationbackend.m
  @HAVE_NETLINK_TRUE@@OS_UNIX_TRUE@am__append_33 = \
  @HAVE_NETLINK_TRUE@@OS_UNIX_TRUE@	gnetworkmonitornetlink.c \
  @HAVE_NETLINK_TRUE@@OS_UNIX_TRUE@	gnetworkmonitornetlink.h \
-@@ -183,8 +183,6 @@ TESTS = $(am__EXEEXT_2)
- @OS_WIN32_TRUE@am__append_34 = -lshlwapi -lws2_32 -ldnsapi -liphlpapi
- @OS_WIN32_TRUE@am__append_35 = $(win32_appinfo_sources)
+@@ -193,8 +193,6 @@ TESTS = $(am__EXEEXT_2)
+ @OS_COCOA_FALSE@@OS_UNIX_TRUE@am__append_39 = gcontenttype.c
+ @OS_COCOA_FALSE@@OS_UNIX_TRUE@am__append_40 = gdesktopappinfo.c
  
 -# This is dumb.  The ObjC source file should be properly named .m
--@OS_COCOA_TRUE@am__append_36 = -xobjective-c
- @OS_COCOA_TRUE@am__append_37 = -Wl,-framework,Foundation -Wl,-framework,AppKit
- @HAVE_LIBMOUNT_TRUE@am__append_38 = $(LIBMOUNT_CFLAGS)
- @HAVE_LIBMOUNT_TRUE@am__append_39 = $(LIBMOUNT_LIBS)
-@@ -360,7 +358,7 @@ am__libgio_2_0_la_SOURCES_DIST = gappinfo.c gappinfoprivate.h \
+-@OS_COCOA_TRUE@am__append_41 = -xobjective-c
+ @OS_COCOA_TRUE@am__append_42 = -Wl,-framework,Foundation -Wl,-framework,AppKit
+ @HAVE_LIBMOUNT_TRUE@am__append_43 = $(LIBMOUNT_CFLAGS)
+ @HAVE_LIBMOUNT_TRUE@am__append_44 = $(LIBMOUNT_LIBS)
+@@ -372,7 +370,7 @@ am__libgio_2_0_la_SOURCES_DIST = gappinfo.c gappinfoprivate.h \
  	gportalsupport.h gnetworkmonitorportal.c \
  	gnetworkmonitorportal.h gproxyresolverportal.c \
  	gproxyresolverportal.h xdp-dbus.c xdp-dbus.h \
@@ -60,8 +60,8 @@ index caf7090..a96f846 100644
  	gnetworkmonitornetlink.h gnetworkmonitornm.c \
  	gnetworkmonitornm.h gdbusdaemon.c gdbusdaemon.h \
  	gdbus-daemon-generated.c gdbus-daemon-generated.h \
-@@ -376,7 +374,7 @@ am__libgio_2_0_la_SOURCES_DIST = gappinfo.c gappinfoprivate.h \
- 	gsettingsschema-internal.h gsettingsschema.c \
+@@ -387,7 +385,7 @@ am__libgio_2_0_la_SOURCES_DIST = gappinfo.c gappinfoprivate.h \
+ 	gsettingsschema.h gsettingsschema-internal.h gsettingsschema.c \
  	gsettings-mapping.h gsettings-mapping.c gsettings.c \
  	gregistrysettingsbackend.h gregistrysettingsbackend.c \
 -	gnextstepsettingsbackend.c
@@ -69,7 +69,7 @@ index caf7090..a96f846 100644
  am__objects_1 =
  am__objects_2 = libgio_2_0_la-gapplication.lo \
  	libgio_2_0_la-gapplicationcommandline.lo \
-@@ -1396,7 +1394,7 @@ settings_sources = $(settings_base_sources) $(am__append_17) \
+@@ -1410,7 +1408,7 @@ settings_sources = $(settings_base_sources) $(am__append_17) \
  @OS_WIN32_TRUE@	gregistrysettingsbackend.c
  
  @OS_COCOA_TRUE@cocoa_settings_sources = \
@@ -78,7 +78,7 @@ index caf7090..a96f846 100644
  
  application_headers = \
  	gapplication.h			\
-@@ -3960,12 +3958,12 @@ libgio_2_0_la-xdp-dbus.lo: xdp-dbus.c
+@@ -4000,12 +3998,12 @@ libgio_2_0_la-xdp-dbus.lo: xdp-dbus.c
  @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
  @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -c -o libgio_2_0_la-xdp-dbus.lo `test -f 'xdp-dbus.c' || echo '$(srcdir)/'`xdp-dbus.c
  
@@ -95,7 +95,7 @@ index caf7090..a96f846 100644
  
  libgio_2_0_la-gnetworkmonitornetlink.lo: gnetworkmonitornetlink.c
  @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -MT libgio_2_0_la-gnetworkmonitornetlink.lo -MD -MP -MF $(DEPDIR)/libgio_2_0_la-gnetworkmonitornetlink.Tpo -c -o libgio_2_0_la-gnetworkmonitornetlink.lo `test -f 'gnetworkmonitornetlink.c' || echo '$(srcdir)/'`gnetworkmonitornetlink.c
-@@ -4107,12 +4105,12 @@ libgio_2_0_la-gregistrysettingsbackend.lo: gregistrysettingsbackend.c
+@@ -4140,12 +4138,12 @@ libgio_2_0_la-gregistrysettingsbackend.lo: gregistrysettingsbackend.c
  @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
  @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgio_2_0_la_CPPFLAGS) $(CPPFLAGS) $(libgio_2_0_la_CFLAGS) $(CFLAGS) -c -o libgio_2_0_la-gregistrysettingsbackend.lo `test -f 'gregistrysettingsbackend.c' || echo '$(srcdir)/'`gregistrysettingsbackend.c
  
@@ -112,3 +112,4 @@ index caf7090..a96f846 100644
  
  gvdb-builder.o: gvdb/gvdb-builder.c
  @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT gvdb-builder.o -MD -MP -MF $(DEPDIR)/gvdb-builder.Tpo -c -o gvdb-builder.o `test -f 'gvdb/gvdb-builder.c' || echo '$(srcdir)/'`gvdb/gvdb-builder.c
+
