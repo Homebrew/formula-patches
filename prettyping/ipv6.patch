@@ -1,16 +1,17 @@
 diff --git a/prettyping b/prettyping
-index 6470f04..484e12e 100755
+index 8a22efd..047989c 100755
 --- a/prettyping
 +++ b/prettyping
-@@ -750,14 +750,14 @@ BEGIN {
+@@ -742,7 +742,7 @@ BEGIN {
+ ############################################################
+ # Main loop
  {
- 	# Sample line:
- 	# 64 bytes from 8.8.8.8: icmp_seq=1 ttl=49 time=184 ms
--	if( $0 ~ /^[0-9]+ bytes from .*: icmp_[rs]eq=[0-9]+ ttl=[0-9]+ time=[0-9.]+ *ms/ ) {
-+	if( $0 ~ /^[0-9]+ bytes from .*[:,] icmp_[rs]eq=[0-9]+ (ttl|hlim)=[0-9]+ time=[0-9.]+ *ms/ ) {
- 		if( other_line_times >= 2 ) {
- 			other_line_finished_repeating()
- 		}
+-	if ( $0 ~ /^[0-9]+ bytes from .*: icmp_[rs]eq=[0-9]+ ttl=[0-9]+ time=[0-9.]+ *ms/ ) {
++	if ( $0 ~ /^[0-9]+ bytes from .*[:,] icmp_[rs]eq=[0-9]+ (ttl|hlim)=[0-9]+ time=[0-9.]+ *ms/ ) {
+ 		# Sample line from ping:
+ 		# 64 bytes from 8.8.8.8: icmp_seq=1 ttl=49 time=184 ms
+ 		if ( other_line_times >= 2 ) {
+@@ -751,7 +751,7 @@ BEGIN {
  
  		# $1 = useless prefix string
  		# $2 = icmp_seq
