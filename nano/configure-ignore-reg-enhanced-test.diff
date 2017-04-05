@@ -1,0 +1,54 @@
+diff --git a/configure b/configure
+index e6fc9f0..26e4886 100755
+--- a/configure
++++ b/configure
+@@ -34034,7 +34034,7 @@ fi
+ 
+ { $as_echo "$as_me:${as_lineno-$LINENO}: checking for enhanced regular expression flag" >&5
+ $as_echo_n "checking for enhanced regular expression flag... " >&6; }
+-if ${nano_cv_flag_reg_extended+:} false; then :
++if ${nano_cv_flag_reg_enhanced+:} false; then :
+   $as_echo_n "(cached) " >&6
+ else
+   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+@@ -34053,18 +34053,26 @@ main ()
+ }
+ _ACEOF
+ if ac_fn_c_try_compile "$LINENO"; then :
+-  nano_cv_flag_reg_extended="REG_EXTENDED | REG_ENHANCED"
++  nano_cv_flag_reg_extended=yes
+ else
+-  nano_cv_flag_reg_extended="REG_EXTENDED"
++  nano_cv_flag_reg_extended=no
+ fi
+ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+ fi
+-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $nano_cv_flag_reg_extended" >&5
+-$as_echo "$nano_cv_flag_reg_extended" >&6; }
++{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $nano_cv_flag_reg_enhanced" >&5
++$as_echo "$nano_cv_flag_reg_enhanced" >&6; }
++if test "$ac_use_included_regex" = "yes"; then
++    nano_cv_flag_reg_enhanced="no"
++fi
++if test "$nano_cv_flag_reg_enhanced" = "yes"; then
++    nano_reg_extended="REG_EXTENDED | REG_ENHANCED"
++else
++    nano_reg_extended="REG_EXTENDED"
++fi
+ 
+ 
+ cat >>confdefs.h <<_ACEOF
+-#define NANO_REG_EXTENDED $nano_cv_flag_reg_extended
++#define NANO_REG_EXTENDED $nano_reg_extended
+ _ACEOF
+ 
+ 
+@@ -34110,7 +34118,7 @@ int main(void)
+     size_t nmatch;
+     regmatch_t pmatch;
+ 
+-    if (regcomp(&r, "\\\\>", $nano_cv_flag_reg_extended|REG_NOSUB))
++    if (regcomp(&r, "\\\\>", $nano_reg_extended|REG_NOSUB))
+ 	return 1;
+     if (regexec(&r, "word boundary", nmatch, &pmatch, 0))
+ 	return 1;
