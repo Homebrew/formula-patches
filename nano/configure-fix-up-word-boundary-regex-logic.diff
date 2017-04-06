@@ -1,0 +1,85 @@
+diff --git a/configure b/configure
+index 66466e8..2767b21 100755
+--- a/configure
++++ b/configure
+@@ -34082,28 +34082,19 @@ $as_echo_n "checking for GNU-style word boundary regex support... " >&6; }
+ 
+ # Check whether --with-wordbounds was given.
+ if test "${with_wordbounds+set}" = set; then :
+-  withval=$with_wordbounds;  case "$with_wordbounds" in
+-	    no)
+-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+-$as_echo "no" >&6; }
+-		;;
+-	    *)
+-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+-$as_echo "yes" >&6; }
+-		# We explicitly don't check if the user forced the option, because
+-		# this is needed for cross compilers and we can't test the target.
+-
+-$as_echo "#define GNU_WORDBOUNDS 1" >>confdefs.h
+- gnu_wordbounds=yes,
+-		;;
+-	  esac
+-
++  withval=$with_wordbounds; with_wordbounds=$withval
+ else
++  with_wordbounds=auto
++fi
+ 
+-	    if test "$cross_compiling" = yes; then :
+-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: *** Can't check for GNU-style word boundary support when cross-compiling" >&5
+-$as_echo "$as_me: WARNING: *** Can't check for GNU-style word boundary support when cross-compiling" >&2;}
++if test "$with_wordbounds" != "no"; then
++        if test "$ac_use_included_regex" = "yes"; then
++        with_wordbounds="yes"
++    fi
+ 
++            if test "$with_wordbounds" != "yes"; then
++        if test "$cross_compiling" = yes; then :
++  with_wordbounds="cross"
+ else
+   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+@@ -34126,22 +34117,33 @@ int main(void)
+ }
+ _ACEOF
+ if ac_fn_c_try_run "$LINENO"; then :
+-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+-$as_echo "yes" >&6; }
+-
+-$as_echo "#define GNU_WORDBOUNDS 1" >>confdefs.h
+- gnu_wordbounds=yes
++  with_wordbounds="yes"
+ else
+-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+-$as_echo "no" >&6; }
++  with_wordbounds="no"
+ fi
+ rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+   conftest.$ac_objext conftest.beam conftest.$ac_ext
+ fi
+ 
+-
++    fi
+ fi
++case $with_wordbounds in
++yes)
++    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
++$as_echo "yes" >&6; }
++
++$as_echo "#define GNU_WORDBOUNDS 1" >>confdefs.h
+ 
++    ;;
++no)
++    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
++$as_echo "no" >&6; }
++    ;;
++cross)
++    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: *** Can't check for GNU-style word boundary support when cross-compiling" >&5
++$as_echo "$as_me: WARNING: *** Can't check for GNU-style word boundary support when cross-compiling" >&2;}
++    ;;
++esac
+ 
+ if test x$color_support = xyes; then
+ #    if test x$CURSES_LIB_NAME = xcurses; then
