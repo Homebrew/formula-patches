@@ -1,0 +1,43 @@
+diff --git a/Modules/CMakeParseImplicitLinkInfo.cmake b/Modules/CMakeParseImplicitLinkInfo.cmake
+index 2031ba5cd..3bfbb273a 100644
+--- a/Modules/CMakeParseImplicitLinkInfo.cmake
++++ b/Modules/CMakeParseImplicitLinkInfo.cmake
+@@ -48,12 +48,20 @@ function(CMAKE_PARSE_IMPLICIT_LINK_INFO text lib_var dir_var fwk_var log_var obj
+     if("${cmd}" MATCHES "${linker_regex}")
+       string(APPEND log "  link line: [${line}]\n")
+       string(REGEX REPLACE ";-([LYz]);" ";-\\1" args "${args}")
++      set(skip_value_of "")
+       foreach(arg IN LISTS args)
+-        if("${arg}" MATCHES "^-L(.:)?[/\\]")
++        if(skip_value_of)
++          string(APPEND log "    arg [${arg}] ==> skip value of ${skip_value_of}\n")
++          set(skip_value_of "")
++        elseif("${arg}" MATCHES "^-L(.:)?[/\\]")
+           # Unix search path.
+           string(REGEX REPLACE "^-L" "" dir "${arg}")
+           list(APPEND implicit_dirs_tmp ${dir})
+           string(APPEND log "    arg [${arg}] ==> dir [${dir}]\n")
++        elseif("${arg}" STREQUAL "-lto_library")
++          # ld argument "-lto_library <path>"
++          set(skip_value_of "${arg}")
++          string(APPEND log "    arg [${arg}] ==> ignore, skip following value\n")
+         elseif("${arg}" MATCHES "^-l([^:].*)$")
+           # Unix library.
+           set(lib "${CMAKE_MATCH_1}")
+diff --git a/Tests/CMakeTests/ImplicitLinkInfoTest.cmake.in b/Tests/CMakeTests/ImplicitLinkInfoTest.cmake.in
+index 1313dbf32..53bcd5882 100644
+--- a/Tests/CMakeTests/ImplicitLinkInfoTest.cmake.in
++++ b/Tests/CMakeTests/ImplicitLinkInfoTest.cmake.in
+@@ -261,6 +261,12 @@ set(mac_absoft_libs "af90math;afio;amisc;absoftmain;af77math;m;mv")
+ set(mac_absoft_dirs "/Applications/Absoft11.1/lib;/usr/lib/i686-apple-darwin10/4.2.1;/usr/lib/gcc/i686-apple-darwin10/4.2.1;/usr/lib")
+ list(APPEND platforms mac_absoft)
+ 
++# Xcode 8.3: clang++ dummy.cpp -v
++set(mac_clang_v_text " \"/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld\" -demangle -lto_library /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/libLTO.dylib -no_deduplicate -dynamic -arch x86_64 -macosx_version_min 10.12.0 -syslibroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.12.sdk -o a.out /var/folders/hc/95l7dhnx459c57g4yg_6yd8c0000gp/T/dummy-384ea1.o -lc++ -lSystem /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../lib/clang/8.1.0/lib/darwin/libclang_rt.osx.a")
++set(mac_clang_v_libs "c++")
++set(mac_clang_v_dirs "")
++list(APPEND platforms mac_clang_v)
++
+ #-----------------------------------------------------------------------------
+ # Sun
+ 
