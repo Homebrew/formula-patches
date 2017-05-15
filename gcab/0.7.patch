@@ -1,0 +1,13 @@
+diff --git a/Makefile.in b/Makefile.in
+index 2264c17..7782d62 100644
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -474,7 +474,7 @@ libgcab_1_0_la_CPPFLAGS = \
+ libgcab_1_0_la_LIBADD = -lz $(GLIB_LIBS)
+ libgcab_1_0_la_LDFLAGS = \
+ 	-version-info 0:0:0				\
+-	-Wl,--version-script=${srcdir}/libgcab.syms	\
++	-Wl                                     	\
+ 	-no-undefined					\
+ 	$(NULL)
+
