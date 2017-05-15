@@ -1,0 +1,20 @@
+--- dao/main.cc	2013-11-26 12:00:00.000000000 -0400
++++ dao/main.cc	2013-11-26 12:00:00.000000000 -0400
+@@ -1242,7 +1242,7 @@
+ const char* getDefaultDevice(DaoDeviceType req)
+ {
+     int i, len;
+-    static char buf[128];
++    static char buf[1024];
+ 
+     // This function should not be called if the command issues
+     // doesn't actually require a device.
+@@ -1270,7 +1270,7 @@
+ 	    if (req == NEED_CDRW_W && !rww)
+ 	      continue;
+ 
+-	    strncpy(buf, sdata[i].dev.c_str(), 128);
++	    strncpy(buf, sdata[i].dev.c_str(), 1024);
+ 	    delete[] sdata;
+ 	    return buf;
+ 	}
