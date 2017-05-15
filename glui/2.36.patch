@@ -1,0 +1,13 @@
+diff --git a/src/include/GL/glui.h b/src/include/GL/glui.h
+index 01a5c75..5784e29 100644
+--- a/src/include/GL/glui.h
++++ b/src/include/GL/glui.h
+@@ -941,7 +941,7 @@ public:
+         spacebar_mouse_click = true;    /* Does spacebar simulate a mouse click? */
+         live_type      = GLUI_LIVE_NONE;
+         text = "";
+-        last_live_text == "";
++        last_live_text = "";
+         live_inited    = false;
+         collapsible    = false;
+         is_open        = true;
