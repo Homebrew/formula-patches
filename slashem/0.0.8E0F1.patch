@@ -1,0 +1,12 @@
+diff --git a/win/tty/termcap.c b/win/tty/termcap.c
+index c3bdf26..8d00b11 100644
+--- a/win/tty/termcap.c
++++ b/win/tty/termcap.c
+@@ -960,7 +960,7 @@ cl_eos()			/* free after Robert Viduya */
+
+ #include <curses.h>
+
+-#if !defined(LINUX) && !defined(__FreeBSD__)
++#if !defined(LINUX) && !defined(__FreeBSD__) && !defined(__APPLE__)
+ extern char *tparm();
+ #endif
