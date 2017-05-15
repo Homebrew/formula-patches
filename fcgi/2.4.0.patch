@@ -1,0 +1,15 @@
+--- a/libfcgi/fcgi_stdio.c
++++ b/libfcgi/fcgi_stdio.c
+@@ -40,7 +40,12 @@
+
+ #ifndef _WIN32
+
++#if defined(__APPLE__)
++#include <crt_externs.h>
++#define environ (*_NSGetEnviron())
++#else
+ extern char **environ;
++#endif
+
+ #ifdef HAVE_FILENO_PROTO
+ #include <stdio.h>
