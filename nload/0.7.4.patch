@@ -1,0 +1,12 @@
+diff --git a/configure.in b/configure.in
+index 87ecc88..4df8dc3 100644
+--- a/configure.in
++++ b/configure.in
+@@ -38,7 +38,7 @@ case $host_os in
+ 
+         AC_CHECK_FUNCS([memset])
+         ;;
+-    *bsd*)
++    *darwin*)
+         AC_DEFINE(HAVE_BSD, 1, [Define to 1 if your build target is BSD.])
+         AM_CONDITIONAL(HAVE_BSD, true)
