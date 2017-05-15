@@ -1,0 +1,12 @@
+diff --git a/examples/read/read.cpp b/examples/read/read.cpp
+index 411f892..b66a25c 100644
+--- a/examples/read/read.cpp
++++ b/examples/read/read.cpp
+@@ -43,6 +43,7 @@
+ #include <cstdio>
+ #include <cstdlib> // MAX_PATH
+ #include <climits> // PATH_MAX
++#include <unistd.h>
+ 
+ 
+ #if defined(__WIN32__) || defined(WIN32)
