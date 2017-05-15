@@ -1,0 +1,34 @@
+--- a/src/platform/platformdependent.c	2013-10-08 21:53:15.000000000 +0200
++++ b/src/platform/platformdependent.c	2013-10-08 21:55:22.000000000 +0200
+@@ -75,7 +75,7 @@
+	short i;
+	FILE *scoresFile;
+
+-	scoresFile = fopen("BrogueHighScores.txt", "w");
++	scoresFile = fopen("HOMEBREW_PREFIX/var/brogue/BrogueHighScores.txt", "w");
+	for (i=0; i<HIGH_SCORES_COUNT; i++) {
+		fprintf(scoresFile, "%li\t%li\t%s", (long) 0, (long) 0, "(empty entry)\n");
+	}
+@@ -128,11 +128,11 @@
+	time_t rawtime;
+	struct tm * timeinfo;
+
+-	scoresFile = fopen("BrogueHighScores.txt", "r");
++	scoresFile = fopen("HOMEBREW_PREFIX/var/brogue/BrogueHighScores.txt", "r");
+
+	if (scoresFile == NULL) {
+		initScores();
+-		scoresFile = fopen("BrogueHighScores.txt", "r");
++		scoresFile = fopen("HOMEBREW_PREFIX/var/brogue/BrogueHighScores.txt", "r");
+	}
+
+	for (i=0; i<HIGH_SCORES_COUNT; i++) {
+@@ -197,7 +197,7 @@
+	short i;
+	FILE *scoresFile;
+
+-	scoresFile = fopen("BrogueHighScores.txt", "w");
++	scoresFile = fopen("HOMEBREW_PREFIX/var/brogue/BrogueHighScores.txt", "w");
+
+	for (i=0; i<HIGH_SCORES_COUNT; i++) {
+		// save the entry
