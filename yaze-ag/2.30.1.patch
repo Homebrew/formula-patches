@@ -1,0 +1,19 @@
+diff --git a/Makefile_solaris_gcc b/Makefile_solaris_gcc
+index 9e469a3..b25d007 100644
+--- a/Makefile_solaris_gcc
++++ b/Makefile_solaris_gcc
+@@ -140,11 +140,14 @@ simz80.c:	simz80.pl
+		perl -w simz80.pl >simz80.c
+		chmod a-w simz80.c
+
++cdm.o:		CFLAGS+=-include sys/types.h
++
+ cdm:		cdm.o
+		$(CC) $(CFLAGS) cdm.o $(LIBS) -o $@
+
+ install:	all
+		rm -rf $(LIBDIR)
++		mkdir -p $(BINDIR)
+		mkdir -p $(LIBDIR)
+		mkdir -p $(MANDIR)
+		$(INSTALL) -s -c -m 755 yaze_bin $(BINDIR)
