@@ -1,0 +1,22 @@
+--- a/librhash/Makefile	2014-04-20 14:20:22.000000000 +0200
++++ b/librhash/Makefile	2014-04-20 14:40:02.000000000 +0200
+@@ -26,8 +26,8 @@
+ INCDIR  = $(PREFIX)/include
+ LIBDIR  = $(PREFIX)/lib
+ LIBRARY = librhash.a
+-SONAME  = librhash.so.0
+-SOLINK  = librhash.so
++SONAME  = librhash.0.dylib
++SOLINK  = librhash.dylib
+ TEST_TARGET = test_hashes
+ TEST_SHARED = test_shared
+ # Set variables according to GNU coding standard
+@@ -176,8 +176,7 @@
+
+ # shared and static libraries
+ $(SONAME): $(SOURCES)
+-	sed -n '1s/.*/{ global:/p; s/^RHASH_API.* \([a-z0-9_]\+\)(.*/  \1;/p; $$s/.*/local: *; };/p' $(SO_HEADERS) > exports.sym
+-	$(CC) -fpic $(ALLCFLAGS) -shared $(SOURCES) -Wl,--version-script,exports.sym,-soname,$(SONAME) $(LIBLDFLAGS) -o $@
++	$(CC) -fpic $(ALLCFLAGS) -dynamiclib $(SOURCES) $(LIBLDFLAGS) -Wl,-install_name,$(PREFIX)/lib/$@ -o $@
+ 	ln -s $(SONAME) $(SOLINK)
+ # use 'nm -Cg --defined-only $@' to view exported symbols
