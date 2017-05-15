@@ -1,0 +1,12 @@
+diff --git a/configure b/configure
+index 2262477..bf0af62 100755
+--- a/configure
++++ b/configure
+@@ -193,7 +193,7 @@ else stdutil xdg-open   XDG_OPEN   xdg-open
+ fi
+
+ stdutil ronn       RONN       ronn
+-stdutil markdown   MARKDOWN   markdown Markdown.pl
++stdutil markdown   MARKDOWN   markdown Markdown.pl $MARKDOWN
+ stdutil perl       PERL       perl
+ stdutil pygmentize PYGMENTIZE pygmentize $PYGMENTIZE
