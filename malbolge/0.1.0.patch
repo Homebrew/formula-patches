@@ -1,0 +1,4 @@
+--- /malbolge.c
++++ /malbolge.c 
+25d24
+< #include <malloc.h>
