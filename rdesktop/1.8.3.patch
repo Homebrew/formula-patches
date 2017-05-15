@@ -1,0 +1,21 @@
+diff --git a/scard.c b/scard.c
+index caa0745..5521ee9 100644
+--- a/scard.c
++++ b/scard.c
+@@ -2152,7 +2152,6 @@ TS_SCardControl(STREAM in, STREAM out)
+	{
+		/* Translate to local encoding */
+		dwControlCode = (dwControlCode & 0x3ffc) >> 2;
+-		dwControlCode = SCARD_CTL_CODE(dwControlCode);
+	}
+	else
+	{
+@@ -2198,7 +2197,7 @@ TS_SCardControl(STREAM in, STREAM out)
+	}
+
+ #ifdef PCSCLITE_VERSION_NUMBER
+-	if (dwControlCode == SCARD_CTL_CODE(3400))
++	if (0)
+	{
+		int i;
+		SERVER_DWORD cc;
