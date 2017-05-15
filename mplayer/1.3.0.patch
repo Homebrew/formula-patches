@@ -1,0 +1,13 @@
+diff --git a/configure b/configure
+index addc461..3b871aa 100755
+--- a/configure
++++ b/configure
+@@ -1517,8 +1517,6 @@ if test -e ffmpeg/mp_auto_pull ; then
+ fi
+
+ if test "$ffmpeg_a" != "no" && ! test -e ffmpeg ; then
+-    echo "No FFmpeg checkout, press enter to download one with git or CTRL+C to abort"
+-    read tmp
+     if ! git clone -b $FFBRANCH --depth 1 git://source.ffmpeg.org/ffmpeg.git ffmpeg ; then
+         rm -rf ffmpeg
+         echo "Failed to get a FFmpeg checkout"
