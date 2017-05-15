@@ -1,0 +1,13 @@
+--- a/src/im/auth_pam.h	2012-05-14 02:44:27.000000000 -0700
++++ b/src/im/auth_pam.h	2012-10-12 10:16:47.000000000 -0700
+@@ -21,7 +21,10 @@
+
+ #include "auth.h"
+ #include <security/pam_appl.h>
++
++#ifndef __APPLE__
+ #include <security/pam_misc.h>
++#endif
+
+ struct _pam_conv_func_data {
+	bool update;
