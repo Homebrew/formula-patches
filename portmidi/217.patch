@@ -1,0 +1,20 @@
+diff --git a/pm_common/CMakeLists.txt b/pm_common/CMakeLists.txt
+index e171047..b010c35 100644
+--- a/pm_common/CMakeLists.txt
++++ b/pm_common/CMakeLists.txt
+@@ -112,14 +112,9 @@ target_link_libraries(portmidi-static ${PM_NEEDED_LIBS})
+ # define the jni library
+ include_directories(${JAVA_INCLUDE_PATHS})
+
+-set(JNISRC ${LIBSRC} ../pm_java/pmjni/pmjni.c)
+-add_library(pmjni SHARED ${JNISRC})
+-target_link_libraries(pmjni ${JNI_EXTRA_LIBS})
+-set_target_properties(pmjni PROPERTIES EXECUTABLE_EXTENSION "jnilib")
+-
+ # install the libraries (Linux and Mac OS X command line)
+ if(UNIX)
+-  INSTALL(TARGETS portmidi-static pmjni
++  INSTALL(TARGETS portmidi-static
+     LIBRARY DESTINATION /usr/local/lib
+     ARCHIVE DESTINATION /usr/local/lib)
+ # .h files installed by pm_dylib/CMakeLists.txt, so don't need them here
