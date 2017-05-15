@@ -1,0 +1,17 @@
+diff --git a/libpcre++/pcre++.h b/libpcre++/pcre++.h
+index d80b387..21869fc 100644
+--- a/libpcre++/pcre++.h
++++ b/libpcre++/pcre++.h
+@@ -47,11 +47,11 @@
+ #include <map>
+ #include <stdexcept>
+ #include <iostream>
++#include <clocale>
+ 
+ 
+ extern "C" {
+   #include <pcre.h>
+-  #include <locale.h>
+ }
+ 
+ namespace pcrepp {
