@@ -1,0 +1,76 @@
+
+diff --git a/bbftpc/bbftp_get.c b/bbftpc/bbftp_get.c
+index 96c8d35..b1cd2e3 100644
+--- a/bbftpc/bbftp_get.c
++++ b/bbftpc/bbftp_get.c
+@@ -94,9 +94,9 @@ extern  int     nbport ;
+ extern  int     state ;
+ extern  int     protocol ;
+
+-#ifndef HAVE_NTOHLL
+-my64_t ntohll(my64_t v) ;
+-#endif
++// #ifndef HAVE_NTOHLL
++// my64_t ntohll(my64_t v) ;
++// #endif
+
+ int bbftp_get(char *remotefilename,int  *errcode)
+ {
+
+diff --git a/bbftpc/bbftp_put.c b/bbftpc/bbftp_put.c
+index 53c9919..b633ceb 100644
+--- a/bbftpc/bbftp_put.c
++++ b/bbftpc/bbftp_put.c
+@@ -96,9 +96,9 @@ extern  int     state ;
+ extern  int     simulation_mode ;
+ extern  int     protocol ;
+
+-#ifndef HAVE_NTOHLL
+-my64_t ntohll(my64_t v) ;
+-#endif
++// #ifndef HAVE_NTOHLL
++// my64_t ntohll(my64_t v) ;
++// #endif
+
+ int bbftp_put(char *remotefilename,int  *errcode)
+ {
+
+diff --git a/bbftpc/bbftp_utils.c b/bbftpc/bbftp_utils.c
+index 40d5f9e..7143903 100644
+--- a/bbftpc/bbftp_utils.c
++++ b/bbftpc/bbftp_utils.c
+@@ -82,20 +82,20 @@ my64_t convertlong(my64_t v) {
+     return tmp64 ;
+ }
+
+-#ifndef HAVE_NTOHLL
+-my64_t ntohll(my64_t v) {
+-#ifdef HAVE_BYTESWAP_H
+-    return bswap_64(v);
+-#else
+-    long lo = v & 0xffffffff;
+-    long hi = v >> 32U;
+-    lo = ntohl(lo);
+-    hi = ntohl(hi);
+-    return ((my64_t) lo) << 32U | hi;
+-#endif
+-}
+-#define htonll ntohll
+-#endif
++// #ifndef HAVE_NTOHLL
++// my64_t ntohll(my64_t v) {
++// #ifdef HAVE_BYTESWAP_H
++//    return bswap_64(v);
++// #else
++//    long lo = v & 0xffffffff;
++//    long hi = v >> 32U;
++//    lo = ntohl(lo);
++//    hi = ntohl(hi);
++//    return ((my64_t) lo) << 32U | hi;
++// #endif
++// }
++// #define htonll ntohll
++// #endif
+
+ void printmessage(FILE *strm , int flag, int errcode, int tok, char *fmt, ...)
+ {
