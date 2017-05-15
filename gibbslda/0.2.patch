@@ -1,0 +1,13 @@
+
+diff --git a/src/utils.cpp b/src/utils.cpp
+index e2f538b..1df5fb3 100644
+--- a/src/utils.cpp
++++ b/src/utils.cpp
+@@ -22,6 +22,7 @@
+  */
+
+ #include <stdio.h>
++#include <stdlib.h>
+ #include <string>
+ #include <map>
+ #include "strtokenizer.h"
