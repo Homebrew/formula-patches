@@ -1,0 +1,11 @@
+diff --git a/gsi_openssh/source/openbsd-compat/vis.h b/gsi_openssh/source/openbsd-compat/vis.h
+index d1286c9..4f55f9e 100644
+--- a/gsi_openssh/source/openbsd-compat/vis.h
++++ b/gsi_openssh/source/openbsd-compat/vis.h
+@@ -34,6 +34,7 @@
+
+ /* OPENBSD ORIGINAL: include/vis.h */
+
++#include_next <vis.h>
+ #include "includes.h"
+ #if !defined(HAVE_STRNVIS) || defined(BROKEN_STRNVIS)
