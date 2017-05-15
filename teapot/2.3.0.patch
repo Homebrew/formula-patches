@@ -1,0 +1,12 @@
+diff --git a/config.h b/config.h
+index 2a4e34f..cdf11a1 100644
+--- a/config.h
++++ b/config.h
+@@ -1,7 +1,7 @@
+ /* configuration values */
+
+
+-#define VERSION "2.2.1"
++#define VERSION "2.3.0"
+
+ #define HELPFILE "/usr/local/share/doc/teapot/html/index.html"
