@@ -1,0 +1,21 @@
+diff --git a/src/tools.lua b/src/tools.lua
+index f3b9b10..995d58e 100644
+--- a/src/tools.lua
++++ b/src/tools.lua
+@@ -5,13 +5,13 @@ function SetDefaultDrivers(settings)
+ 	if _checked_default_drivers == false then
+ 		_checked_default_drivers = true
+ 		if os.getenv("CC") then
+-			if string.match(os.getenv("CC"), "^clang") then
++			if string.match(os.getenv("CC"), "/clang") then
+ 				print("CLANG!")
+ 				SetDriversDefault = SetDriversClang
+-			elseif string.match(os.getenv("CC"), "^gcc") then
++			elseif string.match(os.getenv("CC"), "/gcc") then
+ 				print("GCC!")
+ 				SetDriversDefault = SetDriversGCC
+-			elseif string.match(os.getenv("CC"), "^clang") then
++			elseif string.match(os.getenv("CC"), "/cl") then
+ 				print("CL!")
+ 				SetDriversDefault = SetDriversCL
+ 			end
