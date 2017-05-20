@@ -1,0 +1,31 @@
+diff --git a/libsrc/occ/Partition_Loop2d.cxx b/libsrc/occ/Partition_Loop2d.cxx
+index d980a5c..e752ba0 100644
+--- a/libsrc/occ/Partition_Loop2d.cxx
++++ b/libsrc/occ/Partition_Loop2d.cxx
+@@ -52,6 +52,10 @@
+ #include <gp_Pnt.hxx>
+ #include <gp_Pnt2d.hxx>
+ 
++#ifndef PI
++    #define PI M_PI
++#endif
++
+ //=======================================================================
+ //function : Partition_Loop2d
+ //purpose  :
+diff --git a/ng/Makefile.in b/ng/Makefile.in
+index deb4595..2d0995f 100644
+--- a/ng/Makefile.in
++++ b/ng/Makefile.in
+@@ -327,10 +327,7 @@ netgen_LDADD = $(top_builddir)/libsrc/visualization/libvisual.la \
+ #   /opt/netgen/lib/libngsolve.a /opt/netgen/lib/libngcomp.a /opt/netgen/lib/libngcomp.a  /opt/netgen/lib/libngfemng.a   /opt/netgen/lib/libngmg.a  /opt/netgen/lib/libngla.a  /opt/netgen/lib/libngbla.a  /opt/netgen/lib/libngstd.a -L/opt/intel/mkl/10.2.1.017/lib/em64t /opt/intel/mkl/10.2.1.017/lib/em64t/libmkl_solver_lp64.a  -lmkl_intel_lp64  -lmkl_gnu_thread -lmkl_core 
+ #
+ #
+-dist_bin_SCRIPTS = dialog.tcl menustat.tcl ngicon.tcl ng.tcl	  \
+-ngvisual.tcl sockets.tcl drawing.tcl nghelp.tcl ngshell.tcl	  \
+-ngtesting.tcl parameters.tcl variables.tcl csgeom.tcl stlgeom.tcl \
+-occgeom.tcl acisgeom.tcl netgen.ocf
++dist_bin_SCRIPTS =
+ 
+ netgen_LDFLAGS = -export-dynamic
+ all: all-am
