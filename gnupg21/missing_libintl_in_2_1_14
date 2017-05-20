@@ -1,0 +1,28 @@
+From c49c43d7e4229fd9f1bc55e17fa32fdc334dbef6 Mon Sep 17 00:00:00 2001
+From: Justus Winter <justus@g10code.com>
+Date: Fri, 15 Jul 2016 12:28:46 +0200
+Subject: [PATCH] gpgscm: Fix linking.
+
+* tests/gpgscm/Makefile.am: Add -lintl.
+
+Signed-off-by: Justus Winter <justus@g10code.com>
+---
+ tests/gpgscm/Makefile.am | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tests/gpgscm/Makefile.am b/tests/gpgscm/Makefile.am
+index e57a4bb..dad30ed 100644
+--- a/tests/gpgscm/Makefile.am
++++ b/tests/gpgscm/Makefile.am
+@@ -45,7 +45,7 @@ gpgscm_CFLAGS = -imacros scheme-config.h \
+ gpgscm_SOURCES = main.c private.h ffi.c ffi.h ffi-private.h \
+ 	scheme-config.h opdefines.h scheme.c scheme.h scheme-private.h
+ gpgscm_LDADD = $(LDADD) $(common_libs) \
+-	$(NETLIBS) $(LIBICONV) $(LIBREADLINE) \
++	$(NETLIBS) $(LIBICONV) $(LIBREADLINE) $(LIBINTL) \
+ 	$(LIBGCRYPT_LIBS) $(GPG_ERROR_LIBS)
+ 
+ t_child_SOURCES = t-child.c
+-- 
+2.6.4 (Apple Git-63)
+
