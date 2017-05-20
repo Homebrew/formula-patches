@@ -1,0 +1,41 @@
+From 6bcf2636369486a158d97cdbf0e9cfd781fa2e89 Mon Sep 17 00:00:00 2001
+From: ilovezfs <ilovezfs@icloud.com>
+Date: Sun, 7 Aug 2016 05:38:52 -0700
+Subject: [PATCH] gpcoffgen: fix return-type errors
+
+Fixes
+```
+gpcoffgen.c:313:5: error: void function 'gp_coffgen_move_reserve_section_symbols' should not return a value [-Wreturn-type]
+    return NULL;
+    ^      ~~~~
+gpcoffgen.c:339:5: error: void function 'gp_coffgen_del_section_symbols' should not return a value [-Wreturn-type]
+    return NULL;
+    ^      ~~~~
+2 errors generated.
+```
+---
+ libgputils/gpcoffgen.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/libgputils/gpcoffgen.c b/libgputils/gpcoffgen.c
+index 021c564..7930487 100644
+--- a/libgputils/gpcoffgen.c
++++ b/libgputils/gpcoffgen.c
+@@ -310,7 +310,7 @@ gp_coffgen_move_reserve_section_symbols(gp_object_t *Object, gp_section_t *Secti
+   gp_symbol_t *symbol;
+ 
+   if (Object == NULL) {
+-    return NULL;
++    return;
+   }
+ 
+   /* Move all symbols for the section into dead list. */
+@@ -336,7 +336,7 @@ gp_coffgen_del_section_symbols(gp_object_t *Object, gp_section_t *Section)
+   gp_symbol_t *symbol;
+ 
+   if (Object == NULL) {
+-    return NULL;
++    return;
+   }
+ 
+   /* Remove all symbols for the section. */
