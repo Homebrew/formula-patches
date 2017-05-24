@@ -1,0 +1,13 @@
+diff --git a/auxprogs/homGeneMapping/src/Makefile b/auxprogs/homGeneMapping/src/Makefile
+index 40a2376..30ad44f 100644
+--- a/auxprogs/homGeneMapping/src/Makefile
++++ b/auxprogs/homGeneMapping/src/Makefile
+@@ -39,7 +39,7 @@ all: homGeneMapping
+ 	$(CC) -c $(CFLAGS) $(CXXFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ $< $(INCLS)
+ 
+ homGeneMapping: main.cc $(OBJS)
+-	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $^ $(INCLS)  $(LIBS)
++	$(CC) $(CFLAGS) $(CXXFLAGS) $(CPPFLAGS) -o $@ $^ $(INCLS)  $(LIBS)
+ 	cp homGeneMapping ../../../bin/homGeneMapping
+ 
+ clean:
