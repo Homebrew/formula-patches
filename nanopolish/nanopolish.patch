@@ -1,0 +1,70 @@
+diff --git a/src/alignment/nanopolish_eventalign.cpp b/src/alignment/nanopolish_eventalign.cpp
+index 942e1ee..2513b00 100644
+--- a/src/alignment/nanopolish_eventalign.cpp
++++ b/src/alignment/nanopolish_eventalign.cpp
+@@ -674,7 +674,7 @@ std::vector<EventAlignment> align_read_to_ref(const EventAlignmentParameters& pa
+         // over very large deletions wrt to the reference. The effect of this
+         // is that we can get segments that have very few alignable events. We
+         // just stop processing them for now
+-        if(abs(input.event_start_idx - input.event_stop_idx) < 2)
++        if(input.event_start_idx - input.event_stop_idx < 2)
+             break;
+ 
+         input.strand = params.strand_idx;
+diff --git a/src/nanopolish_call_variants.cpp b/src/nanopolish_call_variants.cpp
+index c48ae8e..aae584e 100644
+--- a/src/nanopolish_call_variants.cpp
++++ b/src/nanopolish_call_variants.cpp
+@@ -403,7 +403,7 @@ void print_debug_stats(const std::string& contig,
+         const HMMInputData& data = event_sequences[i];
+ 
+         // summarize score
+-        double num_events = abs(data.event_start_idx - data.event_stop_idx) + 1;
++        double num_events = data.event_start_idx - data.event_stop_idx + 1;
+         double base_score = profile_hmm_score(base_haplotype.get_sequence(), data, alignment_flags);
+         double called_score = profile_hmm_score(called_haplotype.get_sequence(), data, alignment_flags);
+         double base_avg = base_score / num_events;
+@@ -562,7 +562,7 @@ Haplotype fix_homopolymers(const Haplotype& input_haplotype,
+             size_t strand = event_sequences[j].strand;
+ 
+             // skip small event regions
+-            if( abs(event_sequences[j].event_start_idx - event_sequences[j].event_stop_idx) < 10) {
++            if( event_sequences[j].event_start_idx - event_sequences[j].event_stop_idx < 10) {
+                 continue;
+             }
+ 
+diff --git a/src/nanopolish_consensus.cpp b/src/nanopolish_consensus.cpp
+index 2f41fef..23b6e30 100644
+--- a/src/nanopolish_consensus.cpp
++++ b/src/nanopolish_consensus.cpp
+@@ -522,7 +522,7 @@ void filter_outlier_data(std::vector<HMMInputData>& input, const std::string& se
+         const HMMInputData& rs = input[ri];
+ 
+         double curr = score_sequence(sequence, rs);
+-        double n_events = abs(rs.event_start_idx - rs.event_stop_idx) + 1.0f;
++        double n_events = rs.event_start_idx - rs.event_stop_idx + 1.0f;
+         double lp_per_event = curr / n_events;
+ 
+         if(opt::verbose >= 1) {
+@@ -634,7 +634,7 @@ void run_splice_segment(HMMRealignmentInput& window, uint32_t segment_id, const
+         int32_t min_k_dist = base.length();
+         uint32_t event_idx = 0;
+         for(uint32_t di = 0; di < decodes.size(); ++di) {
+-            int32_t dist = abs(decodes[di].kmer_idx - midpoint_kmer);
++            int32_t dist = decodes[di].kmer_idx - midpoint_kmer;
+             if(dist <= min_k_dist) {
+                 min_k_dist = dist;
+                 event_idx = decodes[di].event_idx;
+diff --git a/src/nanopolish_scorereads.cpp b/src/nanopolish_scorereads.cpp
+index 79ff155..3904ce2 100644
+--- a/src/nanopolish_scorereads.cpp
++++ b/src/nanopolish_scorereads.cpp
+@@ -166,7 +166,7 @@ double model_score(SquiggleRead &sr,
+ 
+         // Run HMM using current model
+         double segment_score = profile_hmm_score(sequence, data, 0);
+-        int events_in_segment = abs(data.event_start_idx - data.event_stop_idx) + 1;
++        int events_in_segment = data.event_start_idx - data.event_stop_idx + 1;
+         
+         // Calculate scaling parameters for this local segment
+         std::vector<EventAlignment> event_alignment_sub(alignment_output.begin() + align_start_idx,
