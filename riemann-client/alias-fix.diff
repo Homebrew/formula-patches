@@ -1,0 +1,110 @@
+diff --git a/lib/riemann/_private.h b/lib/riemann/_private.h
+index 5b9af3d..c3341b6 100644
+--- a/lib/riemann/_private.h
++++ b/lib/riemann/_private.h
+@@ -47,10 +47,4 @@ struct _riemann_client_t
+ #endif
+ };
+ 
+-#if HAVE_VERSIONING
+-#define SYMVER(symbol) symbol ## _default
+-#else
+-#define SYMVER(symbol) symbol
+-#endif
+-
+ #endif
+diff --git a/lib/riemann/client.c b/lib/riemann/client.c
+index b0a9d7e..4afff98 100644
+--- a/lib/riemann/client.c
++++ b/lib/riemann/client.c
+@@ -46,7 +46,7 @@ riemann_client_version_string (void)
+ }
+ 
+ riemann_client_t *
+-riemann_client_new_default (void)
++riemann_client_new (void)
+ {
+   riemann_client_t *client;
+ 
+@@ -62,12 +62,7 @@ riemann_client_new_default (void)
+ }
+ 
+ #if HAVE_VERSIONING
+-riemann_client_t riemann_client_new_1_0 (void) __attribute__((alias("riemann_client_new_default")));
+-
+-__asm__(".symver riemann_client_new_1_0,riemann_client_new@RIEMANN_C_1.0");
+-__asm__(".symver riemann_client_new_default,riemann_client_new@@RIEMANN_C_1.10");
+-#else
+-riemann_client_t * riemann_client_new (void) __attribute__((alias("riemann_client_new_default")));
++__asm__(".symver riemann_client_new,riemann_client_new@@RIEMANN_C_1.10");
+ #endif
+ 
+ int
+@@ -212,9 +207,9 @@ riemann_client_connect_va (riemann_client_t *client,
+ }
+ 
+ int
+-SYMVER(riemann_client_connect) (riemann_client_t *client,
+-                                riemann_client_type_t type,
+-                                const char *hostname, int port, ...)
++riemann_client_connect (riemann_client_t *client,
++                        riemann_client_type_t type,
++                        const char *hostname, int port, ...)
+ {
+   va_list ap;
+   int r;
+@@ -226,20 +221,20 @@ SYMVER(riemann_client_connect) (riemann_client_t *client,
+ }
+ 
+ #if HAVE_VERSIONING
+-__asm__(".symver riemann_client_connect_default,riemann_client_connect@@RIEMANN_C_1.5");
++__asm__(".symver riemann_client_connect,riemann_client_connect@@RIEMANN_C_1.5");
+ 
+ int
+ riemann_client_connect_1_0 (riemann_client_t *client,
+                             riemann_client_type_t type,
+                             const char *hostname, int port)
+-  __attribute__((alias ("riemann_client_connect_default")));
++  __attribute__((alias ("riemann_client_connect")));
+ 
+ __asm__(".symver riemann_client_connect_1_0,riemann_client_connect@RIEMANN_C_1.0");
+ #endif
+ 
+ riemann_client_t *
+-SYMVER(riemann_client_create) (riemann_client_type_t type,
+-                               const char *hostname, int port, ...)
++riemann_client_create (riemann_client_type_t type,
++                       const char *hostname, int port, ...)
+ {
+   riemann_client_t *client;
+   int e;
+@@ -263,18 +258,21 @@ SYMVER(riemann_client_create) (riemann_client_type_t type,
+ 
+ #if HAVE_VERSIONING
+ riemann_client_t *
+-riemann_client_create_1_0 (riemann_client_type_t type,
+-                           const char *hostname, int port)
+-  __attribute__((alias ("riemann_client_create_default")));
+-
+-riemann_client_t *
+ riemann_client_create_1_5 (riemann_client_type_t type,
+                            const char *hostname, int port, ...)
+-  __attribute__((alias ("riemann_client_create_default")));
++  __attribute__((alias ("riemann_client_create")));
+ 
+-__asm__(".symver riemann_client_create_1_0,riemann_client_create@RIEMANN_C_1.0");
+ __asm__(".symver riemann_client_create_1_5,riemann_client_create@RIEMANN_C_1.5");
+-__asm__(".symver riemann_client_create_default,riemann_client_create@@RIEMANN_C_1.10");
++__asm__(".symver riemann_client_create,riemann_client_create@@RIEMANN_C_1.10");
++#endif
++
++#if HAVE_VERSIONING
++riemann_client_t *
++riemann_client_create_1_0 (riemann_client_type_t type,
++                           const char *hostname, int port)
++  __attribute__((alias ("riemann_client_create")));
++
++__asm__(".symver riemann_client_create_1_0,riemann_client_create@RIEMANN_C_1.0");
+ #endif
+ 
+ int
