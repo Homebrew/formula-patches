@@ -1,0 +1,139 @@
+From 34656ec2f00d6669cef56afdbffdd90639d7b465 Mon Sep 17 00:00:00 2001
+From: Peter Stephenson <p.w.stephenson@ntlworld.com>
+Date: Tue, 10 Jan 2017 19:18:52 +0000
+Subject: [PATCH] 40305: fix some problems redisplaying command line after
+ interrupt.
+
+Back off previous fix as this only covered some subset of problems.
+
+Remaining problems happend after reset-prompt in TRAPINT.
+
+One was in complist and is fixed by not attempting to list after
+an error or interrupt.
+
+The other was owing to not resetting clearflag when ZLE
+was re-entered.
+---
+ Src/Zle/complist.c    |  3 ++-
+ Src/Zle/zle_main.c    |  1 +
+ Src/Zle/zle_refresh.c |  4 ++--
+ Src/Zle/zle_thingy.c  | 25 ++++++++++++++++++++++---
+ 4 files changed, 31 insertions(+), 6 deletions(-)
+
+diff --git a/Src/Zle/complist.c b/Src/Zle/complist.c
+index 2edaf6eca..035038815 100644
+--- a/Src/Zle/complist.c
++++ b/Src/Zle/complist.c
+@@ -1993,7 +1993,8 @@ complistmatches(UNUSED(Hookdef dummy), Chdata dat)
+     if (noselect > 0)
+ 	noselect = 0;
+ 
+-    if ((minfo.asked == 2 && mselect < 0) || nlnct >= zterm_lines) {
++    if ((minfo.asked == 2 && mselect < 0) || nlnct >= zterm_lines ||
++	errflag) {
+ 	showinglist = 0;
+ 	amatches = oamatches;
+ 	return (noselect = 1);
+diff --git a/Src/Zle/zle_main.c b/Src/Zle/zle_main.c
+index 15ea79643..6c271b5d0 100644
+--- a/Src/Zle/zle_main.c
++++ b/Src/Zle/zle_main.c
+@@ -1245,6 +1245,7 @@ zleread(char **lp, char **rp, int flags, int context, char *init, char *finish)
+     resetneeded = 0;
+     fetchttyinfo = 0;
+     trashedzle = 0;
++    clearflag = 0;
+     raw_lp = lp;
+     lpromptbuf = promptexpand(lp ? *lp : NULL, 1, NULL, NULL, &pmpt_attr);
+     raw_rp = rp;
+diff --git a/Src/Zle/zle_refresh.c b/Src/Zle/zle_refresh.c
+index 8d173cda1..83917396a 100644
+--- a/Src/Zle/zle_refresh.c
++++ b/Src/Zle/zle_refresh.c
+@@ -2434,8 +2434,8 @@ redisplay(UNUSED(char **args))
+     moveto(0, 0);
+     zputc(&zr_cr);		/* extra care */
+     tc_upcurs(lprompth - 1);
+-    resetneeded = !showinglist;
+-    clearflag = showinglist;
++    resetneeded = 1;
++    clearflag = 0;
+     return 0;
+ }
+ 
+diff --git a/Src/Zle/zle_thingy.c b/Src/Zle/zle_thingy.c
+index c7092854a..c003148f8 100644
+--- a/Src/Zle/zle_thingy.c
++++ b/Src/Zle/zle_thingy.c
+@@ -703,7 +703,7 @@ bin_zle_call(char *name, char **args, UNUSED(Options ops), UNUSED(char func))
+ {
+     Thingy t;
+     struct modifier modsave = zmod;
+-    int ret, saveflag = 0, setbindk = 0;
++    int ret, saveflag = 0, setbindk = 0, remetafy;
+     char *wname = *args++, *keymap_restore = NULL, *keymap_tmp;
+ 
+     if (!wname)
+@@ -714,7 +714,15 @@ bin_zle_call(char *name, char **args, UNUSED(Options ops), UNUSED(char func))
+ 	return 1;
+     }
+ 
+-    UNMETACHECK();
++    /*
++     * zle is callable in traps, so we can't be sure the line is
++     * in its normal state.
++     */
++    if (zlemetaline) {
++	unmetafy_line();
++	remetafy = 1;
++    } else
++	remetafy = 0;
+ 
+     while (*args && **args == '-') {
+ 	char *num;
+@@ -728,6 +736,8 @@ bin_zle_call(char *name, char **args, UNUSED(Options ops), UNUSED(char func))
+ 		num = args[0][1] ? args[0]+1 : args[1];
+ 		if (!num) {
+ 		    zwarnnam(name, "number expected after -%c", **args);
++		    if (remetafy)
++			metafy_line();
+ 		    return 1;
+ 		}
+ 		if (!args[0][1])
+@@ -745,19 +755,26 @@ bin_zle_call(char *name, char **args, UNUSED(Options ops), UNUSED(char func))
+ 		keymap_tmp = args[0][1] ? args[0]+1 : args[1];
+ 		if (!keymap_tmp) {
+ 		    zwarnnam(name, "keymap expected after -%c", **args);
++		    if (remetafy)
++			metafy_line();
+ 		    return 1;
+ 		}
+ 		if (!args[0][1])
+ 		    *++args = "" - 1;
+ 		keymap_restore = dupstring(curkeymapname);
+-		if (selectkeymap(keymap_tmp, 0))
++		if (selectkeymap(keymap_tmp, 0)) {
++		    if (remetafy)
++			metafy_line();
+ 		    return 1;
++		}
+ 		break;
+ 	    case 'w':
+ 		setbindk = 1;
+ 		break;
+ 	    default:
+ 		zwarnnam(name, "unknown option: %s", *args);
++		if (remetafy)
++		    metafy_line();
+ 		return 1;
+ 	    }
+ 	}
+@@ -775,6 +792,8 @@ bin_zle_call(char *name, char **args, UNUSED(Options ops), UNUSED(char func))
+ 	zmod = modsave;
+     if (keymap_restore)
+ 	selectkeymap(keymap_restore, 0);
++    if (remetafy)
++	metafy_line();
+     return ret;
+ }
+ 
