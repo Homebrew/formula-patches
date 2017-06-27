@@ -1,0 +1,34 @@
+From 64275b4bd65b94ae426ba94768b19d198dcb7c97 Mon Sep 17 00:00:00 2001
+From: Petr Danecek <pd3@sanger.ac.uk>
+Date: Tue, 11 Dec 2012 07:55:29 +0000
+Subject: [PATCH] ksort.h: declared __ks_insertsort_##name as static to compile
+ with C99. (On behalf of Hanspeter Niederstrasser.)
+
+---
+ ksort.h | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/ksort.h b/ksort.h
+index fa850ab0..aa0bb93e 100644
+--- a/ksort.h
++++ b/ksort.h
+@@ -26,6 +26,10 @@
+ /* Contact: Heng Li <lh3@sanger.ac.uk> */
+ 
+ /*
++  2012-12-11 (0.1.4):
++
++    * Defined __ks_insertsort_##name as static to compile with C99.
++
+   2008-11-16 (0.1.4):
+ 
+     * Fixed a bug in introsort() that happens in rare cases.
+@@ -141,7 +145,7 @@ typedef struct {
+ 			tmp = *l; *l = l[i]; l[i] = tmp; ks_heapadjust_##name(0, i, l); \
+ 		}																\
+ 	}																	\
+-	inline void __ks_insertsort_##name(type_t *s, type_t *t)			\
++	static inline void __ks_insertsort_##name(type_t *s, type_t *t)		\
+ 	{																	\
+ 		type_t *i, *j, swap_tmp;										\
+ 		for (i = s + 1; i < t; ++i)										\
