@@ -1,0 +1,1366 @@
+diff --git a/include/wx/osx/carbon/private.h b/include/wx/osx/carbon/private.h
+index 64fa447..ac67e45 100644
+--- a/include/wx/osx/carbon/private.h
++++ b/include/wx/osx/carbon/private.h
+@@ -87,7 +87,7 @@ public :
+     wxMacCarbonEvent(UInt32 inClassID,UInt32 inKind,EventTime inWhen = 0 /*now*/,EventAttributes inAttributes=kEventAttributeNone)
+     {
+         m_eventRef = NULL;
+-        verify_noerr( MacCreateEvent( NULL , inClassID, inKind,inWhen,inAttributes,&m_eventRef) );
++        __Verify_noErr( MacCreateEvent( NULL , inClassID, inKind,inWhen,inAttributes,&m_eventRef) );
+         m_release = true;
+     }
+ 
+@@ -126,13 +126,13 @@ public :
+     template <typename T> T GetParameter( EventParamName inName )
+     {
+         T value;
+-        verify_noerr( GetParameter<T>( inName, &value ) );
++        __Verify_noErr( GetParameter<T>( inName, &value ) );
+         return value;
+     }
+     template <typename T> T GetParameter( EventParamName inName, EventParamType inDesiredType )
+     {
+         T value;
+-        verify_noerr( GetParameter<T>( inName, inDesiredType , &value ) );
++        __Verify_noErr( GetParameter<T>( inName, inDesiredType , &value ) );
+         return value;
+     }
+ 
+@@ -355,7 +355,7 @@ public :
+     Size GetDataSize( ControlPartCode inPartCode , ResType inTag ) const
+     {
+         Size sz;
+-        verify_noerr( GetDataSize( inPartCode , inTag , &sz ) );
++        __Verify_noErr( GetDataSize( inPartCode , inTag , &sz ) );
+         return sz;
+     }
+     template <typename T> OSStatus SetData( ControlPartCode inPartCode , ResType inTag , const T *data )
+diff --git a/include/wx/platform.h b/include/wx/platform.h
+index bb671f0..ed8e086 100644
+--- a/include/wx/platform.h
++++ b/include/wx/platform.h
+@@ -32,6 +32,21 @@
+ #    ifndef MAC_OS_X_VERSION_10_8
+ #       define MAC_OS_X_VERSION_10_8 1080
+ #    endif
++#    ifndef MAC_OS_X_VERSION_10_9
++#       define MAC_OS_X_VERSION_10_9 1090
++#    endif
++#    ifndef MAC_OS_X_VERSION_10_10
++#       define MAC_OS_X_VERSION_10_10 101000
++#    endif
++#    ifndef MAC_OS_X_VERSION_10_11
++#       define MAC_OS_X_VERSION_10_11 101100
++#    endif
++#    ifndef MAC_OS_X_VERSION_10_12
++#       define MAC_OS_X_VERSION_10_12 101200
++#    endif
++#    ifndef MAC_OS_X_VERSION_10_13
++#       define MAC_OS_X_VERSION_10_13 101300
++#    endif
+ #    include "wx/osx/config_xcode.h"
+ #    ifndef __WXOSX__
+ #        define __WXOSX__ 1
+diff --git a/src/common/filefn.cpp b/src/common/filefn.cpp
+index f6e368e..39468af 100644
+--- a/src/common/filefn.cpp
++++ b/src/common/filefn.cpp
+@@ -911,7 +911,7 @@ void wxMacFilename2FSSpec( const wxString& path , FSSpec *spec )
+     FSRef fsRef;
+     wxMacPathToFSRef( path , &fsRef );
+     err = FSGetCatalogInfo(&fsRef, kFSCatInfoNone, NULL, NULL, spec, NULL);
+-    verify_noerr( err );
++    __Verify_noErr(err);
+ }
+ #endif
+ 
+diff --git a/src/osx/carbon/anybutton.cpp b/src/osx/carbon/anybutton.cpp
+index 0788b23..e55ac3b 100644
+--- a/src/osx/carbon/anybutton.cpp
++++ b/src/osx/carbon/anybutton.cpp
+@@ -68,7 +68,7 @@ wxSize wxAnyButton::DoGetBestSize() const
+ 
+         ControlFontStyleRec controlFont;
+         OSStatus err = GetPeer()->GetData<ControlFontStyleRec>( kControlEntireControl, kControlFontStyleTag, &controlFont );
+-        verify_noerr( err );
++        __Verify_noErr( err );
+ 
+         // GetThemeTextDimensions will cache strings and the documentation
+         // says not to use the NoCopy string creation calls.
+@@ -86,7 +86,7 @@ wxSize wxAnyButton::DoGetBestSize() const
+             err = GetThemeTextDimensions(
+                 (CFStringRef)str,
+                 m_font.MacGetThemeFontID(), kThemeStateActive, false, &bounds, &baseline );
+-            verify_noerr( err );
++            __Verify_noErr( err );
+         }
+         else
+ #endif
+diff --git a/src/osx/carbon/bmpbuttn.cpp b/src/osx/carbon/bmpbuttn.cpp
+index 9f0adc8..1867774 100644
+--- a/src/osx/carbon/bmpbuttn.cpp
++++ b/src/osx/carbon/bmpbuttn.cpp
+@@ -141,7 +141,7 @@ wxWidgetImplType* wxWidgetImpl::CreateBitmapButton( wxWindowMac* wxpeer,
+               );
+     }
+ 
+-    verify_noerr( err );
++    __Verify_noErr( err );
+ 
+     wxMacReleaseBitmapButton( &info );
+     return peer;
+diff --git a/src/osx/carbon/button.cpp b/src/osx/carbon/button.cpp
+index 6c6844d..04d01d8 100644
+--- a/src/osx/carbon/button.cpp
++++ b/src/osx/carbon/button.cpp
+@@ -83,7 +83,7 @@ wxWidgetImplType* wxWidgetImpl::CreateButton( wxWindowMac* wxpeer,
+             kControlBevelButtonLargeBevel, kControlBehaviorPushbutton,
+             &info, 0, 0, 0, peer->GetControlRefAddr() );
+     }
+-    verify_noerr( err );
++    __Verify_noErr( err );
+     return peer;
+ }
+ 
+@@ -113,7 +113,7 @@ wxWidgetImplType* wxWidgetImpl::CreateDisclosureTriangle( wxWindowMac* wxpeer,
+             TRUE, // auto toggle back and forth
+             peer->GetControlRefAddr() );
+ 
+-    verify_noerr( err );
++    __Verify_noErr( err );
+     return peer;
+ }
+ 
+diff --git a/src/osx/carbon/checkbox.cpp b/src/osx/carbon/checkbox.cpp
+index 44e9dcd..c38e2c3 100644
+--- a/src/osx/carbon/checkbox.cpp
++++ b/src/osx/carbon/checkbox.cpp
+@@ -27,7 +27,7 @@ wxWidgetImplType* wxWidgetImpl::CreateCheckBox( wxWindowMac* wxpeer,
+     Rect bounds = wxMacGetBoundsForControl( wxpeer , pos , size ) ;
+     wxMacControl* peer = new wxMacControl(wxpeer) ;
+ 
+-    verify_noerr( CreateCheckBoxControl(MAC_WXHWND(parent->MacGetTopLevelWindowRef()), &bounds ,
++    __Verify_noErr( CreateCheckBoxControl(MAC_WXHWND(parent->MacGetTopLevelWindowRef()), &bounds ,
+         CFSTR("") , 0 , false , peer->GetControlRefAddr() ) );
+     SInt32 maxValue = 1 /* kControlCheckboxCheckedValue */;
+     if (style & wxCHK_3STATE)
+diff --git a/src/osx/carbon/choice.cpp b/src/osx/carbon/choice.cpp
+index dc7d1b9..ec1b247 100644
+--- a/src/osx/carbon/choice.cpp
++++ b/src/osx/carbon/choice.cpp
+@@ -56,7 +56,7 @@ wxWidgetImplType* wxWidgetImpl::CreateChoice( wxWindowMac* wxpeer,
+     OSStatus err = CreatePopupButtonControl(
+         MAC_WXHWND(parent->MacGetTopLevelWindowRef()) , &bounds , CFSTR("") ,
+         -12345 , false /* no variable width */ , 0 , 0 , 0 , peer->GetControlRefAddr() );
+-    verify_noerr( err );
++    __Verify_noErr( err );
+ 
+     peer->SetData<MenuHandle>( kControlNoPart , kControlPopupButtonMenuHandleTag , (MenuHandle) menu->GetHMenu() ) ;
+     return peer;
+diff --git a/src/osx/carbon/combobxc.cpp b/src/osx/carbon/combobxc.cpp
+index b38c20c..5089c9e 100644
+--- a/src/osx/carbon/combobxc.cpp
++++ b/src/osx/carbon/combobxc.cpp
+@@ -364,7 +364,7 @@ bool wxComboBox::Create(wxWindow *parent, wxWindowID id,
+     //printf("left = %d, right = %d, top = %d, bottom = %d\n", bounds.left, bounds.right, bounds.top, bounds.bottom);
+     //printf("x = %d, y = %d, width = %d, height = %d\n", hibounds.origin.x, hibounds.origin.y, hibounds.size.width, hibounds.size.height);
+     m_peer = new wxMacControl(this);
+-    verify_noerr( HIComboBoxCreate( &hiRect, CFSTR(""), NULL, NULL, kHIComboBoxStandardAttributes, m_peer->GetControlRefAddr() ) );
++    __Verify_noErr( HIComboBoxCreate( &hiRect, CFSTR(""), NULL, NULL, kHIComboBoxStandardAttributes, m_peer->GetControlRefAddr() ) );
+ 
+ 
+     m_peer->SetMinimum( 0 );
+@@ -588,7 +588,7 @@ void wxComboBox::DoClear()
+ {
+ #if USE_HICOMBOBOX
+     for ( CFIndex i = GetCount() - 1; i >= 0; ++ i )
+-        verify_noerr( HIComboBoxRemoveItemAtIndex( m_peer->GetControlRef(), i ) );
++        __Verify_noErr( HIComboBoxRemoveItemAtIndex( m_peer->GetControlRef(), i ) );
+     m_peer->SetData<CFStringRef>(kHIComboBoxEditTextPart,kControlEditTextCFStringTag,CFSTR(""));
+ #else
+     m_choice->Clear();
+@@ -659,9 +659,9 @@ wxString wxComboBox::GetStringSelection() const
+ void wxComboBox::SetString(unsigned int n, const wxString& s)
+ {
+ #if USE_HICOMBOBOX
+-    verify_noerr ( HIComboBoxInsertTextItemAtIndex( m_peer->GetControlRef(), (CFIndex) n,
++    __Verify_noErr ( HIComboBoxInsertTextItemAtIndex( m_peer->GetControlRef(), (CFIndex) n,
+         wxMacCFStringHolder(s, GetFont().GetEncoding()) ) );
+-    verify_noerr ( HIComboBoxRemoveItemAtIndex( m_peer->GetControlRef(), (CFIndex) n + 1 ) );
++    __Verify_noErr ( HIComboBoxRemoveItemAtIndex( m_peer->GetControlRef(), (CFIndex) n + 1 ) );
+ #else
+     m_choice->SetString( n , s );
+ #endif
+diff --git a/src/osx/carbon/dataview.cpp b/src/osx/carbon/dataview.cpp
+index 66781a9..7f9751e 100644
+--- a/src/osx/carbon/dataview.cpp
++++ b/src/osx/carbon/dataview.cpp
+@@ -321,7 +321,7 @@ wxMacDataBrowserTableViewControl::wxMacDataBrowserTableViewControl(wxWindow* pee
+ 
+ 
+   SetReferenceInNativeControl();
+-  verify_noerr(err);
++  __Verify_noErr(err);
+ 
+   ::InstallControlEventHandler(m_controlRef, GetDataBrowserCtrlEventHandlerUPP(), GetEventTypeCount(eventList), eventList, peer, (EventHandlerRef *)&m_macDataViewCtrlEventHandler);
+ 
+@@ -2252,7 +2252,7 @@ void wxDataViewRenderer::SetMode(wxDataViewCellMode mode)
+     const DataBrowserPropertyID colID = col->GetNativeData()->GetPropertyID();
+ 
+     DataBrowserPropertyFlags flags;
+-    verify_noerr( browser->GetPropertyFlags(colID, &flags) );
++    __Verify_noErr( browser->GetPropertyFlags(colID, &flags) );
+ 
+     if ( (mode == wxDATAVIEW_CELL_EDITABLE) ||
+             (mode == wxDATAVIEW_CELL_ACTIVATABLE) )
+@@ -2260,7 +2260,7 @@ void wxDataViewRenderer::SetMode(wxDataViewCellMode mode)
+     else
+         flags &= ~kDataBrowserPropertyIsEditable;
+ 
+-    verify_noerr( browser->SetPropertyFlags(colID, flags) );
++    __Verify_noErr( browser->SetPropertyFlags(colID, flags) );
+ }
+ 
+ void wxDataViewRenderer::EnableEllipsize(wxEllipsizeMode mode)
+@@ -2304,7 +2304,7 @@ void wxDataViewRenderer::EnableEllipsize(wxEllipsizeMode mode)
+     wxCHECK_RET( flagToSet, "unknown wxEllipsizeMode value" );
+ 
+     flags |= flagToSet;
+-    verify_noerr( browser->SetPropertyFlags(colID, flags) );
++    __Verify_noErr( browser->SetPropertyFlags(colID, flags) );
+ }
+ 
+ wxEllipsizeMode wxDataViewRenderer::GetEllipsizeMode() const
+@@ -2681,7 +2681,7 @@ void wxDataViewColumn::SetResizeable(bool resizable)
+     {
+       DataBrowserListViewHeaderDesc headerDescription;
+ 
+-      verify_noerr(macDataViewListCtrlPtr->GetHeaderDesc(GetNativeData()->GetPropertyID(),&headerDescription));
++      __Verify_noErr(macDataViewListCtrlPtr->GetHeaderDesc(GetNativeData()->GetPropertyID(),&headerDescription));
+       if (resizable)
+       {
+         if (GetMinWidth() >= GetMaxWidth())
+@@ -2697,7 +2697,7 @@ void wxDataViewColumn::SetResizeable(bool resizable)
+         headerDescription.minimumWidth = m_width;
+         headerDescription.maximumWidth = m_width;
+       }
+-      verify_noerr(macDataViewListCtrlPtr->SetHeaderDesc(GetNativeData()->GetPropertyID(),&headerDescription));
++      __Verify_noErr(macDataViewListCtrlPtr->SetHeaderDesc(GetNativeData()->GetPropertyID(),&headerDescription));
+       macDataViewListCtrlPtr->SetSortProperty(GetNativeData()->GetPropertyID());
+     }
+   }
+@@ -2742,12 +2742,12 @@ void wxDataViewColumn::SetSortOrder(bool ascending)
+     {
+       DataBrowserListViewHeaderDesc headerDescription;
+ 
+-      verify_noerr(macDataViewListCtrlPtr->GetHeaderDesc(GetNativeData()->GetPropertyID(),&headerDescription));
++      __Verify_noErr(macDataViewListCtrlPtr->GetHeaderDesc(GetNativeData()->GetPropertyID(),&headerDescription));
+       if (ascending)
+         headerDescription.initialOrder = kDataBrowserOrderIncreasing;
+       else
+         headerDescription.initialOrder = kDataBrowserOrderDecreasing;
+-      verify_noerr(macDataViewListCtrlPtr->SetHeaderDesc(GetNativeData()->GetPropertyID(),&headerDescription));
++      __Verify_noErr(macDataViewListCtrlPtr->SetHeaderDesc(GetNativeData()->GetPropertyID(),&headerDescription));
+       macDataViewListCtrlPtr->SetSortProperty(GetNativeData()->GetPropertyID());
+     }
+   }
+diff --git a/src/osx/carbon/dnd.cpp b/src/osx/carbon/dnd.cpp
+index 7310cae..c5c795a 100644
+--- a/src/osx/carbon/dnd.cpp
++++ b/src/osx/carbon/dnd.cpp
+@@ -195,10 +195,10 @@ void wxMacEnsureTrackingHandlersInstalled()
+         OSStatus err;
+ 
+         err = InstallTrackingHandler( NewDragTrackingHandlerUPP(wxMacWindowDragTrackingHandler), 0L, &gTrackingGlobals );
+-        verify_noerr( err );
++        __Verify_noErr( err );
+ 
+         err = InstallReceiveHandler( NewDragReceiveHandlerUPP(wxMacWindowDragReceiveHandler), 0L, &gTrackingGlobals );
+-        verify_noerr( err );
++        __Verify_noErr( err );
+ 
+         gTrackingGlobalsInstalled = true;
+     }
+diff --git a/src/osx/carbon/gauge.cpp b/src/osx/carbon/gauge.cpp
+index 33fff27..8b9f6a8 100644
+--- a/src/osx/carbon/gauge.cpp
++++ b/src/osx/carbon/gauge.cpp
+@@ -85,7 +85,7 @@ wxWidgetImplType* wxWidgetImpl::CreateGauge( wxWindowMac* wxpeer,
+     OSStatus err = CreateProgressBarControl(
+         MAC_WXHWND(parent->MacGetTopLevelWindowRef()), &bounds,
+         value, minimum, maximum, false /* not indeterminate */, peer->GetControlRefAddr() );
+-    verify_noerr( err );
++    __Verify_noErr( err );
+     if ( value == 0 )
+         peer->SetData<Boolean>( kControlEntireControl, kControlProgressBarAnimatingTag, (Boolean)false );
+     return peer;
+diff --git a/src/osx/carbon/icon.cpp b/src/osx/carbon/icon.cpp
+index 51b3e34..cdec3c3 100644
+--- a/src/osx/carbon/icon.cpp
++++ b/src/osx/carbon/icon.cpp
+@@ -279,7 +279,7 @@ bool wxIcon::LoadIconFromSystemResource(const wxString& resourceName, int desire
+     if ( theId != 0 )
+     {
+         IconRef iconRef = NULL ;
+-        verify_noerr( GetIconRef( kOnSystemDisk, kSystemIconsCreator, theId, &iconRef ) ) ;
++        __Verify_noErr(GetIconRef( kOnSystemDisk, kSystemIconsCreator, theId, &iconRef )) ;
+         if ( iconRef )
+         {
+             m_refData = new wxIconRefData( (WXHICON) iconRef, desiredWidth, desiredHeight ) ;
+diff --git a/src/osx/carbon/listbox.cpp b/src/osx/carbon/listbox.cpp
+index 8275ad0..3d092b4 100644
+--- a/src/osx/carbon/listbox.cpp
++++ b/src/osx/carbon/listbox.cpp
+@@ -187,7 +187,7 @@ OSStatus wxMacListBoxItem::GetSetData(wxMacDataItemBrowserControl *owner ,
+                 GetDataBrowserItemDataProperty( itemData, &propertyToEdit );
+                 wxMacDataBrowserColumn* col = lb->GetColumnFromProperty( propertyToEdit );
+ 
+-                verify_noerr(SetDataBrowserItemDataBooleanValue( itemData, col->IsEditable() ));
++                __Verify_noErr(SetDataBrowserItemDataBooleanValue( itemData, col->IsEditable() ));
+                 err = noErr;
+             }
+ 
+@@ -208,7 +208,7 @@ OSStatus wxMacListBoxItem::GetSetData(wxMacDataItemBrowserControl *owner ,
+             /*
+             // we have to change this behind the back, since Check() would be triggering another update round
+             bool newVal = !m_isChecked;
+-            verify_noerr(SetDataBrowserItemDataButtonValue( itemData, newVal ? kThemeButtonOn : kThemeButtonOff ));
++            __Verify_noErr(SetDataBrowserItemDataButtonValue( itemData, newVal ? kThemeButtonOn : kThemeButtonOff ));
+             m_isChecked = newVal;
+             err = noErr;
+ 
+@@ -282,7 +282,7 @@ wxMacDataBrowserListControl::wxMacDataBrowserListControl( wxWindow *peer, const
+         options |= kDataBrowserSelectOnlyOne;
+     }
+     err = SetSelectionFlags( options );
+-    verify_noerr( err );
++    __Verify_noErr( err );
+ 
+     DataBrowserListViewColumnDesc columnDesc;
+     columnDesc.headerBtnDesc.titleOffset = 0;
+@@ -305,7 +305,7 @@ wxMacDataBrowserListControl::wxMacDataBrowserListControl( wxWindow *peer, const
+     columnDesc.propertyDesc.propertyFlags = kDataBrowserTableViewSelectionColumn;
+     columnDesc.propertyDesc.propertyFlags |= kDataBrowserListViewTypeSelectColumn;
+ 
+-    verify_noerr( AddColumn( &columnDesc, kDataBrowserListViewAppendColumn ) );
++    __Verify_noErr( AddColumn( &columnDesc, kDataBrowserListViewAppendColumn ) );
+ */
+     columnDesc.headerBtnDesc.minimumWidth = 0;
+     columnDesc.headerBtnDesc.maximumWidth = 0;
+@@ -314,7 +314,7 @@ wxMacDataBrowserListControl::wxMacDataBrowserListControl( wxWindow *peer, const
+     columnDesc.propertyDesc.propertyFlags = kDataBrowserTableViewSelectionColumn;
+     columnDesc.propertyDesc.propertyFlags |= kDataBrowserListViewTypeSelectColumn;
+ 
+-    verify_noerr( AddColumn( &columnDesc, kDataBrowserListViewAppendColumn ) );
++    __Verify_noErr( AddColumn( &columnDesc, kDataBrowserListViewAppendColumn ) );
+ 
+ /*
+     SetDataBrowserSortProperty( m_controlRef , kTextColumnId);
+@@ -330,9 +330,9 @@ wxMacDataBrowserListControl::wxMacDataBrowserListControl( wxWindow *peer, const
+         SetDataBrowserSortOrder( m_controlRef , kDataBrowserOrderIncreasing);
+     }
+ 
+-    verify_noerr( AutoSizeColumns() );
+-    verify_noerr( SetHiliteStyle(kDataBrowserTableViewFillHilite ) );
+-    verify_noerr( SetHeaderButtonHeight( 0 ) );
++    __Verify_noErr( AutoSizeColumns() );
++    __Verify_noErr( SetHiliteStyle(kDataBrowserTableViewFillHilite ) );
++    __Verify_noErr( SetHeaderButtonHeight( 0 ) );
+     err = SetHasScrollBars( (style & wxHSCROLL) != 0 , true );
+ #if 0
+     // shouldn't be necessary anymore under 10.2
+@@ -424,7 +424,7 @@ wxMacDataBrowserColumn* wxMacDataBrowserListControl::DoInsertColumn( unsigned in
+     if ( editable )
+         columnDesc.propertyDesc.propertyFlags |= kDataBrowserPropertyIsMutable;
+ 
+-    verify_noerr( AddColumn( &columnDesc, pos ) );
++    __Verify_noErr( AddColumn( &columnDesc, pos ) );
+ 
+     if (width > 0)
+     {
+diff --git a/src/osx/carbon/listctrl_mac.cpp b/src/osx/carbon/listctrl_mac.cpp
+index 0818358..e8036ae 100644
+--- a/src/osx/carbon/listctrl_mac.cpp
++++ b/src/osx/carbon/listctrl_mac.cpp
+@@ -76,7 +76,7 @@ static pascal OSStatus wxMacListCtrlEventHandler( EventHandlerCallRef handler ,
+                     GetDataBrowserSortProperty(controlRef, &col);
+ 
+                     DataBrowserTableViewColumnIndex column = 0;
+-                    verify_noerr( GetDataBrowserTableViewColumnPosition( controlRef, col, &column ) );
++                    __Verify_noErr( GetDataBrowserTableViewColumnPosition( controlRef, col, &column ) );
+ 
+                     le.m_col = column;
+                     // FIXME: we can't use the sort property for virtual listctrls
+@@ -927,8 +927,8 @@ bool wxListCtrl::SetColumn(int col, const wxListItem& item)
+         columnDesc.version=kDataBrowserListViewLatestHeaderDesc;
+ 
+         DataBrowserTableViewColumnID id = 0;
+-        verify_noerr( m_dbImpl->GetColumnIDFromIndex( col, &id ) );
+-        verify_noerr( m_dbImpl->GetHeaderDesc( id, &columnDesc ) );
++        __Verify_noErr( m_dbImpl->GetColumnIDFromIndex( col, &id ) );
++        __Verify_noErr( m_dbImpl->GetHeaderDesc( id, &columnDesc ) );
+ 
+         /*
+         if (item.GetMask() & wxLIST_MASK_TEXT)
+@@ -958,7 +958,7 @@ bool wxListCtrl::SetColumn(int col, const wxListItem& item)
+             }
+         }
+ 
+-        verify_noerr( m_dbImpl->SetHeaderDesc( id, &columnDesc ) );
++        __Verify_noErr( m_dbImpl->SetHeaderDesc( id, &columnDesc ) );
+ 
+     }
+     return true;
+@@ -1362,7 +1362,7 @@ bool wxListCtrl::GetItemRect(long item, wxRect& rect, int code) const
+         DataBrowserItemID id;
+ 
+         DataBrowserTableViewColumnID col = 0;
+-        verify_noerr( m_dbImpl->GetColumnIDFromIndex( 0, &col ) );
++        __Verify_noErr( m_dbImpl->GetColumnIDFromIndex( 0, &col ) );
+ 
+         Rect bounds;
+         DataBrowserPropertyPart part = kDataBrowserPropertyEnclosingPart;
+@@ -1853,8 +1853,8 @@ bool wxListCtrl::EndEditLabel(bool WXUNUSED(cancel))
+     if (m_dbImpl)
+     {
+         DataBrowserTableViewColumnID id = 0;
+-        verify_noerr( m_dbImpl->GetColumnIDFromIndex( 0, &id ) );
+-        verify_noerr( SetDataBrowserEditItem(m_dbImpl->GetControlRef(), kDataBrowserNoItem, id ) );
++        __Verify_noErr( m_dbImpl->GetColumnIDFromIndex( 0, &id ) );
++        __Verify_noErr( SetDataBrowserEditItem(m_dbImpl->GetControlRef(), kDataBrowserNoItem, id ) );
+     }
+     return true;
+ }
+@@ -2192,14 +2192,14 @@ long wxListCtrl::DoInsertColumn(long col, const wxListItem& item)
+         DataBrowserTableViewColumnID id;
+         m_dbImpl->GetColumnIDFromIndex(col, &id);
+         DataBrowserPropertyFlags flags;
+-        verify_noerr(m_dbImpl->GetPropertyFlags(id, &flags));
++        __Verify_noErr(m_dbImpl->GetPropertyFlags(id, &flags));
+         if (GetWindowStyleFlag() & wxLC_EDIT_LABELS)
+             flags |= kDataBrowserPropertyIsEditable;
+ 
+         if (GetWindowStyleFlag() & wxLC_VIRTUAL){
+             flags &= ~kDataBrowserListViewSortableColumn;
+         }
+-        verify_noerr(m_dbImpl->SetPropertyFlags(id, flags));
++        __Verify_noErr(m_dbImpl->SetPropertyFlags(id, flags));
+     }
+ 
+     return col;
+@@ -2549,7 +2549,7 @@ wxMacDataBrowserListCtrlControl::wxMacDataBrowserListCtrlControl( wxWindow *peer
+     }
+ 
+     err = SetSelectionFlags( options );
+-    verify_noerr( err );
++    __Verify_noErr( err );
+ 
+     DataBrowserCustomCallbacks callbacks;
+     InitializeDataBrowserCustomCallbacks( &callbacks, kDataBrowserLatestCustomCallbacks );
+@@ -2568,11 +2568,11 @@ wxMacDataBrowserListCtrlControl::wxMacDataBrowserListCtrlControl( wxWindow *peer
+     if ( style & wxLC_LIST )
+     {
+         InsertColumn(0, kDataBrowserIconAndTextType, wxEmptyString, -1, -1);
+-        verify_noerr( AutoSizeColumns() );
++        __Verify_noErr( AutoSizeColumns() );
+     }
+ 
+     if ( style & wxLC_LIST || style & wxLC_NO_HEADER )
+-        verify_noerr( SetHeaderButtonHeight( 0 ) );
++        __Verify_noErr( SetHeaderButtonHeight( 0 ) );
+ 
+     if ( m_isVirtual )
+         SetSortProperty( kMinColumnId - 1 );
+@@ -2592,11 +2592,11 @@ wxMacDataBrowserListCtrlControl::wxMacDataBrowserListCtrlControl( wxWindow *peer
+ 
+     if ( style & wxLC_VRULES )
+     {
+-        verify_noerr( DataBrowserChangeAttributes(m_controlRef, kDataBrowserAttributeListViewDrawColumnDividers, kDataBrowserAttributeNone) );
++        __Verify_noErr( DataBrowserChangeAttributes(m_controlRef, kDataBrowserAttributeListViewDrawColumnDividers, kDataBrowserAttributeNone) );
+     }
+ 
+-    verify_noerr( SetHiliteStyle(kDataBrowserTableViewFillHilite ) );
+-    verify_noerr( SetHasScrollBars( (style & wxHSCROLL) != 0 , true ) );
++    __Verify_noErr( SetHiliteStyle(kDataBrowserTableViewFillHilite ) );
++    __Verify_noErr( SetHasScrollBars( (style & wxHSCROLL) != 0 , true ) );
+ }
+ 
+ pascal Boolean wxMacDataBrowserListCtrlControl::DataBrowserEditTextProc(
+@@ -2906,7 +2906,7 @@ OSStatus wxMacDataBrowserListCtrlControl::GetSetItemData(DataBrowserItemID itemI
+     int imgIndex = -1;
+ 
+     DataBrowserTableViewColumnIndex listColumn = 0;
+-    verify_noerr( GetColumnPosition( property, &listColumn ) );
++    __Verify_noErr( GetColumnPosition( property, &listColumn ) );
+ 
+     OSStatus err = errDataBrowserPropertyNotSupported;
+     wxListCtrl* list = wxDynamicCast( GetWXPeer() , wxListCtrl );
+@@ -2943,7 +2943,7 @@ OSStatus wxMacDataBrowserListCtrlControl::GetSetItemData(DataBrowserItemID itemI
+             case kDataBrowserItemIsEditableProperty :
+                 if ( list && list->HasFlag( wxLC_EDIT_LABELS ) )
+                 {
+-                    verify_noerr(SetDataBrowserItemDataBooleanValue( itemData, true ));
++                    __Verify_noErr(SetDataBrowserItemDataBooleanValue( itemData, true ));
+                     err = noErr ;
+                 }
+                 break ;
+@@ -2981,12 +2981,12 @@ OSStatus wxMacDataBrowserListCtrlControl::GetSetItemData(DataBrowserItemID itemI
+                 if ( property >= kMinColumnId )
+                 {
+                     DataBrowserTableViewColumnIndex listColumn = 0;
+-                    verify_noerr( GetColumnPosition( property, &listColumn ) );
++                    __Verify_noErr( GetColumnPosition( property, &listColumn ) );
+ 
+                     // TODO probably send the 'end edit' from here, as we
+                     // can then deal with the veto
+                     CFStringRef sr ;
+-                    verify_noerr( GetDataBrowserItemDataText( itemData , &sr ) ) ;
++                    __Verify_noErr( GetDataBrowserItemDataText( itemData , &sr ) ) ;
+                     wxCFStringRef cfStr(sr) ;;
+                     if (m_isVirtual)
+                         list->SetItem( (long)itemData-1 , listColumn, cfStr.AsString() ) ;
+@@ -3040,7 +3040,7 @@ void wxMacDataBrowserListCtrlControl::ItemNotification(DataBrowserItemID itemID,
+         if ( !list->IsVirtual() )
+         {
+             DataBrowserTableViewRowIndex result = 0;
+-            verify_noerr( GetItemRow( itemID, &result ) ) ;
++            __Verify_noErr( GetItemRow( itemID, &result ) ) ;
+             event.m_itemIndex = result;
+         }
+         else
+@@ -3106,12 +3106,12 @@ Boolean wxMacDataBrowserListCtrlControl::CompareItems(DataBrowserItemID itemOneI
+     long otherItemOrder;
+ 
+     DataBrowserTableViewColumnIndex colId = 0;
+-    verify_noerr( GetColumnPosition( sortProperty, &colId ) );
++    __Verify_noErr( GetColumnPosition( sortProperty, &colId ) );
+ 
+     wxListCtrl* list = wxDynamicCast( GetWXPeer() , wxListCtrl );
+ 
+     DataBrowserSortOrder sort;
+-    verify_noerr(GetSortOrder(&sort));
++    __Verify_noErr(GetSortOrder(&sort));
+ 
+     if (colId >= 0)
+     {
+@@ -3192,7 +3192,7 @@ void wxMacDataBrowserListCtrlControl::MacSetColumnInfo( unsigned int row, unsign
+         if (hasInfo && list->IsShown())
+         {
+             DataBrowserTableViewColumnID id = 0;
+-            verify_noerr( GetColumnIDFromIndex( column, &id ) );
++            __Verify_noErr( GetColumnIDFromIndex( column, &id ) );
+             UpdateItem( wxMacDataBrowserRootContainer, listItem , id );
+         }
+     }
+diff --git a/src/osx/carbon/nonownedwnd.cpp b/src/osx/carbon/nonownedwnd.cpp
+index f9acf7e..9053ecb 100644
+--- a/src/osx/carbon/nonownedwnd.cpp
++++ b/src/osx/carbon/nonownedwnd.cpp
+@@ -144,9 +144,9 @@ bool wxNonOwnedWindowCarbonImpl::SetBackgroundStyle(wxBackgroundStyle style)
+     if ( style == wxBG_STYLE_TRANSPARENT )
+     {
+         OSStatus err = HIWindowChangeFeatures( m_macWindow, 0, kWindowIsOpaque );
+-        verify_noerr( err );
++        __Verify_noErr( err );
+         err = ReshapeCustomWindow( m_macWindow );
+-        verify_noerr( err );
++        __Verify_noErr( err );
+     }
+ 
+     return true ;
+@@ -173,14 +173,14 @@ void wxNonOwnedWindowCarbonImpl::GetContentArea( int &left , int &top , int &wid
+ void wxNonOwnedWindowCarbonImpl::MoveWindow(int x, int y, int width, int height)
+ {
+     Rect bounds = { y , x , y + height , x + width } ;
+-    verify_noerr(SetWindowBounds( (WindowRef) m_macWindow, kWindowStructureRgn , &bounds )) ;
++    __Verify_noErr(SetWindowBounds( (WindowRef) m_macWindow, kWindowStructureRgn , &bounds )) ;
+ }
+ 
+ void wxNonOwnedWindowCarbonImpl::GetPosition( int &x, int &y ) const
+ {
+     Rect bounds ;
+ 
+-    verify_noerr(GetWindowBounds((WindowRef) m_macWindow, kWindowStructureRgn , &bounds )) ;
++    __Verify_noErr(GetWindowBounds((WindowRef) m_macWindow, kWindowStructureRgn , &bounds )) ;
+ 
+     x = bounds.left ;
+     y = bounds.top ;
+@@ -190,7 +190,7 @@ void wxNonOwnedWindowCarbonImpl::GetSize( int &width, int &height ) const
+ {
+     Rect bounds ;
+ 
+-    verify_noerr(GetWindowBounds((WindowRef) m_macWindow, kWindowStructureRgn , &bounds )) ;
++    __Verify_noErr(GetWindowBounds((WindowRef) m_macWindow, kWindowStructureRgn , &bounds )) ;
+ 
+     width = bounds.right - bounds.left ;
+     height = bounds.bottom - bounds.top ;
+@@ -1178,7 +1178,7 @@ void wxNonOwnedWindowCarbonImpl::MacInstallTopLevelWindowEventHandler()
+ {
+     if ( m_macEventHandler != NULL )
+     {
+-        verify_noerr( ::RemoveEventHandler( (EventHandlerRef) m_macEventHandler ) ) ;
++        __Verify_noErr( ::RemoveEventHandler( (EventHandlerRef) m_macEventHandler ) ) ;
+     }
+     wxNonOwnedWindowInstallTopLevelWindowEventHandler(MAC_WXHWND(m_macWindow),(EventHandlerRef *)&m_macEventHandler,this);
+ }
+@@ -1349,13 +1349,13 @@ void wxNonOwnedWindowCarbonImpl::Create(
+     // setup a separate group for each window, so that overlays can be handled easily
+ 
+     WindowGroupRef overlaygroup = NULL;
+-    verify_noerr( CreateWindowGroup( kWindowGroupAttrMoveTogether | kWindowGroupAttrLayerTogether | kWindowGroupAttrHideOnCollapse, &overlaygroup ));
+-    verify_noerr( SetWindowGroupParent( overlaygroup, GetWindowGroup( (WindowRef) m_macWindow )));
+-    verify_noerr( SetWindowGroup( (WindowRef) m_macWindow , overlaygroup ));
++    __Verify_noErr( CreateWindowGroup( kWindowGroupAttrMoveTogether | kWindowGroupAttrLayerTogether | kWindowGroupAttrHideOnCollapse, &overlaygroup ));
++    __Verify_noErr( SetWindowGroupParent( overlaygroup, GetWindowGroup( (WindowRef) m_macWindow )));
++    __Verify_noErr( SetWindowGroup( (WindowRef) m_macWindow , overlaygroup ));
+ 
+     if ( activationScopeSet )
+     {
+-        verify_noerr( SetWindowActivationScope( (WindowRef) m_macWindow , activationScope ));
++        __Verify_noErr( SetWindowActivationScope( (WindowRef) m_macWindow , activationScope ));
+     }
+ 
+     // the create commands are only for content rect,
+@@ -1641,7 +1641,7 @@ void wxNonOwnedWindowCarbonImpl::RequestUserAttention(int WXUNUSED(flags))
+     notificationRequest->nmStr = NULL ;
+     notificationRequest->nmResp = wxMacNMResponse ;
+ 
+-    verify_noerr( NMInstall( notificationRequest ) ) ;
++    __Verify_noErr( NMInstall( notificationRequest ) ) ;
+ }
+ 
+ void wxNonOwnedWindowCarbonImpl::ScreenToWindow( int *x, int *y )
+diff --git a/src/osx/carbon/notebmac.cpp b/src/osx/carbon/notebmac.cpp
+index 95e2771..6ab1e3c 100644
+--- a/src/osx/carbon/notebmac.cpp
++++ b/src/osx/carbon/notebmac.cpp
+@@ -190,7 +190,7 @@ wxWidgetImplType* wxWidgetImpl::CreateTabView( wxWindowMac* wxpeer,
+     OSStatus err = CreateTabsControl(
+         MAC_WXHWND(parent->MacGetTopLevelWindowRef()), &bounds,
+         tabsize, tabstyle, 0, NULL, peer->GetControlRefAddr() );
+-    verify_noerr( err );
++    __Verify_noErr( err );
+ 
+     return peer;
+ }
+diff --git a/src/osx/carbon/radiobut.cpp b/src/osx/carbon/radiobut.cpp
+index 1182b12..0e1a360 100644
+--- a/src/osx/carbon/radiobut.cpp
++++ b/src/osx/carbon/radiobut.cpp
+@@ -29,7 +29,7 @@ wxWidgetImplType* wxWidgetImpl::CreateRadioButton( wxWindowMac* wxpeer,
+     OSStatus err = CreateRadioButtonControl(
+         MAC_WXHWND(parent->MacGetTopLevelWindowRef()), &bounds, CFSTR(""),
+         0, false /* no autotoggle */, peer->GetControlRefAddr() );
+-    verify_noerr( err );
++    __Verify_noErr( err );
+ 
+     return peer;
+ }
+diff --git a/src/osx/carbon/region.cpp b/src/osx/carbon/region.cpp
+index 8e9ae8c..2c7441e 100644
+--- a/src/osx/carbon/region.cpp
++++ b/src/osx/carbon/region.cpp
+@@ -1021,7 +1021,7 @@ bool wxRegion::DoOffset(wxCoord x, wxCoord y)
+ 
+     AllocExclusive();
+ 
+-    verify_noerr( HIShapeOffset( M_REGION , x , y ) ) ;
++    __Verify_noErr(HIShapeOffset( M_REGION , x , y )) ;
+ 
+     return true ;
+ }
+@@ -1076,11 +1076,11 @@ bool wxRegion::DoCombine(const wxRegion& region, wxRegionOp op)
+     switch (op)
+     {
+         case wxRGN_AND:
+-            verify_noerr( HIShapeIntersect( M_REGION , OTHER_M_REGION(region) , M_REGION ) );
++            __Verify_noErr(HIShapeIntersect( M_REGION , OTHER_M_REGION(region) , M_REGION ));
+             break ;
+ 
+         case wxRGN_OR:
+-            verify_noerr( HIShapeUnion( M_REGION , OTHER_M_REGION(region) , M_REGION ) );
++            __Verify_noErr(HIShapeIntersect( M_REGION , OTHER_M_REGION(region) , M_REGION ));
+             break ;
+ 
+         case wxRGN_XOR:
+@@ -1088,12 +1088,12 @@ bool wxRegion::DoCombine(const wxRegion& region, wxRegionOp op)
+                 // XOR is defined as the difference between union and intersection
+                 wxCFRef< HIShapeRef > unionshape( HIShapeCreateUnion( M_REGION , OTHER_M_REGION(region) ) );
+                 wxCFRef< HIShapeRef > intersectionshape( HIShapeCreateIntersection( M_REGION , OTHER_M_REGION(region) ) );
+-                verify_noerr( HIShapeDifference( unionshape, intersectionshape, M_REGION ) );
++                __Verify_noErr(HIShapeDifference( unionshape, intersectionshape, M_REGION ));
+             }
+             break ;
+ 
+         case wxRGN_DIFF:
+-            verify_noerr( HIShapeDifference( M_REGION , OTHER_M_REGION(region) , M_REGION ) ) ;
++            __Verify_noErr(HIShapeDifference( M_REGION , OTHER_M_REGION(region) , M_REGION )) ;
+             break ;
+ 
+         case wxRGN_COPY:
+diff --git a/src/osx/carbon/scrolbar.cpp b/src/osx/carbon/scrolbar.cpp
+index 006e93a..56f1a6b 100644
+--- a/src/osx/carbon/scrolbar.cpp
++++ b/src/osx/carbon/scrolbar.cpp
+@@ -51,6 +51,6 @@ wxWidgetImplType* wxWidgetImpl::CreateScrollBar( wxWindowMac* wxpeer,
+         0, 0, 100, 1, true /* liveTracking */,
+         GetwxMacLiveScrollbarActionProc(),
+         peer->GetControlRefAddr() );
+-    verify_noerr( err );
++    __Verify_noErr( err );
+     return peer;
+ }
+diff --git a/src/osx/carbon/slider.cpp b/src/osx/carbon/slider.cpp
+index e5f6f3f..ca299cc 100644
+--- a/src/osx/carbon/slider.cpp
++++ b/src/osx/carbon/slider.cpp
+@@ -61,7 +61,7 @@ wxWidgetImplType* wxWidgetImpl::CreateSlider( wxWindowMac* wxpeer,
+         (UInt16) tickMarks, true /* liveTracking */,
+         GetwxMacLiveScrollbarActionProc(),
+         peer->GetControlRefAddr() );
+-    verify_noerr( err );
++    __Verify_noErr( err );
+ 
+     return peer;
+ }
+diff --git a/src/osx/carbon/spinbutt.cpp b/src/osx/carbon/spinbutt.cpp
+index 0619564..4ac2a67 100644
+--- a/src/osx/carbon/spinbutt.cpp
++++ b/src/osx/carbon/spinbutt.cpp
+@@ -33,7 +33,7 @@ wxWidgetImplType* wxWidgetImpl::CreateSpinButton( wxWindowMac* wxpeer,
+     OSStatus err = CreateLittleArrowsControl(
+         MAC_WXHWND(parent->MacGetTopLevelWindowRef()), &bounds, value,
+         minimum, maximum, 1, peer->GetControlRefAddr() );
+-    verify_noerr( err );
++    __Verify_noErr( err );
+ 
+     peer->SetActionProc( GetwxMacLiveScrollbarActionProc() );
+     return peer ;
+diff --git a/src/osx/carbon/srchctrl.cpp b/src/osx/carbon/srchctrl.cpp
+index 56056d9..a04cbeb 100644
+--- a/src/osx/carbon/srchctrl.cpp
++++ b/src/osx/carbon/srchctrl.cpp
+@@ -108,7 +108,7 @@ wxMacSearchFieldControl::wxMacSearchFieldControl( wxTextCtrl *wxPeer,
+     OptionBits attributes = kHISearchFieldAttributesSearchIcon;
+ 
+     HIRect hibounds = { { bounds.left, bounds.top }, { bounds.right-bounds.left, bounds.bottom-bounds.top } };
+-    verify_noerr( HISearchFieldCreate(
++    __Verify_noErr( HISearchFieldCreate(
+         &hibounds,
+         attributes,
+         0, // MenuRef
+@@ -117,7 +117,7 @@ wxMacSearchFieldControl::wxMacSearchFieldControl( wxTextCtrl *wxPeer,
+         ) );
+     HIViewSetVisible (m_controlRef, true);
+ 
+-    verify_noerr( SetData<CFStringRef>( 0, kControlEditTextCFStringTag , cf ) ) ;
++    __Verify_noErr( SetData<CFStringRef>( 0, kControlEditTextCFStringTag , cf ) ) ;
+ 
+     ::InstallControlEventHandler( m_controlRef, GetwxMacSearchControlEventHandlerUPP(),
+         GetEventTypeCount(eventList), eventList, wxPeer, NULL);
+@@ -144,7 +144,7 @@ void wxMacSearchFieldControl::ShowSearchButton( bool show )
+ bool wxMacSearchFieldControl::IsSearchButtonVisible() const
+ {
+     OptionBits attributes = 0;
+-    verify_noerr( HISearchFieldGetAttributes( m_controlRef, &attributes ) );
++    __Verify_noErr( HISearchFieldGetAttributes( m_controlRef, &attributes ) );
+     return ( attributes & kHISearchFieldAttributesSearchIcon ) != 0;
+ }
+ 
+@@ -166,7 +166,7 @@ void wxMacSearchFieldControl::ShowCancelButton( bool show )
+ bool wxMacSearchFieldControl::IsCancelButtonVisible() const
+ {
+     OptionBits attributes = 0;
+-    verify_noerr( HISearchFieldGetAttributes( m_controlRef, &attributes ) );
++    __Verify_noErr( HISearchFieldGetAttributes( m_controlRef, &attributes ) );
+     return ( attributes & kHISearchFieldAttributesCancel ) != 0;
+ }
+ 
+@@ -174,17 +174,17 @@ void wxMacSearchFieldControl::SetSearchMenu( wxMenu* menu )
+ {
+     if ( menu )
+     {
+-        verify_noerr( HISearchFieldSetSearchMenu( m_controlRef, MAC_WXHMENU(menu->GetHMenu()) ) );
++        __Verify_noErr( HISearchFieldSetSearchMenu( m_controlRef, MAC_WXHMENU(menu->GetHMenu()) ) );
+     }
+     else
+     {
+-        verify_noerr( HISearchFieldSetSearchMenu( m_controlRef, 0 ) );
++        __Verify_noErr( HISearchFieldSetSearchMenu( m_controlRef, 0 ) );
+     }
+ }
+ 
+ void wxMacSearchFieldControl::SetDescriptiveText(const wxString& text)
+ {
+-    verify_noerr( HISearchFieldSetDescriptiveText(
++    __Verify_noErr( HISearchFieldSetDescriptiveText(
+                       m_controlRef,
+                       wxCFStringRef( text, wxFont::GetDefaultEncoding() )));
+ }
+diff --git a/src/osx/carbon/statbox.cpp b/src/osx/carbon/statbox.cpp
+index 5e5d902..b807cc3 100644
+--- a/src/osx/carbon/statbox.cpp
++++ b/src/osx/carbon/statbox.cpp
+@@ -30,7 +30,7 @@ wxWidgetImplType* wxWidgetImpl::CreateGroupBox( wxWindowMac* wxpeer,
+     OSStatus err = CreateGroupBoxControl(
+         MAC_WXHWND(parent->MacGetTopLevelWindowRef()), &bounds, CFSTR(""),
+         true /*primary*/, peer->GetControlRefAddr() );
+-    verify_noerr( err );
++    __Verify_noErr( err );
+     return peer;
+ }
+ #endif // wxUSE_STATBOX
+diff --git a/src/osx/carbon/statlmac.cpp b/src/osx/carbon/statlmac.cpp
+index 415d236..213cb7c 100644
+--- a/src/osx/carbon/statlmac.cpp
++++ b/src/osx/carbon/statlmac.cpp
+@@ -46,7 +46,7 @@ wxWidgetImplType* wxWidgetImpl::CreateStaticLine( wxWindowMac* wxpeer,
+ {
+     Rect bounds = wxMacGetBoundsForControl( wxpeer , pos , size ) ;
+     wxMacControl* peer = new wxMacControl(wxpeer) ;
+-    verify_noerr(CreateSeparatorControl(MAC_WXHWND(parent->MacGetTopLevelWindowRef()),&bounds, peer->GetControlRefAddr() ) ) ;
++    __Verify_noErr(CreateSeparatorControl(MAC_WXHWND(parent->MacGetTopLevelWindowRef()),&bounds, peer->GetControlRefAddr() ) ) ;
+     return peer;
+ }
+ 
+diff --git a/src/osx/carbon/stattext.cpp b/src/osx/carbon/stattext.cpp
+index 8b0c971..3517c48 100644
+--- a/src/osx/carbon/stattext.cpp
++++ b/src/osx/carbon/stattext.cpp
+@@ -36,7 +36,7 @@ public:
+     {
+         wxCFStringRef str( title, encoding );
+         OSStatus err = SetData<CFStringRef>(kControlEntireControl, kControlStaticTextCFStringTag, str);
+-        verify_noerr( err );
++        __Verify_noErr( err );
+     }
+ };
+ 
+@@ -63,7 +63,7 @@ wxSize wxStaticText::DoGetBestSize() const
+ #if wxOSX_USE_CARBON
+         ControlFontStyleRec controlFont;
+         OSStatus err = GetPeer()->GetData<ControlFontStyleRec>( kControlEntireControl, kControlFontStyleTag, &controlFont );
+-        verify_noerr( err );
++        __Verify_noErr( err );
+ 
+ #if wxOSX_USE_ATSU_TEXT
+         SInt16 baseline;
+@@ -81,7 +81,7 @@ wxSize wxStaticText::DoGetBestSize() const
+             err = GetThemeTextDimensions(
+                 (CFStringRef)str,
+                 m_font.MacGetThemeFontID(), kThemeStateActive, false, &bounds, &baseline );
+-            verify_noerr( err );
++            __Verify_noErr( err );
+         }
+         else
+ #endif
+@@ -123,7 +123,7 @@ wxWidgetImplType* wxWidgetImpl::CreateStaticText( wxWindowMac* wxpeer,
+     OSStatus err = CreateStaticTextControl(
+         MAC_WXHWND(parent->MacGetTopLevelWindowRef()),
+         &bounds, NULL, NULL, peer->GetControlRefAddr() );
+-    verify_noerr( err );
++    __Verify_noErr( err );
+ 
+     if ( ( style & wxST_ELLIPSIZE_END ) || ( style & wxST_ELLIPSIZE_MIDDLE ) )
+     {
+diff --git a/src/osx/carbon/taskbar.cpp b/src/osx/carbon/taskbar.cpp
+index f8a8c48..fc4ef1f 100644
+--- a/src/osx/carbon/taskbar.cpp
++++ b/src/osx/carbon/taskbar.cpp
+@@ -227,7 +227,7 @@ wxDockEventHandler(EventHandlerCallRef WXUNUSED(inHandlerCallRef),
+             err = SetEventParameter(
+                 inEvent, kEventParamMenuRef,
+                 typeMenuRef, sizeof(MenuRef), &hMenu );
+-            verify_noerr( err );
++            __Verify_noErr( err );
+         }
+     }
+ 
+@@ -315,7 +315,7 @@ wxDockTaskBarIcon::wxDockTaskBarIcon(wxTaskBarIcon* parent)
+             m_eventupp,
+             GetEventTypeCount(tbEventList), tbEventList,
+             this, &m_eventHandlerRef);
+-    verify_noerr( err );
++    __Verify_noErr( err );
+ }
+ 
+ //-----------------------------------------------------------------------------
+@@ -389,7 +389,7 @@ bool wxDockTaskBarIcon::SetIcon(const wxIcon& icon, const wxString& WXUNUSED(too
+ 
+     // actually set the dock image
+     OSStatus err = SetApplicationDockTileImage( pImage );
+-    verify_noerr( err );
++    __Verify_noErr( err );
+ 
+     // free the CGImage, now that it's referenced by the dock
+     if (pImage != NULL)
+@@ -412,7 +412,7 @@ bool wxDockTaskBarIcon::RemoveIcon()
+ 
+     // restore old icon to the dock
+     OSStatus err = RestoreApplicationDockTileImage();
+-    verify_noerr( err );
++    __Verify_noErr( err );
+ 
+     // restore the old menu to the dock
+     SetApplicationDockTileMenu( m_theLastMenu );
+diff --git a/src/osx/carbon/textctrl.cpp b/src/osx/carbon/textctrl.cpp
+index 53a0f90..53d31dd 100644
+--- a/src/osx/carbon/textctrl.cpp
++++ b/src/osx/carbon/textctrl.cpp
+@@ -465,7 +465,7 @@ wxMacUnicodeTextControl::wxMacUnicodeTextControl( wxTextCtrl *wxPeer,
+     OSStatus err = CreateEditUnicodeTextControl(
+         MAC_WXHWND(wxPeer->MacGetTopLevelWindowRef()), &bounds , cf ,
+         isPassword , NULL , &m_controlRef ) ;
+-    verify_noerr( err );
++    __Verify_noErr( err );
+ 
+     if ( !(m_windowStyle & wxTE_MULTILINE) )
+         SetData<Boolean>( kControlEditTextPart , kControlEditTextSingleLineTag , true ) ;
+@@ -494,10 +494,10 @@ void wxMacUnicodeTextControl::VisibilityChanged(bool shown)
+         ControlEditTextSelectionRec sel ;
+         CFStringRef value = NULL ;
+ 
+-        verify_noerr( GetData<ControlEditTextSelectionRec>( 0, kControlEditTextSelectionTag, &sel ) );
+-        verify_noerr( GetData<CFStringRef>( 0, m_valueTag, &value ) );
+-        verify_noerr( SetData<CFStringRef>( 0, m_valueTag, &value ) );
+-        verify_noerr( SetData<ControlEditTextSelectionRec>( 0, kControlEditTextSelectionTag, &sel ) );
++        __Verify_noErr( GetData<ControlEditTextSelectionRec>( 0, kControlEditTextSelectionTag, &sel ) );
++        __Verify_noErr( GetData<CFStringRef>( 0, m_valueTag, &value ) );
++        __Verify_noErr( SetData<CFStringRef>( 0, m_valueTag, &value ) );
++        __Verify_noErr( SetData<ControlEditTextSelectionRec>( 0, kControlEditTextSelectionTag, &sel ) );
+ 
+         CFRelease( value ) ;
+     }
+@@ -527,7 +527,7 @@ void wxMacUnicodeTextControl::SetStringValue( const wxString &str )
+     wxString st = str ;
+     wxMacConvertNewlines10To13( &st ) ;
+     wxCFStringRef cf( st , m_font.GetEncoding() ) ;
+-    verify_noerr( SetData<CFStringRef>( 0, m_valueTag , cf ) ) ;
++    __Verify_noErr( SetData<CFStringRef>( 0, m_valueTag , cf ) ) ;
+ }
+ 
+ void wxMacUnicodeTextControl::Copy()
+@@ -561,7 +561,7 @@ void wxMacUnicodeTextControl::GetSelection( long* from, long* to ) const
+ {
+     ControlEditTextSelectionRec sel ;
+     if (HasFocus())
+-        verify_noerr( GetData<ControlEditTextSelectionRec>( 0, kControlEditTextSelectionTag, &sel ) ) ;
++        __Verify_noErr( GetData<ControlEditTextSelectionRec>( 0, kControlEditTextSelectionTag, &sel ) ) ;
+     else
+         sel = m_selection ;
+ 
+@@ -838,7 +838,7 @@ void wxMacMLTEControl::AdjustCreationAttributes(const wxColour &background,
+     }
+ 
+     OSStatus err = TXNSetTXNObjectControls( m_txn, false, toptag, iControlTags, iControlData ) ;
+-    verify_noerr( err );
++    __Verify_noErr( err );
+ 
+     // setting the default font:
+     // under 10.2 this causes a visible caret, therefore we avoid it
+@@ -859,13 +859,13 @@ void wxMacMLTEControl::AdjustCreationAttributes(const wxColour &background,
+     err = TXNSetTypeAttributes(
+         m_txn, WXSIZEOF(typeAttr),
+         typeAttr, kTXNStartOffset, kTXNEndOffset );
+-    verify_noerr( err );
++    __Verify_noErr( err );
+ 
+     if ( m_windowStyle & wxTE_PASSWORD )
+     {
+         UniChar c = 0x00A5 ;
+         err = TXNEchoMode( m_txn , c , 0 , true );
+-        verify_noerr( err );
++        __Verify_noErr( err );
+     }
+ 
+     TXNBackground tback;
+@@ -989,7 +989,7 @@ void wxMacMLTEControl::TXNSetAttribute( const wxTextAttr& style , long from , lo
+         wxASSERT( controlAttrCount < WXSIZEOF(controlTags) );
+         controlTags[controlAttrCount] = kTXNMarginsTag;
+         controlData[controlAttrCount].marginsPtr = &margins;
+-        verify_noerr( TXNGetTXNObjectControls (m_txn, 1 ,
++        __Verify_noErr( TXNGetTXNObjectControls (m_txn, 1 ,
+                                 &controlTags[controlAttrCount], &controlData[controlAttrCount]) );
+         if ( style.HasLeftIndent() )
+         {
+@@ -1019,14 +1019,14 @@ void wxMacMLTEControl::TXNSetAttribute( const wxTextAttr& style , long from , lo
+     // unfortunately the relayout is not automatic
+     if ( controlAttrCount > 0 )
+     {
+-        verify_noerr( TXNSetTXNObjectControls (m_txn, false /* don't clear all */, controlAttrCount,
++        __Verify_noErr( TXNSetTXNObjectControls (m_txn, false /* don't clear all */, controlAttrCount,
+                                 controlTags, controlData) );
+         relayout = true;
+     }
+ 
+     if ( typeAttrCount > 0 )
+     {
+-        verify_noerr( TXNSetTypeAttributes( m_txn , typeAttrCount, typeAttr, from , to ) );
++        __Verify_noErr( TXNSetTypeAttributes( m_txn , typeAttrCount, typeAttr, from , to ) );
+         if (from != to)
+             relayout = true;
+     }
+diff --git a/src/osx/carbon/tglbtn.cpp b/src/osx/carbon/tglbtn.cpp
+index d4593c0..934c799 100644
+--- a/src/osx/carbon/tglbtn.cpp
++++ b/src/osx/carbon/tglbtn.cpp
+@@ -37,7 +37,7 @@ wxWidgetImplType* wxWidgetImpl::CreateToggleButton( wxWindowMac* wxpeer,
+     Rect bounds = wxMacGetBoundsForControl( wxpeer , pos , size ) ;
+ 
+     wxMacControl* peer = new wxMacControl(wxpeer) ;
+-    verify_noerr ( CreateBevelButtonControl( MAC_WXHWND(parent->MacGetTopLevelWindowRef()) , &bounds , CFSTR("") ,
++    __Verify_noErr ( CreateBevelButtonControl( MAC_WXHWND(parent->MacGetTopLevelWindowRef()) , &bounds , CFSTR("") ,
+         kControlBevelButtonNormalBevel , kControlBehaviorToggles , NULL , 0 , 0 , 0 , peer->GetControlRefAddr() ) );
+     return peer;
+ }
+@@ -56,7 +56,7 @@ wxWidgetImplType* wxWidgetImpl::CreateBitmapToggleButton( wxWindowMac* wxpeer,
+ 
+     ControlButtonContentInfo info;
+     wxMacCreateBitmapButton( &info, label );
+-    verify_noerr ( CreateBevelButtonControl( MAC_WXHWND(parent->MacGetTopLevelWindowRef()) , &bounds , CFSTR("") ,
++    __Verify_noErr ( CreateBevelButtonControl( MAC_WXHWND(parent->MacGetTopLevelWindowRef()) , &bounds , CFSTR("") ,
+         kControlBevelButtonNormalBevel , kControlBehaviorOffsetContents | kControlBehaviorToggles , &info , 0 , 0 , 0 , peer->GetControlRefAddr() ) );
+ 
+     wxMacReleaseBitmapButton( &info ) ;
+diff --git a/src/osx/carbon/thread.cpp b/src/osx/carbon/thread.cpp
+index dcb7bd7..75fc427 100644
+--- a/src/osx/carbon/thread.cpp
++++ b/src/osx/carbon/thread.cpp
+@@ -163,7 +163,7 @@ wxMutexInternal::wxMutexInternal( wxMutexType WXUNUSED(mutexType) )
+     m_isOk = false;
+     m_critRegion = kInvalidID;
+ 
+-    verify_noerr( MPCreateCriticalRegion( &m_critRegion ) );
++    __Verify_noErr(MPCreateCriticalRegion( &m_critRegion ));
+     m_isOk = ( m_critRegion != kInvalidID );
+     if ( !IsOk() )
+     {
+@@ -278,7 +278,7 @@ wxSemaphoreInternal::wxSemaphoreInternal( int initialcount, int maxcount)
+         // make it practically infinite
+         maxcount = INT_MAX;
+ 
+-    verify_noerr( MPCreateSemaphore( maxcount, initialcount, &m_semaphore ) );
++    __Verify_noErr(MPCreateSemaphore( maxcount, initialcount, &m_semaphore ));
+     m_isOk = ( m_semaphore != kInvalidID );
+ 
+     if ( !IsOk() )
+@@ -603,7 +603,7 @@ OSStatus wxThreadInternal::MacThreadStart(void *parameter)
+     wxThreadInternal *pthread = thread->m_internal;
+ 
+     // add to TLS so that This() will work
+-    verify_noerr( MPSetTaskStorageValue( gs_tlsForWXThread , (TaskStorageValue) thread ) ) ;
++    __Verify_noErr(MPSetTaskStorageValue( gs_tlsForWXThread , (TaskStorageValue) thread )) ;
+ 
+     // have to declare this before pthread_cleanup_push() which defines a
+     // block!
+@@ -1219,8 +1219,8 @@ bool wxThreadModule::OnInit()
+     }
+ 
+     // main thread's This() is NULL
+-    verify_noerr( MPAllocateTaskStorageIndex( &gs_tlsForWXThread ) ) ;
+-    verify_noerr( MPSetTaskStorageValue( gs_tlsForWXThread, 0 ) ) ;
++    __Verify_noErr(MPAllocateTaskStorageIndex( &gs_tlsForWXThread )) ;
++    __Verify_noErr(MPSetTaskStorageValue( gs_tlsForWXThread, 0 )) ;
+ 
+     wxThread::ms_idMainThread = wxThread::GetCurrentId();
+     gs_critsectWaitingForGui = new wxCriticalSection();
+diff --git a/src/osx/carbon/timer.cpp b/src/osx/carbon/timer.cpp
+index be218af..bcc3a4d 100644
+--- a/src/osx/carbon/timer.cpp
++++ b/src/osx/carbon/timer.cpp
+@@ -78,7 +78,7 @@ bool wxCarbonTimerImpl::Start( int milliseconds, bool mode )
+         m_info->m_proc,
+         this,
+         &m_info->m_timerRef );
+-    verify_noerr( err );
++    __Verify_noErr( err );
+ 
+     return true;
+ }
+diff --git a/src/osx/carbon/toolbar.cpp b/src/osx/carbon/toolbar.cpp
+index 07121fb..d6cbb77 100644
+--- a/src/osx/carbon/toolbar.cpp
++++ b/src/osx/carbon/toolbar.cpp
+@@ -670,7 +670,7 @@ static pascal OSStatus ControlToolbarItemHandler( EventHandlerCallRef inCallRef,
+                         // make sure we keep that control during our lifetime
+                         CFRetain( object->viewRef ) ;
+ 
+-                        verify_noerr(InstallEventHandler( GetControlEventTarget( viewRef ), ControlToolbarItemHandler,
++                        __Verify_noErr(InstallEventHandler( GetControlEventTarget( viewRef ), ControlToolbarItemHandler,
+                                             GetEventTypeCount( kViewEvents ), kViewEvents, object, NULL ));
+                         result = noErr ;
+                     }
+diff --git a/src/osx/carbon/utils.cpp b/src/osx/carbon/utils.cpp
+index 9653ee4..8dffde2 100644
+--- a/src/osx/carbon/utils.cpp
++++ b/src/osx/carbon/utils.cpp
+@@ -280,7 +280,7 @@ wxMacDataBrowserControl::wxMacDataBrowserControl( wxWindow* peer,
+         MAC_WXHWND(peer->MacGetTopLevelWindowRef()),
+         &bounds, kDataBrowserListView, &m_controlRef );
+     SetReferenceInNativeControl();
+-    verify_noerr( err );
++    __Verify_noErr( err );
+     if ( gDataBrowserItemCompareUPP == NULL )
+         gDataBrowserItemCompareUPP = NewDataBrowserItemCompareUPP(DataBrowserCompareProc);
+     if ( gDataBrowserItemDataUPP == NULL )
+@@ -734,7 +734,7 @@ unsigned int wxMacDataItemBrowserControl::GetItemCount(const wxMacDataItem* cont
+         bool recurse , DataBrowserItemState state) const
+ {
+     ItemCount numItems = 0;
+-    verify_noerr( wxMacDataBrowserControl::GetItemCount( (DataBrowserItemID)container,
++    __Verify_noErr( wxMacDataBrowserControl::GetItemCount( (DataBrowserItemID)container,
+         recurse, state, &numItems ) );
+     return numItems;
+ }
+@@ -750,7 +750,7 @@ void wxMacDataItemBrowserControl::GetItems(const wxMacDataItem* container,
+     bool recurse , DataBrowserItemState state, wxArrayMacDataItemPtr &items) const
+ {
+     Handle handle = NewHandle(0);
+-    verify_noerr( wxMacDataBrowserControl::GetItems( (DataBrowserItemID)container ,
++    __Verify_noErr( wxMacDataBrowserControl::GetItems( (DataBrowserItemID)container ,
+         recurse , state, handle) );
+ 
+     int itemCount = GetHandleSize(handle)/sizeof(DataBrowserItemID);
+@@ -783,7 +783,7 @@ wxMacDataItem*  wxMacDataItemBrowserControl::GetItemFromLine(unsigned int n) con
+ void wxMacDataItemBrowserControl::UpdateItem(const wxMacDataItem *container,
+         const wxMacDataItem *item , DataBrowserPropertyID property) const
+ {
+-    verify_noerr( wxMacDataBrowserControl::UpdateItems((DataBrowserItemID)container, 1,
++    __Verify_noErr( wxMacDataBrowserControl::UpdateItems((DataBrowserItemID)container, 1,
+         (DataBrowserItemID*) &item, kDataBrowserItemNoProperty /* notSorted */, property ) );
+ }
+ 
+@@ -795,7 +795,7 @@ void wxMacDataItemBrowserControl::UpdateItems(const wxMacDataItem *container,
+     for ( unsigned int i = 0; i < noItems; ++i )
+         items[i] = (DataBrowserItemID) itemArray[i];
+ 
+-    verify_noerr( wxMacDataBrowserControl::UpdateItems((DataBrowserItemID)container, noItems,
++    __Verify_noErr( wxMacDataBrowserControl::UpdateItems((DataBrowserItemID)container, noItems,
+         items, kDataBrowserItemNoProperty /* notSorted */, property ) );
+     delete [] items;
+ }
+@@ -839,7 +839,7 @@ void wxMacDataItemBrowserControl::InsertColumn(int col, DataBrowserPropertyType
+     columnDesc.propertyDesc.propertyFlags |= kDataBrowserListViewTypeSelectColumn;
+     columnDesc.propertyDesc.propertyFlags |= kDataBrowserListViewNoGapForIconInHeaderButton;
+ 
+-    verify_noerr( AddColumn( &columnDesc, col ) );
++    __Verify_noErr( AddColumn( &columnDesc, col ) );
+ 
+     if (defaultWidth > 0){
+         SetColumnWidth(col, defaultWidth);
+@@ -850,7 +850,7 @@ void wxMacDataItemBrowserControl::SetColumnWidth(int colId, int width)
+ {
+     DataBrowserPropertyID id;
+     GetColumnIDFromIndex(colId, &id);
+-    verify_noerr( wxMacDataBrowserControl::SetColumnWidth(id, width));
++    __Verify_noErr( wxMacDataBrowserControl::SetColumnWidth(id, width));
+ }
+ 
+ int wxMacDataItemBrowserControl::GetColumnWidth(int colId)
+@@ -858,13 +858,13 @@ int wxMacDataItemBrowserControl::GetColumnWidth(int colId)
+     DataBrowserPropertyID id;
+     GetColumnIDFromIndex(colId, &id);
+     UInt16 result;
+-    verify_noerr( wxMacDataBrowserControl::GetColumnWidth(id, &result));
++    __Verify_noErr( wxMacDataBrowserControl::GetColumnWidth(id, &result));
+     return result;
+ }
+ 
+ void wxMacDataItemBrowserControl::AddItem(wxMacDataItem *container, wxMacDataItem *item)
+ {
+-    verify_noerr( wxMacDataBrowserControl::AddItems( (DataBrowserItemID)container, 1,
++    __Verify_noErr( wxMacDataBrowserControl::AddItems( (DataBrowserItemID)container, 1,
+         (DataBrowserItemID*) &item, kDataBrowserItemNoProperty ) );
+ }
+ 
+@@ -875,7 +875,7 @@ void wxMacDataItemBrowserControl::AddItems(wxMacDataItem *container, wxArrayMacD
+     for ( unsigned int i = 0; i < noItems; ++i )
+         items[i] = (DataBrowserItemID) itemArray[i];
+ 
+-    verify_noerr( wxMacDataBrowserControl::AddItems( (DataBrowserItemID)container, noItems,
++    __Verify_noErr( wxMacDataBrowserControl::AddItems( (DataBrowserItemID)container, noItems,
+         (DataBrowserItemID*) items, kDataBrowserItemNoProperty ) );
+     delete [] items;
+ }
+@@ -884,7 +884,7 @@ void wxMacDataItemBrowserControl::RemoveItem(wxMacDataItem *container, wxMacData
+ {
+     OSStatus err = wxMacDataBrowserControl::RemoveItems( (DataBrowserItemID)container, 1,
+         (DataBrowserItemID*) &item, kDataBrowserItemNoProperty );
+-    verify_noerr( err );
++    __Verify_noErr( err );
+ }
+ 
+ void wxMacDataItemBrowserControl::RemoveItems(wxMacDataItem *container, wxArrayMacDataItemPtr &itemArray)
+@@ -896,7 +896,7 @@ void wxMacDataItemBrowserControl::RemoveItems(wxMacDataItem *container, wxArrayM
+ 
+     OSStatus err = wxMacDataBrowserControl::RemoveItems( (DataBrowserItemID)container, noItems,
+         (DataBrowserItemID*) items, kDataBrowserItemNoProperty );
+-    verify_noerr( err );
++    __Verify_noErr( err );
+     delete [] items;
+ }
+ 
+@@ -904,17 +904,17 @@ void wxMacDataItemBrowserControl::RemoveAllItems(wxMacDataItem *container)
+ {
+     SetScrollPosition(0, 0);
+     OSStatus err = wxMacDataBrowserControl::RemoveItems( (DataBrowserItemID)container, 0 , NULL , kDataBrowserItemNoProperty );
+-    verify_noerr( err );
++    __Verify_noErr( err );
+ }
+ 
+ void wxMacDataItemBrowserControl::SetSelectedItem(wxMacDataItem* item , DataBrowserSetOption option)
+ {
+-    verify_noerr(wxMacDataBrowserControl::SetSelectedItems( 1, (DataBrowserItemID*) &item, option ));
++    __Verify_noErr(wxMacDataBrowserControl::SetSelectedItems( 1, (DataBrowserItemID*) &item, option ));
+ }
+ 
+ void wxMacDataItemBrowserControl::SetSelectedAllItems(DataBrowserSetOption option)
+ {
+-    verify_noerr(wxMacDataBrowserControl::SetSelectedItems( 0 , NULL , option ));
++    __Verify_noErr(wxMacDataBrowserControl::SetSelectedItems( 0 , NULL , option ));
+ }
+ 
+ void wxMacDataItemBrowserControl::SetSelectedItems(wxArrayMacDataItemPtr &itemArray , DataBrowserSetOption option)
+@@ -924,7 +924,7 @@ void wxMacDataItemBrowserControl::SetSelectedItems(wxArrayMacDataItemPtr &itemAr
+     for ( unsigned int i = 0; i < noItems; ++i )
+         items[i] = (DataBrowserItemID) itemArray[i];
+ 
+-    verify_noerr(wxMacDataBrowserControl::SetSelectedItems( noItems, (DataBrowserItemID*) items, option ));
++    __Verify_noErr(wxMacDataBrowserControl::SetSelectedItems( noItems, (DataBrowserItemID*) items, option ));
+     delete [] items;
+ }
+ 
+@@ -935,12 +935,12 @@ Boolean wxMacDataItemBrowserControl::IsItemSelected( const wxMacDataItem* item)
+ 
+ void wxMacDataItemBrowserControl::RevealItem( wxMacDataItem* item, DataBrowserRevealOptions options)
+ {
+-    verify_noerr(wxMacDataBrowserControl::RevealItem( (DataBrowserItemID) item, kDataBrowserNoItem , options ) );
++    __Verify_noErr(wxMacDataBrowserControl::RevealItem( (DataBrowserItemID) item, kDataBrowserNoItem , options ) );
+ }
+ 
+ void wxMacDataItemBrowserControl::GetSelectionAnchor( wxMacDataItemPtr* first , wxMacDataItemPtr* last) const
+ {
+-    verify_noerr(wxMacDataBrowserControl::GetSelectionAnchor( (DataBrowserItemID*) first, (DataBrowserItemID*) last) );
++    __Verify_noErr(wxMacDataBrowserControl::GetSelectionAnchor( (DataBrowserItemID*) first, (DataBrowserItemID*) last) );
+ }
+ 
+ wxClientDataType wxMacDataItemBrowserControl::GetClientDataType() const
+diff --git a/src/osx/carbon/window.cpp b/src/osx/carbon/window.cpp
+index f7085d2..b76975a 100644
+--- a/src/osx/carbon/window.cpp
++++ b/src/osx/carbon/window.cpp
+@@ -372,7 +372,7 @@ static pascal OSStatus wxMacWindowControlEventHandler( EventHandlerCallRef handl
+                 }
+ 
+                 ControlPartCode previousControlPart = 0;
+-                verify_noerr( HIViewGetFocusPart(controlRef, &previousControlPart));
++                __Verify_noErr( HIViewGetFocusPart(controlRef, &previousControlPart));
+ 
+                 if ( thisWindow->MacIsUserPane() )
+                 {
+@@ -464,7 +464,7 @@ wxMacWindowServiceEventHandler(EventHandlerCallRef WXUNUSED(handler),
+                 wxString val = textCtrl->GetValue() ;
+                 val = val.Mid( from , to - from ) ;
+                 PasteboardRef pasteboard = cEvent.GetParameter<PasteboardRef>( kEventParamPasteboardRef, typePasteboardRef );
+-                verify_noerr( PasteboardClear( pasteboard ) ) ;
++                __Verify_noErr( PasteboardClear( pasteboard ) ) ;
+                 PasteboardSynchronize( pasteboard );
+                 // TODO add proper conversion
+                 CFDataRef data = CFDataCreate( kCFAllocatorDefault, (const UInt8*)val.c_str(), val.length() );
+@@ -480,7 +480,7 @@ wxMacWindowServiceEventHandler(EventHandlerCallRef WXUNUSED(handler),
+                 PasteboardRef pasteboard = cEvent.GetParameter<PasteboardRef>( kEventParamPasteboardRef, typePasteboardRef );
+                 PasteboardSynchronize( pasteboard );
+                 ItemCount itemCount;
+-                verify_noerr( PasteboardGetItemCount( pasteboard, &itemCount ) );
++                __Verify_noErr( PasteboardGetItemCount( pasteboard, &itemCount ) );
+                 for( UInt32 itemIndex = 1; itemIndex <= itemCount; itemIndex++ )
+                 {
+                     PasteboardItemID itemID;
+@@ -775,7 +775,7 @@ wxWidgetImplType* wxWidgetImpl::CreateUserPane( wxWindowMac* wxpeer,
+         | kControlWantsIdle ;
+ 
+     err =::CreateUserPaneControl( MAC_WXHWND(wxpeer->GetParent()->MacGetTopLevelWindowRef()) , &bounds, features , c->GetControlRefAddr() );
+-    verify_noerr( err );
++    __Verify_noErr( err );
+     return c;
+ }
+ 
+@@ -850,12 +850,12 @@ void wxMacControl::SetNeedsDisplay( const wxRect* rect )
+ 
+ void wxMacControl::Raise()
+ {
+-    verify_noerr( HIViewSetZOrder( m_controlRef, kHIViewZOrderAbove, NULL ) );
++    __Verify_noErr( HIViewSetZOrder( m_controlRef, kHIViewZOrderAbove, NULL ) );
+ }
+ 
+ void wxMacControl::Lower()
+ {
+-    verify_noerr( HIViewSetZOrder( m_controlRef, kHIViewZOrderBelow, NULL ) );
++    __Verify_noErr( HIViewSetZOrder( m_controlRef, kHIViewZOrderBelow, NULL ) );
+ }
+ 
+ void wxMacControl::GetContentArea(int &left , int &top , int &width , int &height) const
+@@ -1258,12 +1258,12 @@ bool wxMacControl::SetBackgroundStyle(wxBackgroundStyle style)
+     if ( style != wxBG_STYLE_PAINT )
+     {
+         OSStatus err = HIViewChangeFeatures(m_controlRef , 0 , kHIViewIsOpaque);
+-        verify_noerr( err );
++        __Verify_noErr( err );
+     }
+     else
+     {
+         OSStatus err = HIViewChangeFeatures(m_controlRef , kHIViewIsOpaque , 0);
+-        verify_noerr( err );
++        __Verify_noErr( err );
+     }
+ 
+     return true ;
+@@ -1410,7 +1410,7 @@ OSType wxMacControlProperty = 'MCCT';
+ void wxMacControl::SetReferenceInNativeControl()
+ {
+     void * data = this;
+-    verify_noerr( SetControlProperty ( m_controlRef ,
++    __Verify_noErr( SetControlProperty ( m_controlRef ,
+         wxMacCreator,wxMacControlProperty, sizeof(data), &data ) );
+ }
+ 
+diff --git a/src/osx/cocoa/notebook.mm b/src/osx/cocoa/notebook.mm
+index a561ca3..14dd064 100644
+--- a/src/osx/cocoa/notebook.mm
++++ b/src/osx/cocoa/notebook.mm
+@@ -316,7 +316,7 @@ public:
+     OSStatus err = CreateTabsControl(
+         MAC_WXHWND(parent->MacGetTopLevelWindowRef()), &bounds,
+         tabsize, tabstyle, 0, NULL, GetPeer()->GetControlRefAddr() );
+-    verify_noerr( err );
++    __Verify_noErr( err );
+ #endif
+ */
+ wxWidgetImplType* wxWidgetImpl::CreateTabView( wxWindowMac* wxpeer,
+diff --git a/src/osx/core/bitmap.cpp b/src/osx/core/bitmap.cpp
+index 228b1d1..ab40d62 100644
+--- a/src/osx/core/bitmap.cpp
++++ b/src/osx/core/bitmap.cpp
+@@ -1065,7 +1065,7 @@ IconRef wxBitmap::GetIconRef() const
+ IconRef wxBitmap::CreateIconRef() const
+ {
+     IconRef icon = GetIconRef();
+-    verify_noerr( AcquireIconRef(icon) );
++    __Verify_noErr(AcquireIconRef(icon));
+     return icon;
+ }
+ #endif
+diff --git a/src/osx/core/utilsexc_base.cpp b/src/osx/core/utilsexc_base.cpp
+index 2329ee9..d07e311 100644
+--- a/src/osx/core/utilsexc_base.cpp
++++ b/src/osx/core/utilsexc_base.cpp
+@@ -71,7 +71,7 @@ long UMAGetSystemVersion()
+         if ( majorCur > 10 || (majorCur == 10 && minorCur >= 10) )
+             sUMASystemVersion = 0x1090;
+         else
+-            verify_noerr(Gestalt(gestaltSystemVersion, &sUMASystemVersion));
++            __Verify_noErr(Gestalt(gestaltSystemVersion, &sUMASystemVersion));
+     }
+     return sUMASystemVersion ;
+ }
