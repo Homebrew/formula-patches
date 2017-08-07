@@ -1,0 +1,13 @@
+diff --git a/conv_shared.cpp b/conv_shared.cpp
+index 187c457..4f66d45 100644
+--- a/conv_shared.cpp
++++ b/conv_shared.cpp
+@@ -173,7 +173,7 @@ size_t rescaleJPEGWrite( unsigned int width, unsigned int height, int byte_per_p
+ 
+     jpeg_set_defaults(&cinfo2);
+     jpeg_set_quality(&cinfo2, quality, TRUE );
+-    cinfo2.optimize_coding = true;
++    cinfo2.optimize_coding = TRUE;
+     //jpeg_simple_progression (&cinfo2);
+     jpeg_start_compress(&cinfo2, TRUE);
+ 
