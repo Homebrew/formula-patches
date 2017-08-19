@@ -1,0 +1,72 @@
+diff --git a/src/util.cc b/src/util.cc
+index 4d860ab..75e29a3 100644
+--- a/src/util.cc
++++ b/src/util.cc
+@@ -55,38 +55,12 @@
+ // Code
+ //-----------------------------------------------------------------------------
+ 
+-/*!
+-  Converts a string to an integer (atoi)
+-*/
+-int stoi(const std::string& str ) {
+-  //int i = atoi( str.c_str() );
+-  int i = (int)strtoimax( str.c_str(), NULL, 10 );
+-  return( i );
+-}
+-
+ int stoi(const std::string& str, int b) {
+   //int i = atoi( str.c_str() );
+   int i = (int)strtoimax( str.c_str(), NULL, b );
+   return( i );
+ }
+ 
+-/*!
+-  Converts a string to a long.
+-*/
+-long stol(const std::string& str) {
+-  long i = atol( str.c_str() );
+-  return( i );
+-}
+-
+-
+-/*!
+-  Converts a string to a double.
+-*/
+-double stod(const std::string& str) {
+-  double i = strtod( str.c_str(), NULL );
+-  return( i );
+-}
+-
+ 
+ /*!
+   Converts seconds to 03w03d02h33m48s
+diff --git a/src/util.h b/src/util.h
+index 55514b6..2e856e5 100644
+--- a/src/util.h
++++ b/src/util.h
+@@ -35,10 +35,7 @@
+ // ----------------------------------------------------------------------------
+ 
+ 
+-int stoi(const std::string& );
+ int stoi(const std::string&, int );
+-long stol(const std::string& );
+-double stod(const std::string& );
+ std::string secs_to_str(long);
+ std::string secs_to_str(long, long);
+ std::string to_str(int);
+
+diff --git a/src/SocketBasics.cc b/src/SocketBasics.cc
+index 37d7c9b..4807d50 100644
+--- a/src/SocketBasics.cc
++++ b/src/SocketBasics.cc
+@@ -500,7 +500,7 @@ namespace Sockets {
+       serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+       int TCP_PORT = stoi(port);
+       serv_addr.sin_port = htons(TCP_PORT);
+-      if ( bind( sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr) ) < 0 ){
++      if ( ::bind( sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr) ) < 0 ){
+ 	mess = string( "ServerSocket connect: bind failed (" )
+ 	  + strerror( errno ) + ")";
+       }
