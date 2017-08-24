@@ -1,0 +1,12 @@
+diff -pur a/dcraw.cc b/dcraw.cc
+--- a/dcraw.cc	2015-06-16 05:58:38.000000000 +0200
++++ b/dcraw.cc	2017-08-24 10:46:41.000000000 +0200
+@@ -9242,7 +9242,7 @@ canon_a5:
+     if (make[0] == 'O') {
+       i = find_green (12, 32, 1188864, 3576832);
+       c = find_green (12, 32, 2383920, 2387016);
+-      if (abs(i) < abs(c)) {
++      if (i < c) {
+ 	SWAP(i,c);
+ 	load_flags = 24;
+       }
