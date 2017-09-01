@@ -1,6 +1,8 @@
---- source/base/image/image.cpp.orig	2013-02-05 19:27:13.000000000 -0600
-+++ source/base/image/image.cpp	2013-02-28 04:26:16.000000000 -0600
-@@ -2888,7 +2888,7 @@
+diff --git a/source/base/image/image.cpp b/source/base/image/image.cpp
+index b356f151..8125e518 100644
+--- a/source/base/image/image.cpp
++++ b/source/base/image/image.cpp
+@@ -2829,7 +2829,7 @@ class FileBackedPixelContainer
  			meta[0] = sizeof(pixel_type);
  			meta[1] = m_Width;
  			meta[2] = m_Height;
@@ -9,7 +11,7 @@
  				throw POV_EXCEPTION(kFileDataErr, "Intermediate image storage backing file write/seek failed at creation.");
  			if (write(m_File, &meta[0], (int) sizeof(size_type)*3) != (sizeof(size_type)*3))
  				throw POV_EXCEPTION(kFileDataErr, "Intermediate image storage backing file write failed at creation.");
-@@ -3059,7 +3059,7 @@
+@@ -3000,7 +3000,7 @@ class FileBackedPixelContainer
  #endif
  				pos = block * sizeof(pixel_type) * m_Blocksize;
  				int chunk = sizeof(pixel_type) * m_Blocksize;
@@ -18,7 +20,7 @@
  					throw POV_EXCEPTION(kFileDataErr, "Intermediate image storage backing file read/seek failed.");
  				int bytes = read(m_File, &m_Buffer[0], chunk);
  				if (bytes != (sizeof(pixel_type) * m_Blocksize))
-@@ -3082,7 +3082,7 @@
+@@ -3023,7 +3023,7 @@ class FileBackedPixelContainer
  
  			if (m_Dirty) {
  				pos = m_CurrentBlock * sizeof(pixel_type) * m_Blocksize;
