@@ -1,6 +1,8 @@
---- vfe/unix/vfeplatform.h.orig	2012-06-19 11:29:39.000000000 -0500
-+++ vfe/unix/vfeplatform.h	2012-09-05 08:19:08.000000000 -0500
-@@ -94,6 +94,8 @@
+diff --git a/vfe/unix/vfeplatform.h b/vfe/unix/vfeplatform.h
+index d88a1481..17303ec8 100644
+--- a/vfe/unix/vfeplatform.h
++++ b/vfe/unix/vfeplatform.h
+@@ -36,6 +36,8 @@
  #ifndef __VFEPLATFORM_H__
  #define __VFEPLATFORM_H__
  
@@ -9,9 +11,11 @@
  #include <boost/shared_ptr.hpp>
  
  namespace vfePlatform
---- vfe/vfesession.h.orig	2012-06-19 11:29:40.000000000 -0500
-+++ vfe/vfesession.h	2012-09-05 08:19:13.000000000 -0500
-@@ -94,6 +94,8 @@
+diff --git a/vfe/vfesession.h b/vfe/vfesession.h
+index 7fd06a75..144bfe6b 100644
+--- a/vfe/vfesession.h
++++ b/vfe/vfesession.h
+@@ -36,6 +36,8 @@
  #ifndef __VFESESSION_H__
  #define __VFESESSION_H__
  
