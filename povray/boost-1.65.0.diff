@@ -1,0 +1,109 @@
+diff --git a/source/backend/precomp.h b/source/backend/precomp.h
+index 0be58f6..bb43925 100644
+--- a/source/backend/precomp.h
++++ b/source/backend/precomp.h
+@@ -64,6 +64,6 @@
+ #include <boost/thread.hpp>
+ #include <boost/thread/condition.hpp>
+ #include <boost/unordered_map.hpp>
+-#include <boost/tr1/memory.hpp>
++#include <memory>
+ 
+ 
+diff --git a/source/base/image/colourspace.cpp b/source/base/image/colourspace.cpp
+index aaef154..ea0e293 100644
+--- a/source/base/image/colourspace.cpp
++++ b/source/base/image/colourspace.cpp
+@@ -247,7 +247,7 @@ SimpleGammaCurvePtr PowerLawGammaCurve::GetByEncodingGamma(float gamma)
+ {
+ 	if (IsNeutral(gamma))
+ 		return NeutralGammaCurve::Get();
+-	return std::tr1::dynamic_pointer_cast<SimpleGammaCurve,GammaCurve>(GetMatching(GammaCurvePtr(new PowerLawGammaCurve(gamma))));
++	return std::dynamic_pointer_cast<SimpleGammaCurve,GammaCurve>(GetMatching(GammaCurvePtr(new PowerLawGammaCurve(gamma))));
+ }
+ SimpleGammaCurvePtr PowerLawGammaCurve::GetByDecodingGamma(float gamma)
+ {
+diff --git a/source/base/precomp.h b/source/base/precomp.h
+index a8f88ca..e7cc352 100644
+--- a/source/base/precomp.h
++++ b/source/base/precomp.h
+@@ -64,6 +64,6 @@
+ #include <boost/thread.hpp>
+ #include <boost/thread/condition.hpp>
+ #include <boost/unordered_map.hpp>
+-#include <boost/tr1/memory.hpp>
++#include <memory>
+ 
+ 
+diff --git a/source/frontend/precomp.h b/source/frontend/precomp.h
+index 380e6cf..ba540cd 100644
+--- a/source/frontend/precomp.h
++++ b/source/frontend/precomp.h
+@@ -64,6 +64,6 @@
+ #include <boost/thread.hpp>
+ #include <boost/thread/condition.hpp>
+ #include <boost/unordered_map.hpp>
+-#include <boost/tr1/memory.hpp>
++#include <memory>
+ 
+ 
+diff --git a/source/frontend/processrenderoptions.cpp b/source/frontend/processrenderoptions.cpp
+index 128bb95..d792a11 100644
+--- a/source/frontend/processrenderoptions.cpp
++++ b/source/frontend/processrenderoptions.cpp
+@@ -30,6 +30,7 @@
+  *******************************************************************************/
+ 
+ #include <cctype>
++#include <cstdlib>
+ 
+ // configbase.h must always be the first POV file included within base *.cpp files
+ #include "base/configbase.h"
+diff --git a/vfe/unix/syspovconfig.h b/vfe/unix/syspovconfig.h
+index 2d32ee0..f143bda 100644
+--- a/vfe/unix/syspovconfig.h
++++ b/vfe/unix/syspovconfig.h
+@@ -66,7 +66,7 @@ using std::min;
+ #include <string>
+ #include <vector>
+ #include <list>
+-#include <boost/tr1/memory.hpp>
++#include <memory>
+ 
+ // when we say 'string' we mean std::string
+ using std::string;
+@@ -82,8 +82,8 @@ using std::list;
+ using std::runtime_error;
+ 
+ // these may actually be the boost implementations, depending on what boost/tr1/memory.hpp has pulled in
+-using std::tr1::shared_ptr;
+-using std::tr1::weak_ptr;
++using std::shared_ptr;
++using std::weak_ptr;
+ 
+ #endif // STD_POV_TYPES_DECLARED
+ 
+diff --git a/vfe/win/syspovconfig.h b/vfe/win/syspovconfig.h
+index 059f28b..e61fcff 100644
+--- a/vfe/win/syspovconfig.h
++++ b/vfe/win/syspovconfig.h
+@@ -67,7 +67,7 @@ using std::min;
+ #include <string>
+ #include <vector>
+ #include <list>
+-#include <boost/tr1/memory.hpp>
++#include <memory>
+ 
+ // when we say 'string' we mean std::string
+ using std::string;
+@@ -83,8 +83,8 @@ using std::list;
+ using std::runtime_error;
+ 
+ // these may actually be the boost implementations, depending on what boost/tr1/memory.hpp has pulled in
+-using std::tr1::shared_ptr;
+-using std::tr1::weak_ptr;
++using std::shared_ptr;
++using std::weak_ptr;
+ 
+ #endif // STD_POV_TYPES_DECLARED
+ 
