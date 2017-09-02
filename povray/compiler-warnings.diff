@@ -1,0 +1,497 @@
+diff --git a/source/backend/bounding/bbox.cpp b/source/backend/bounding/bbox.cpp
+index 1aa8b24d..c77d10fc 100644
+--- a/source/backend/bounding/bbox.cpp
++++ b/source/backend/bounding/bbox.cpp
+@@ -467,7 +467,7 @@ bool Intersect_BBox_Tree(PriorityQueue& pqueue, const BBOX_TREE *Root, const Ray
+ 	return (found);
+ }
+ 
+-void priority_queue_insert(PriorityQueue& Queue, DBL Depth, const BBOX_TREE *Node)
++static void priority_queue_insert(PriorityQueue& Queue, DBL Depth, const BBOX_TREE *Node)
+ {
+ 	unsigned size;
+ 	int i;
+diff --git a/source/backend/control/benchmark.cpp b/source/backend/control/benchmark.cpp
+index 4f0bf192..dad93c2d 100644
+--- a/source/backend/control/benchmark.cpp
++++ b/source/backend/control/benchmark.cpp
+@@ -44,7 +44,7 @@
+ namespace pov
+ {
+ 
+-char Benchmark_File [] =
++static const char Benchmark_File [] =
+ {
+ 	// Persistence Of Vision Ray Tracer Scene Description File
+ 	//
+@@ -1278,7 +1278,7 @@ char Benchmark_File [] =
+ 	"#end\n"
+ } ;
+ 
+-char Benchmark_Options [] =
++static const char Benchmark_Options [] =
+ {
+ 	"All_Console=On\n"
+ 	"All_File=\n"
+diff --git a/source/backend/math/hcmplx.cpp b/source/backend/math/hcmplx.cpp
+index 1232e5e6..9021bf2a 100644
+--- a/source/backend/math/hcmplx.cpp
++++ b/source/backend/math/hcmplx.cpp
+@@ -40,6 +40,8 @@
+ #include "backend/shape/spheres.h" // TODO - Move sphere intersection function to math code! [trf]
+ #include "backend/math/hcmplx.h"
+ 
++#include "hcmplx.h" // own include
++
+ // this must be the last file included
+ #include "base/povdebug.h"
+ 
+diff --git a/source/backend/parser/parsestr.cpp b/source/backend/parser/parsestr.cpp
+index abfedcd0..bb5a8e9b 100644
+--- a/source/backend/parser/parsestr.cpp
++++ b/source/backend/parser/parsestr.cpp
+@@ -485,7 +485,7 @@ UCS2 *Parser::Parse_Datetime(bool pathname)
+ 		CASE(RIGHT_PAREN_TOKEN)
+ 			CallFree = false;
+ 			// we use GMT as some platforms (e.g. windows) have different ideas of what to print when handling '%z'.
+-			FormatStr = "%Y-%m-%d %H:%M:%SZ";
++			FormatStr = (char *)"%Y-%m-%d %H:%M:%SZ";
+ 			EXIT
+ 		END_CASE
+ 
+@@ -493,7 +493,7 @@ UCS2 *Parser::Parse_Datetime(bool pathname)
+ 			UNGET
+ 			CallFree = true;
+ 			FormatStr = Parse_C_String(pathname);
+-			if (strlen(FormatStr) == 0)
++			if (FormatStr[0] == '\0')
+ 			{
+ 				POV_FREE(FormatStr);
+ 				Error("Empty format string.");
+diff --git a/source/backend/pattern/pattern.cpp b/source/backend/pattern/pattern.cpp
+index c0b670d1..4dc96979 100644
+--- a/source/backend/pattern/pattern.cpp
++++ b/source/backend/pattern/pattern.cpp
+@@ -8426,7 +8426,7 @@ int PickInCube(const VECTOR tv, VECTOR  p1)
+ ******************************************************************************/
+ 
+ #ifndef HAVE_BOOST_HASH
+-unsigned long int NewHash(long int tvx, long int tvy, long int tvz)
++static unsigned long int NewHash(long int tvx, long int tvy, long int tvz)
+ {
+ 	unsigned long int seed;
+ 	long int r;
+diff --git a/source/backend/pattern/warps.cpp b/source/backend/pattern/warps.cpp
+index 2481f475..ef8efe6f 100644
+--- a/source/backend/pattern/warps.cpp
++++ b/source/backend/pattern/warps.cpp
+@@ -54,7 +54,7 @@ namespace pov
+ 
+ const DBL COORDINATE_LIMIT = 1.0e17;
+ 
+-RandomDoubleSequence WarpRands(0.0, 1.0, 32768);
++static RandomDoubleSequence WarpRands(0.0, 1.0, 32768);
+ 
+ /*****************************************************************************
+ * Static functions
+diff --git a/source/backend/shape/fpmetric.cpp b/source/backend/shape/fpmetric.cpp
+index 95acdb9d..26592bf1 100644
+--- a/source/backend/shape/fpmetric.cpp
++++ b/source/backend/shape/fpmetric.cpp
+@@ -970,7 +970,7 @@ void Parametric::Precomp_Par_Int(int depth, DBL umin, DBL vmin, DBL umax, DBL vm
+ void Parametric::Precompute_Parametric_Values(char flags, int depth, FPUContext *ctx)
+ {
+ 	DBL * Last;
+-	char* es = "precompute";
++	const char* es = "precompute";
+ 	int nmb;
+ 
+ 	if ((depth < 1) || (depth > 20))
+diff --git a/source/backend/shape/hfield.cpp b/source/backend/shape/hfield.cpp
+index e6feb3a5..09656415 100644
+--- a/source/backend/shape/hfield.cpp
++++ b/source/backend/shape/hfield.cpp
+@@ -1470,10 +1470,10 @@ void HField::Compute_BBox()
+ 
+ bool HField::dda_traversal(const Ray &ray, const VECTOR Start, const HFIELD_BLOCK *Block, IStack &HField_Stack, const Ray &RRay, DBL mindist, DBL maxdist, TraceThreadData *Thread)
+ {
+-	char *dda_msg = "Illegal grid value in dda_traversal().\n"
+-	                "The height field may contain dark spots. To eliminate them\n"
+-	                "moving the camera a tiny bit should help. For more information\n"
+-	                "read the user manual!";
++	const char *dda_msg = "Illegal grid value in dda_traversal().\n"
++	                      "The height field may contain dark spots. To eliminate them\n"
++	                      "moving the camera a tiny bit should help. For more information\n"
++	                      "read the user manual!";
+ 	int found;
+ 	int xmin, xmax, zmin, zmax;
+ 	int x, z, signx, signz;
+diff --git a/source/backend/shape/isosurf.cpp b/source/backend/shape/isosurf.cpp
+index 2096d04e..443930c3 100644
+--- a/source/backend/shape/isosurf.cpp
++++ b/source/backend/shape/isosurf.cpp
+@@ -57,8 +57,6 @@ namespace pov
+ * Local preprocessor defines
+ ******************************************************************************/
+ 
+-#define close(x, y) (fabs(x-y) < EPSILON ? 1 : 0)
+-
+ /* Side hit. */
+ const int SIDE_X_0 = 1;
+ const int SIDE_X_1 = 2;
+@@ -67,15 +65,6 @@ const int SIDE_Y_1 = 4;
+ const int SIDE_Z_0 = 5;
+ const int SIDE_Z_1 = 6;
+ 
+-#define OK_X         1
+-#define OK_Y         2
+-#define OK_Z         4
+-#define OK_R         8
+-#define OK_S        16
+-#define OK_T        32
+-#define OK_U        64
+-#define OK_V       128
+-
+ 
+ /*****************************************************************************
+ *
+diff --git a/source/backend/shape/truetype.cpp b/source/backend/shape/truetype.cpp
+index 7e27ccc3..1f3c68d0 100644
+--- a/source/backend/shape/truetype.cpp
++++ b/source/backend/shape/truetype.cpp
+@@ -418,7 +418,7 @@ ULONG readULONG(IStream *infile, int line, const char *file)
+ 	                (((ULONG) i2) << 8)  |  ((ULONG) i3));
+ }
+ 
+-int compare_tag4(const BYTE *ttf_tag, const BYTE *known_tag)
++static int compare_tag4(const BYTE *ttf_tag, const BYTE *known_tag)
+ {
+ 	return (ttf_tag[0] == known_tag[0] && ttf_tag[1] == known_tag[1] &&
+ 	        ttf_tag[2] == known_tag[2] && ttf_tag[3] == known_tag[3]);
+diff --git a/source/backend/support/bsptree.cpp b/source/backend/support/bsptree.cpp
+index 205c2f49..36db8956 100644
+--- a/source/backend/support/bsptree.cpp
++++ b/source/backend/support/bsptree.cpp
+@@ -90,7 +90,7 @@ BSPTree::~BSPTree()
+ {
+ }
+ 
+-FILE *gFile = NULL;
++static FILE *gFile = NULL;
+ 
+ bool BSPTree::operator()(const Ray& ray, Intersect& isect, Mailbox& mailbox, double maxdist)
+ {
+diff --git a/source/base/image/png.cpp b/source/base/image/png.cpp
+index a9337799..3b8849e7 100644
+--- a/source/base/image/png.cpp
++++ b/source/base/image/png.cpp
+@@ -277,7 +277,7 @@ extern "C"
+ 		file->flush();
+ 	}
+ 
+-	bool ReadPNGUpdateInfo (png_structp png_ptr, png_infop info_ptr)
++	static bool ReadPNGUpdateInfo (png_structp png_ptr, png_infop info_ptr)
+ 	{
+ 		if (setjmp(png_jmpbuf(png_ptr)))
+ 		{
+@@ -288,7 +288,7 @@ extern "C"
+ 		return (true);
+ 	}
+ 
+-	bool ReadPNGImage (png_structp r_png_ptr, png_bytepp row_ptrs)
++	static bool ReadPNGImage (png_structp r_png_ptr, png_bytepp row_ptrs)
+ 	{
+ 		if (setjmp(png_jmpbuf(r_png_ptr)))
+ 		{
+diff --git a/source/base/image/targa.cpp b/source/base/image/targa.cpp
+index a4d3e14e..294d3fbf 100644
+--- a/source/base/image/targa.cpp
++++ b/source/base/image/targa.cpp
+@@ -105,13 +105,13 @@ typedef char Targa_extension[495];
+ #define EXT_GAMMA_OFF 478
+ #define EXT_PIXRATIO_OFF 474
+ 
+-Pixel *GetPix (const Image *image, int x, int y, Pixel *pixel, const GammaCurvePtr& gamma, DitherHandler& dither, bool premul)
++static Pixel *GetPix (const Image *image, int x, int y, Pixel *pixel, const GammaCurvePtr& gamma, DitherHandler& dither, bool premul)
+ {
+ 	GetEncodedRGBAValue (image, x, y, gamma, 255, pixel->r, pixel->g, pixel->b, pixel->a, dither, premul);
+ 	return (pixel);
+ }
+ 
+-void PutPix (vector<unsigned char>& line, const pix *pixel, bool opaque)
++static void PutPix (vector<unsigned char>& line, const pix *pixel, bool opaque)
+ {
+ 	line.push_back (pixel->b);
+ 	line.push_back (pixel->g);
+@@ -346,7 +346,7 @@ void Write (OStream *file, const Image *image, const Image::WriteOptions& option
+ 	file->write(foo,sizeof(foo));
+ }
+ 
+-void ConvertColor (Pixel *pixel, unsigned pixelsize, const unsigned char *bytes)
++static void ConvertColor (Pixel *pixel, unsigned pixelsize, const unsigned char *bytes)
+ {
+ 	unsigned char r;
+ 	unsigned char g;
+@@ -395,7 +395,7 @@ void ConvertColor (Pixel *pixel, unsigned pixelsize, const unsigned char *bytes)
+ 	pixel->a = a;
+ }
+ 
+-void ConvertColor (Image::RGBAMapEntry *pixel, unsigned pixelsize, const unsigned char *bytes, const GammaCurvePtr& gamma)
++static void ConvertColor (Image::RGBAMapEntry *pixel, unsigned pixelsize, const unsigned char *bytes, const GammaCurvePtr& gamma)
+ {
+ 	unsigned char r;
+ 	unsigned char g;
+diff --git a/source/base/path.cpp b/source/base/path.cpp
+index 36a60fed..86047faa 100644
+--- a/source/base/path.cpp
++++ b/source/base/path.cpp
+@@ -45,8 +45,6 @@
+ namespace pov_base
+ {
+ 
+-const char *BIN2HEX = "0123456789ABCDEF";
+-
+ Path::Path()
+ {
+ }
+diff --git a/source/base/povms.cpp b/source/base/povms.cpp
+index 907746e3..40ed43ad 100644
+--- a/source/base/povms.cpp
++++ b/source/base/povms.cpp
+@@ -2732,7 +2732,7 @@ POVMSNode *POVMSObject_Find(POVMSObjectPtr object, POVMSType key)
+ 
+ #ifndef POVMS_NO_DUMP_SUPPORT
+ 
+-int gPOVMSDumpLevel = 0;
++static int gPOVMSDumpLevel = 0;
+ 
+ POVMS_EXPORT int POVMS_CDECL POVMSObject_Dump(FILE *file, POVMSObjectPtr object)
+ {
+diff --git a/source/frontend/renderfrontend.cpp b/source/frontend/renderfrontend.cpp
+index 50d8829c..b8e7efbe 100644
+--- a/source/frontend/renderfrontend.cpp
++++ b/source/frontend/renderfrontend.cpp
+@@ -52,7 +52,7 @@ namespace pov_frontend
+ 
+ const int gStreamTypeUtilDataCount = 6;
+ 
+-const POVMSType gStreamTypeUtilData[gStreamTypeUtilDataCount] =
++static const POVMSType gStreamTypeUtilData[gStreamTypeUtilDataCount] =
+ {
+ 	kPOVAttrib_DebugFile,
+ 	kPOVAttrib_FatalFile,
+@@ -62,7 +62,7 @@ const POVMSType gStreamTypeUtilData[gStreamTypeUtilDataCount] =
+ 	kPOVAttrib_AllFile
+ };
+ 
+-const char *gStreamDefaultFile[gStreamTypeUtilDataCount] =
++static const char *gStreamDefaultFile[gStreamTypeUtilDataCount] =
+ {
+ 	"debug.out",
+ 	"fatal.out",
+@@ -72,7 +72,7 @@ const char *gStreamDefaultFile[gStreamTypeUtilDataCount] =
+ 	"alltext.out"
+ };
+ 
+-const int gStreamNumber[gStreamTypeUtilDataCount] =
++static const int gStreamNumber[gStreamTypeUtilDataCount] =
+ {
+ 	DEBUG_STREAM,
+ 	FATAL_STREAM,
+@@ -989,7 +989,7 @@ void OutputOptions(POVMS_Object& cppmsg, TextStreamBuffer *tsb)
+ 	int startRow, startCol, endRow, endCol;
+ 	POVMSBool b;
+ 	UCS2 ucs2buf[1024];
+-	char *t;
++	const char *t;
+ 	int outputQuality = 8; // default bits per pixel channel // TODO FIXME: Default values shouldn't be hard-coded in here!
+ 	int outputCompression;
+ 	int l;
+@@ -1045,7 +1045,7 @@ void OutputOptions(POVMS_Object& cppmsg, TextStreamBuffer *tsb)
+ 	b = false;
+ 	if(POVMSUtil_GetBool(msg, kPOVAttrib_OutputToFile, &b) != kNoErr || b == true) // TODO FIXME: Defaults (in this case b=true) shouldn't be hard-coded in here!
+ 	{
+-		char *al = "";
++		const char *al = "";
+ 
+ 		l = 1023;
+ 		ucs2buf[0] = 0;
+diff --git a/vfe/unix/unixconsole.cpp b/vfe/unix/unixconsole.cpp
+index e43ff28f..07e691d1 100644
+--- a/vfe/unix/unixconsole.cpp
++++ b/vfe/unix/unixconsole.cpp
+@@ -59,7 +59,7 @@ enum DispMode
+ 	DISP_MODE_SDL
+ };
+ 
+-DispMode gDisplayMode;
++static DispMode gDisplayMode;
+ 
+ enum ReturnValue
+ {
+@@ -68,14 +68,14 @@ enum ReturnValue
+ 	RETURN_USER_ABORT
+ };
+ 
+-bool gCancelRender = false;
++static bool gCancelRender = false;
+ 
+ // for handling asynchronous (external) signals
+-int gSignalNumber = 0;
+-boost::mutex gSignalMutex;
++static int gSignalNumber = 0;
++static boost::mutex gSignalMutex;
+ 
+ 
+-void SignalHandler (void)
++static void SignalHandler (void)
+ {
+ 	sigset_t sigset;
+ 	int      signum;
+@@ -90,7 +90,7 @@ void SignalHandler (void)
+ }
+ 
+ 
+-void ProcessSignal (void)
++static void ProcessSignal (void)
+ {
+ 	boost::mutex::scoped_lock lock(gSignalMutex);
+ 
+@@ -134,7 +134,7 @@ void ProcessSignal (void)
+ 	gSignalNumber = 0;
+ }
+ 
+-vfeDisplay *UnixDisplayCreator (unsigned int width, unsigned int height, GammaCurvePtr gamma, vfeSession *session, bool visible)
++static vfeDisplay *UnixDisplayCreator (unsigned int width, unsigned int height, GammaCurvePtr gamma, vfeSession *session, bool visible)
+ {
+ 	UnixDisplay *display = GetRenderWindow () ;
+ 	switch (gDisplayMode)
+@@ -159,7 +159,7 @@ vfeDisplay *UnixDisplayCreator (unsigned int width, unsigned int height, GammaCu
+ 	}
+ }
+ 
+-void PrintStatus (vfeSession *session)
++static void PrintStatus (vfeSession *session)
+ {
+ 	string str;
+ 	vfeSession::MessageType type;
+@@ -179,7 +179,7 @@ void PrintStatus (vfeSession *session)
+ 	}
+ }
+ 
+-void PrintStatusChanged (vfeSession *session, State force = kUnknown)
++static void PrintStatusChanged (vfeSession *session, State force = kUnknown)
+ {
+ 	if (force == kUnknown)
+ 		force = session->GetBackendState();
+@@ -197,7 +197,7 @@ void PrintStatusChanged (vfeSession *session, State force = kUnknown)
+ 	}
+ }
+ 
+-void PrintVersion(void)
++static void PrintVersion(void)
+ {
+ 	fprintf(stderr,
+ 		"%s %s\n\n"
+@@ -226,7 +226,7 @@ void PrintVersion(void)
+ 	);
+ }
+ 
+-void ErrorExit(vfeSession *session)
++static void ErrorExit(vfeSession *session)
+ {
+ 	fprintf(stderr, "%s\n", session->GetErrorString());
+ 	session->Shutdown();
+@@ -234,7 +234,7 @@ void ErrorExit(vfeSession *session)
+ 	exit(RETURN_ERROR);
+ }
+ 
+-void CancelRender(vfeSession *session)
++static void CancelRender(vfeSession *session)
+ {
+ 	session->CancelRender();  // request the backend to cancel
+ 	PrintStatus (session);
+@@ -243,7 +243,7 @@ void CancelRender(vfeSession *session)
+ 	PrintStatus (session);
+ }
+ 
+-void PauseWhenDone(vfeSession *session)
++static void PauseWhenDone(vfeSession *session)
+ {
+ 	GetRenderWindow()->UpdateScreen(true);
+ 	GetRenderWindow()->PauseWhenDoneNotifyStart();
+@@ -258,7 +258,7 @@ void PauseWhenDone(vfeSession *session)
+ 	GetRenderWindow()->PauseWhenDoneNotifyEnd();
+ }
+ 
+-ReturnValue PrepareBenchmark(vfeSession *session, vfeRenderOptions& opts, string& ini, string& pov, int argc, char **argv)
++static ReturnValue PrepareBenchmark(vfeSession *session, vfeRenderOptions& opts, string& ini, string& pov, int argc, char **argv)
+ {
+ 	// parse command-line options
+ 	while (*++argv)
+@@ -345,7 +345,7 @@ Press <Enter> to continue or <Ctrl-C> to abort.\n\
+ 	return RETURN_OK;
+ }
+ 
+-void CleanupBenchmark(vfeUnixSession *session, string& ini, string& pov)
++static void CleanupBenchmark(vfeUnixSession *session, string& ini, string& pov)
+ {
+ 	fprintf(stderr, "%s: removing %s\n", PACKAGE, ini.c_str());
+ 	session->DeleteTemporaryFile(ASCIItoUCS2String(ini.c_str()));
+diff --git a/vfe/vfecontrol.cpp b/vfe/vfecontrol.cpp
+index f641bfe8..5df1d11c 100644
+--- a/vfe/vfecontrol.cpp
++++ b/vfe/vfecontrol.cpp
+@@ -48,7 +48,7 @@ namespace pov_frontend
+   extern struct ProcessRenderOptions::Output_FileType_Table FileTypeTable[];
+ }
+ 
+-struct pov_base::ProcessOptions::INI_Parser_Table *GetPT(const char *OptionName)
++static struct pov_base::ProcessOptions::INI_Parser_Table *GetPT(const char *OptionName)
+ {
+   for (struct pov_base::ProcessOptions::INI_Parser_Table *op = pov_frontend::RenderOptions_INI_Table; op->keyword != NULL; op++)
+     if (strcmp(op->keyword, OptionName) == 0)
+diff --git a/vfe/vfesession.cpp b/vfe/vfesession.cpp
+index 4e996284..5655e005 100644
+--- a/vfe/vfesession.cpp
++++ b/vfe/vfesession.cpp
+@@ -41,13 +41,13 @@
+ #include "vfe.h"
+ #include "povray.h"
+ 
+-POVMSContext POVMS_Output_Context = NULL;
++static POVMSContext POVMS_Output_Context = NULL;
+ 
+ namespace pov
+ {
+-  volatile POVMSContext POVMS_GUI_Context = NULL ;
+-  volatile POVMSAddress RenderThreadAddr = POVMSInvalidAddress ;
+-  volatile POVMSAddress GUIThreadAddr = POVMSInvalidAddress ;
++  static volatile POVMSContext POVMS_GUI_Context = NULL ;
++  static volatile POVMSAddress RenderThreadAddr = POVMSInvalidAddress ;
++  static volatile POVMSAddress GUIThreadAddr = POVMSInvalidAddress ;
+ }
+ 
+ namespace vfe
+diff --git a/vfe/win/console/winconsole.cpp b/vfe/win/console/winconsole.cpp
+index 0eba488e..edbefd43 100644
+--- a/vfe/win/console/winconsole.cpp
++++ b/vfe/win/console/winconsole.cpp
+@@ -52,7 +52,7 @@ namespace pov_frontend
+ }
+ 
+ 
+-void PrintStatus (vfeSession *session)
++static void PrintStatus (vfeSession *session)
+ {
+   string str;
+   vfeSession::MessageType type;
+@@ -72,7 +72,7 @@ void PrintStatus (vfeSession *session)
+   }
+ }
+ 
+-void ErrorExit(vfeSession *session)
++static void ErrorExit(vfeSession *session)
+ {
+   fprintf (stderr, "%s\n", session->GetErrorString());
+   session->Shutdown();
