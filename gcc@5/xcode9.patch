@@ -1,0 +1,11 @@
+diff -pur a/gcc/system.h b/gcc/system.h
+--- a/gcc/system.h	2015-01-05 13:33:28.000000000 +0100
++++ b/gcc/system.h	2017-09-03 18:28:15.000000000 +0200
+@@ -216,6 +216,7 @@ extern int errno;
+ 
+ #ifdef __cplusplus
+ # include <algorithm>
++# include <map>
+ # include <cstring>
+ # include <utility>
+ #endif
