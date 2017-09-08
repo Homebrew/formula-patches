@@ -1,0 +1,111 @@
+diff -pur a/libstdc++-v3/include/Makefile.in b/libstdc++-v3/include/Makefile.in
+--- a/libstdc++-v3/include/Makefile.in	2013-11-16 18:44:48.000000000 +0100
++++ b/libstdc++-v3/include/Makefile.in	2017-09-08 17:35:26.000000000 +0200
+@@ -1623,6 +1623,8 @@ ${pch3_output}: ${pch3_source} ${pch2_ou
+ @GLIBCXX_HOSTED_TRUE@install-data-local: install-headers
+ @GLIBCXX_HOSTED_FALSE@install-data-local: install-freestanding-headers
+ 
++.NOTPARALLEL: install-headers
++
+ # This is a subset of the full install-headers rule.  We only need <cstddef>,
+ # <limits>, <cstdlib>, <cstdarg>, <new>, <typeinfo>, <exception>, and any
+ # files which they include (and which we provide).  The last three headers
+diff -pur a/fixincludes/fixincl.x b/fixincludes/fixincl.x
+--- a/fixincludes/fixincl.x	2016-02-01 21:27:47.000000000 +0100
++++ b/fixincludes/fixincl.x	2017-09-08 18:20:40.000000000 +0200
+@@ -2419,6 +2419,43 @@ static const char* apzDarwin_Private_Ext
+ 
+ /* * * * * * * * * * * * * * * * * * * * * * * * * *
+  *
++ *  Description of Darwin_10_13 fix
++ */
++tSCC zDarwin_10_13Name[] =
++     "darwin_10_13";
++
++/*
++ *  File name selection pattern
++ */
++tSCC zDarwin_10_13List[] =
++  "Availability.h\0AvailabilityInternal.h\0os/availability.h\0";
++/*
++ *  Machine/OS name selection pattern
++ */
++tSCC* apzDarwin_10_13Machs[] = {
++        "*-*-darwin*",
++        (const char*)NULL };
++
++/*
++ *  content selection pattern - do fix if pattern found
++ */
++tSCC zDarwin_10_13Select0[] =
++       "defined\\(__has_attribute\\) && __has_attribute\\(availability\\)";
++
++#define    DARWIN_10_13_TEST_CT  1
++static tTestDesc aDarwin_10_13Tests[] = {
++  { TT_EGREP,    zDarwin_10_13Select0, (regex_t*)NULL }, };
++
++/*
++ *  Fix Command Arguments for Darwin_10_13
++ */
++static const char* apzDarwin_10_13Patch[] = {
++    "format",
++    "0",
++    (char*)NULL };
++
++/* * * * * * * * * * * * * * * * * * * * * * * * * *
++ *
+  *  Description of Darwin_Stdint_1 fix
+  */
+ tSCC zDarwin_Stdint_1Name[] =
+@@ -9440,9 +9477,9 @@ static const char* apzX11_SprintfPatch[]
+  *
+  *  List of all fixes
+  */
+-#define REGEX_COUNT          269
++#define REGEX_COUNT          270
+ #define MACH_LIST_SIZE_LIMIT 187
+-#define FIX_COUNT            230
++#define FIX_COUNT            231
+ 
+ /*
+  *  Enumerate the fixes
+@@ -9503,6 +9540,7 @@ typedef enum {
+     DARWIN_EXTERNC_FIXIDX,
+     DARWIN_GCC4_BREAKAGE_FIXIDX,
+     DARWIN_PRIVATE_EXTERN_FIXIDX,
++    DARWIN_10_13_FIXIDX,
+     DARWIN_STDINT_1_FIXIDX,
+     DARWIN_STDINT_2_FIXIDX,
+     DARWIN_STDINT_3_FIXIDX,
+@@ -9956,6 +9994,11 @@ tFixDesc fixDescList[ FIX_COUNT ] = {
+      DARWIN_PRIVATE_EXTERN_TEST_CT, FD_MACH_ONLY | FD_SUBROUTINE,
+      aDarwin_Private_ExternTests,   apzDarwin_Private_ExternPatch, 0 },
+ 
++  {  zDarwin_10_13Name,    zDarwin_10_13List,
++     apzDarwin_10_13Machs,
++     DARWIN_10_13_TEST_CT, FD_MACH_ONLY | FD_SUBROUTINE,
++     aDarwin_10_13Tests,   apzDarwin_10_13Patch, 0 },
++
+   {  zDarwin_Stdint_1Name,    zDarwin_Stdint_1List,
+      apzDarwin_Stdint_1Machs,
+      DARWIN_STDINT_1_TEST_CT, FD_MACH_ONLY | FD_SUBROUTINE,
+diff -pur a/fixincludes/inclhack.def b/fixincludes/inclhack.def
+--- a/fixincludes/inclhack.def	2016-02-01 21:27:47.000000000 +0100
++++ b/fixincludes/inclhack.def	2017-09-08 18:20:38.000000000 +0200
+@@ -1296,6 +1296,16 @@ fix = {
+ 	      "unsigned long *address);\n";
+ };
+ 
++fix = {
++  hackname  = darwin_10_13;
++  mach      = "*-*-darwin*";
++  files     = Availability.h, AvailabilityInternal.h, os/availability.h;
++  select    = "defined\\(__has_attribute\\) && __has_attribute\\(availability\\)";
++  c_fix     = format;
++  c_fix_arg = "0";
++  test_text = "#if defined(__has_feature) && defined(__has_attribute) && __has_attribute(availability)";
++};
++
+ /*
+  * Darwin headers have a stdint.h that defines UINT8_C and UINT16_C to
+  * unsigned constants.
