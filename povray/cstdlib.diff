@@ -1,0 +1,12 @@
+diff --git a/source/frontend/processrenderoptions.cpp b/source/frontend/processrenderoptions.cpp
+index 128bb95..d792a11 100644
+--- a/source/frontend/processrenderoptions.cpp
++++ b/source/frontend/processrenderoptions.cpp
+@@ -30,6 +30,7 @@
+  *******************************************************************************/
+ 
+ #include <cctype>
++#include <cstdlib>
+ 
+ // configbase.h must always be the first POV file included within base *.cpp files
+ #include "base/configbase.h"
