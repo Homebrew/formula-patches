@@ -1,0 +1,12 @@
+diff -pur a/src/cheat.cpp b/src/cheat.cpp
+--- a/src/cheat.cpp	2016-07-28 22:52:38.000000000 +0200
++++ b/src/cheat.cpp	2017-09-19 20:59:11.000000000 +0200
+@@ -216,7 +216,7 @@ void FCEU_LoadGameCheats(FILE *override)
+ 	}
+ 
+ 	FCEU_DispMessage("Cheats file loaded.",0); //Tells user a cheats file was loaded.
+-	while(fgets(linebuf,2048,fp)>0)
++	while(fgets(linebuf,2048,fp))
+ 	{
+ 		char *tbuf=linebuf;
+ 		int doc=0;
