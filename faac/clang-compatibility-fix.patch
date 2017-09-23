@@ -1,0 +1,29 @@
+From 4036f2c85038ef199a4636a6cbc4448f5e914d39 Mon Sep 17 00:00:00 2001
+From: Krzysztof Nikiel <knik@users.sourceforge.net>
+Date: Sat, 23 Sep 2017 19:54:20 +0200
+Subject: [PATCH] clang compatibility fix
+
+---
+ libfaac/quantize.c | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/libfaac/quantize.c b/libfaac/quantize.c
+index ec25603..d2f3f62 100644
+--- a/libfaac/quantize.c
++++ b/libfaac/quantize.c
+@@ -86,11 +86,7 @@ static void qlevel(CoderInfo *coderInfo,
+     int sb, cnt;
+     int start, end;
+     // 1.5dB step
+-#ifdef __GNUC__
+-    static const double sfstep = 20.0 / 1.5 / log(10);
+-#else
+-    const double sfstep = 20.0 / 1.5 / log(10);
+-#endif
++    static const double sfstep = 20.0 / 1.5 / M_LN10;
+ 
+     for (sb = 0; sb < coderInfo->sfbn; sb++)
+     {
+-- 
+2.14.1
+
