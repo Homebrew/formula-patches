@@ -1,0 +1,26 @@
+From 93edb9eb771a8393abd8f59521f297d155705834 Mon Sep 17 00:00:00 2001
+From: Vlad Gorodetsky <v@gor.io>
+Date: Wed, 27 Sep 2017 18:26:21 +0300
+Subject: [PATCH] Fix MySQL header location
+
+---
+ providers/mysql/gda-mysql.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/providers/mysql/gda-mysql.h b/providers/mysql/gda-mysql.h
+index 469defa..5051e81 100644
+--- a/providers/mysql/gda-mysql.h
++++ b/providers/mysql/gda-mysql.h
+@@ -35,8 +35,8 @@
+ #ifdef G_OS_WIN32
+ #include <winsock.h>
+ #endif
+-#include <mysql.h>
+-#include <mysqld_error.h>
++#include <mysql/mysql.h>
++#include <mysql/mysqld_error.h>
+ #include <gda-mysql-reuseable.h>
+
+ /*
+--
+2.14.2
