@@ -1,8 +1,8 @@
-diff --git a/codebase/libs/NcxxUtils/src/Hdf5/Hdf5xx.cc b/codebase/libs/NcxxUtils/src/Hdf5/Hdf5xx.cc
-index 2b45ad2..c7d37ce 100644
---- a/codebase/libs/NcxxUtils/src/Hdf5/Hdf5xx.cc
-+++ b/codebase/libs/NcxxUtils/src/Hdf5/Hdf5xx.cc
-@@ -376,7 +376,7 @@ int Hdf5xx::loadCompVar(CompType compType,
+diff --git a/codebase/libs/Ncxx/src/Hdf5/Hdf5xx.cc b/codebase/libs/Ncxx/src/Hdf5/Hdf5xx.cc
+index e2bfc57..e34178a 100644
+--- a/codebase/libs/Ncxx/src/Hdf5/Hdf5xx.cc
++++ b/codebase/libs/Ncxx/src/Hdf5/Hdf5xx.cc
+@@ -377,7 +377,7 @@ int Hdf5xx::loadCompVar(CompType compType,
  // load an attribute from an object, given the name
  // returns 0 on success, -1 on failure
  
@@ -11,7 +11,7 @@ index 2b45ad2..c7d37ce 100644
                            const string &name,
                            const string &context,
                            DecodedAttr &decodedAttr)
-@@ -606,7 +606,7 @@ int Hdf5xx::loadAttribute(H5Location &obj,
+@@ -607,7 +607,7 @@ int Hdf5xx::loadAttribute(H5Location &obj,
  // load an array attribute from an object, given the name
  // returns 0 on success, -1 on failure
  
@@ -20,7 +20,7 @@ index 2b45ad2..c7d37ce 100644
                                 const string &name,
                                 const string &context,
                                 ArrayAttr &arrayAttr)
-@@ -851,7 +851,7 @@ int Hdf5xx::loadArrayAttribute(H5Location &obj,
+@@ -852,7 +852,7 @@ int Hdf5xx::loadArrayAttribute(H5Location &obj,
  // append to vector of attribute names
  // called by obj.iterateAttrs()
  
@@ -28,8 +28,44 @@ index 2b45ad2..c7d37ce 100644
 +void Hdf5xx::appendAttrNames(H5Object &obj,
                               const H5std_string attr_name,
                               void *operator_data)
+   
+@@ -865,7 +865,7 @@ void Hdf5xx::appendAttrNames(H5Location &obj,
+ // add a string attribute to an object
+ // returns the attribute
  
-@@ -1583,7 +1583,7 @@ void Hdf5xx::_printPacked(NcxxPort::si64 val,
+-Attribute Hdf5xx::addAttr(H5Location &loc,
++Attribute Hdf5xx::addAttr(H5Object &loc,
+                           const string &name,
+                           const string &val)
+ {
+@@ -893,7 +893,7 @@ Attribute Hdf5xx::addAttr(H5Location &loc,
+ // add a 64-bit int attribute to an object
+ // returns the attribute
+ 
+-Attribute Hdf5xx::addAttr(H5Location &loc,
++Attribute Hdf5xx::addAttr(H5Object &loc,
+                           const string &name,
+                           NcxxPort::si64 val)
+ {
+@@ -919,7 +919,7 @@ Attribute Hdf5xx::addAttr(H5Location &loc,
+ // add a 64-bit float attribute to an object
+ // returns the attribute
+ 
+-Attribute Hdf5xx::addAttr(H5Location &loc,
++Attribute Hdf5xx::addAttr(H5Object &loc,
+                           const string &name,
+                           NcxxPort::fl64 val)
+ {
+@@ -945,7 +945,7 @@ Attribute Hdf5xx::addAttr(H5Location &loc,
+ // add a 64-bit float array attribute to an object
+ // returns the attribute
+ 
+-Attribute Hdf5xx::addAttr(H5Location &loc,
++Attribute Hdf5xx::addAttr(H5Object &loc,
+                           const string &name,
+                           const vector<NcxxPort::fl64> &vals)
+ {
+@@ -1691,7 +1691,7 @@ void Hdf5xx::_printPacked(NcxxPort::si64 val,
  ///////////////////////////////////////////////////////////////////
  // print all attributes in an object
  
@@ -37,11 +73,11 @@ index 2b45ad2..c7d37ce 100644
 +void Hdf5xx::printAttributes(H5Object &obj, ostream &out)
  
  {
- 
-diff --git a/codebase/libs/NcxxUtils/src/include/NcxxUtils/Hdf5xx.hh b/codebase/libs/NcxxUtils/src/include/NcxxUtils/Hdf5xx.hh
-index dc15b92..b3c7c0f 100644
---- a/codebase/libs/NcxxUtils/src/include/NcxxUtils/Hdf5xx.hh
-+++ b/codebase/libs/NcxxUtils/src/include/NcxxUtils/Hdf5xx.hh
+   
+diff --git a/codebase/libs/Ncxx/src/include/Ncxx/Hdf5xx.hh b/codebase/libs/Ncxx/src/include/Ncxx/Hdf5xx.hh
+index 0478b5b..d0b9b26 100644
+--- a/codebase/libs/Ncxx/src/include/Ncxx/Hdf5xx.hh
++++ b/codebase/libs/Ncxx/src/include/Ncxx/Hdf5xx.hh
 @@ -130,17 +130,17 @@ public:
  
    // HDF5 access
@@ -63,7 +99,40 @@ index dc15b92..b3c7c0f 100644
                                const H5std_string attr_name,
                                void *operator_data);
  
-@@ -185,7 +185,7 @@ public:
+@@ -173,28 +173,28 @@ public:
+   // add a string attribute to an object on write
+   // returns the attribute
+   
+-  static Attribute addAttr(H5Location &loc,
++  static Attribute addAttr(H5Object &loc,
+                            const string &name,
+                            const string &val);
+   
+   // add a 64-bit int attribute to an object
+   // returns the attribute
+   
+-  static Attribute addAttr(H5Location &loc,
++  static Attribute addAttr(H5Object &loc,
+                            const string &name,
+                            NcxxPort::si64 val);
+ 
+   // add a 64-bit float attribute to an object
+   // returns the attribute
+   
+-  static Attribute addAttr(H5Location &loc,
++  static Attribute addAttr(H5Object &loc,
+                            const string &name,
+                            NcxxPort::fl64 val);
+   
+   // add a 64-bit float array attribute to an object
+   // returns the attribute
+   
+-  static Attribute addAttr(H5Location &loc,
++  static Attribute addAttr(H5Object &loc,
+                            const string &name,
+                            const vector<NcxxPort::fl64> &vals);
+   
+@@ -214,7 +214,7 @@ public:
                           char *buf,
                           ostream &out);
    
@@ -73,83 +142,83 @@ index dc15b92..b3c7c0f 100644
    void printAttribute(Attribute &attr, ostream &out);
    
 diff --git a/codebase/libs/Radx/src/hdf5/Hdf5Utils.cc b/codebase/libs/Radx/src/hdf5/Hdf5Utils.cc
-index 8f2c6c6..c0e92f6 100644
+index dcfd5d1..b7b0a5d 100644
 --- a/codebase/libs/Radx/src/hdf5/Hdf5Utils.cc
 +++ b/codebase/libs/Radx/src/hdf5/Hdf5Utils.cc
-@@ -376,7 +376,7 @@ int Hdf5Utils::loadCompVar(CompType compType,
+@@ -376,7 +376,7 @@ int Hdf5xx::loadCompVar(CompType compType,
  // load an attribute from an object, given the name
  // returns 0 on success, -1 on failure
  
--int Hdf5Utils::loadAttribute(H5Location &obj,
-+int Hdf5Utils::loadAttribute(H5Object &obj,
+-int Hdf5xx::loadAttribute(H5Location &obj,
++int Hdf5xx::loadAttribute(H5Object &obj,
                               const string &name,
                               const string &context,
                               DecodedAttr &decodedAttr)
-@@ -606,7 +606,7 @@ int Hdf5Utils::loadAttribute(H5Location &obj,
+@@ -606,7 +606,7 @@ int Hdf5xx::loadAttribute(H5Location &obj,
  // load an array attribute from an object, given the name
  // returns 0 on success, -1 on failure
  
--int Hdf5Utils::loadArrayAttribute(H5Location &obj,
-+int Hdf5Utils::loadArrayAttribute(H5Object &obj,
+-int Hdf5xx::loadArrayAttribute(H5Location &obj,
++int Hdf5xx::loadArrayAttribute(H5Object &obj,
                                    const string &name,
                                    const string &context,
                                    ArrayAttr &arrayAttr)
-@@ -851,7 +851,7 @@ int Hdf5Utils::loadArrayAttribute(H5Location &obj,
+@@ -851,7 +851,7 @@ int Hdf5xx::loadArrayAttribute(H5Location &obj,
  // append to vector of attribute names
  // called by obj.iterateAttrs()
  
--void Hdf5Utils::appendAttrNames(H5Location &obj,
-+void Hdf5Utils::appendAttrNames(H5Object &obj,
+-void Hdf5xx::appendAttrNames(H5Location &obj,
++void Hdf5xx::appendAttrNames(H5Object &obj,
                                  const H5std_string attr_name,
                                  void *operator_data)
    
-@@ -913,7 +913,7 @@ void Hdf5Utils::printGroup(Group &group, const string grname,
+@@ -913,7 +913,7 @@ void Hdf5xx::printGroup(Group &group, const string grname,
  // add a string attribute to an object
  // returns the attribute
  
--Attribute Hdf5Utils::addAttr(H5Location &loc,
-+Attribute Hdf5Utils::addAttr(H5Object &loc,
+-Attribute Hdf5xx::addAttr(H5Location &loc,
++Attribute Hdf5xx::addAttr(H5Object &loc,
                               const string &name,
                               const string &val)
  {
-@@ -941,7 +941,7 @@ Attribute Hdf5Utils::addAttr(H5Location &loc,
+@@ -941,7 +941,7 @@ Attribute Hdf5xx::addAttr(H5Location &loc,
  // add a 64-bit int attribute to an object
  // returns the attribute
  
--Attribute Hdf5Utils::addAttr(H5Location &loc,
-+Attribute Hdf5Utils::addAttr(H5Object &loc,
+-Attribute Hdf5xx::addAttr(H5Location &loc,
++Attribute Hdf5xx::addAttr(H5Object &loc,
                               const string &name,
                               Radx::si64 val)
  {
-@@ -967,7 +967,7 @@ Attribute Hdf5Utils::addAttr(H5Location &loc,
+@@ -967,7 +967,7 @@ Attribute Hdf5xx::addAttr(H5Location &loc,
  // add a 64-bit float attribute to an object
  // returns the attribute
  
--Attribute Hdf5Utils::addAttr(H5Location &loc,
-+Attribute Hdf5Utils::addAttr(H5Object &loc,
+-Attribute Hdf5xx::addAttr(H5Location &loc,
++Attribute Hdf5xx::addAttr(H5Object &loc,
                               const string &name,
                               Radx::fl64 val)
  {
-@@ -993,7 +993,7 @@ Attribute Hdf5Utils::addAttr(H5Location &loc,
+@@ -993,7 +993,7 @@ Attribute Hdf5xx::addAttr(H5Location &loc,
  // add a 64-bit float array attribute to an object
  // returns the attribute
  
--Attribute Hdf5Utils::addAttr(H5Location &loc,
-+Attribute Hdf5Utils::addAttr(H5Object &loc,
+-Attribute Hdf5xx::addAttr(H5Location &loc,
++Attribute Hdf5xx::addAttr(H5Object &loc,
                               const string &name,
                               const RadxArray<Radx::fl64> &vals)
  {
-@@ -1690,7 +1690,7 @@ void Hdf5Utils::_printPacked(Radx::si64 val,
+@@ -1690,7 +1690,7 @@ void Hdf5xx::_printPacked(Radx::si64 val,
  ///////////////////////////////////////////////////////////////////
  // print all attributes in an object
  
--void Hdf5Utils::printAttributes(H5Location &obj, ostream &out)
-+void Hdf5Utils::printAttributes(H5Object &obj, ostream &out)
+-void Hdf5xx::printAttributes(H5Location &obj, ostream &out)
++void Hdf5xx::printAttributes(H5Object &obj, ostream &out)
  
  {
    
 diff --git a/codebase/libs/Radx/src/include/Radx/Hdf5Utils.hh b/codebase/libs/Radx/src/include/Radx/Hdf5Utils.hh
-index f23e24c..7d5fb60 100644
+index 48f70ba..b0d9f0e 100644
 --- a/codebase/libs/Radx/src/include/Radx/Hdf5Utils.hh
 +++ b/codebase/libs/Radx/src/include/Radx/Hdf5Utils.hh
 @@ -134,17 +134,17 @@ public:
@@ -214,3 +283,4 @@ index f23e24c..7d5fb60 100644
 +  void printAttributes(H5Object &obj, ostream &out);
    
    void printAttribute(Attribute &attr, ostream &out);
+   
