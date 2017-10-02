@@ -1,0 +1,13 @@
+diff --git a/include/solarus/config.h.in b/include/solarus/config.h.in
+index 316f089f1..52fba1fc9 100644
+--- a/include/solarus/config.h.in
++++ b/include/solarus/config.h.in
+@@ -10,5 +10,6 @@
+ #define SOLARUS_PATCH_VERSION 0
+ #endif
+ 
+-#cmakedefine HAVE_MKSTEMP
+-#cmakedefine HAVE_UNISTD_H
++#cmakedefine HAVE_MKSTEMP 1
++#cmakedefine HAVE_UNISTD_H 1
++
