@@ -1,0 +1,12 @@
+diff -pur a/src/hardware/serialport/nullmodem.cpp b/src/hardware/serialport/nullmodem.cpp
+--- a/src/hardware/serialport/nullmodem.cpp	2015-05-30 11:08:05.000000000 +0200
++++ b/src/hardware/serialport/nullmodem.cpp	2017-10-03 15:38:09.000000000 +0200
+@@ -147,7 +147,7 @@ CNullModem::CNullModem(Bitu id, CommandL
+ 	setCTS(dtrrespect||transparent);
+ 	setDSR(dtrrespect||transparent);
+ 	setRI(false);
+-	setCD(clientsocket > 0); // CD on if connection established
++	setCD(clientsocket != 0); // CD on if connection established
+ }
+ 
+ CNullModem::~CNullModem() {
