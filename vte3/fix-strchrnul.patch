@@ -1,0 +1,146 @@
+diff --git a/config.h.in b/config.h.in
+index 49757d5..302c802 100644
+--- a/config.h.in
++++ b/config.h.in
+@@ -94,6 +94,9 @@
+ /* Define to 1 if you have the <stdlib.h> header file. */
+ #undef HAVE_STDLIB_H
+ 
++/* Define to 1 if you have the `strchrnul' function. */
++#undef HAVE_STRCHRNUL
++
+ /* Define to 1 if you have the <strings.h> header file. */
+ #undef HAVE_STRINGS_H
+ 
+diff --git a/configure b/configure
+index f36415e..be95df9 100755
+--- a/configure
++++ b/configure
+@@ -19632,6 +19632,19 @@ fi
+ done
+ 
+ 
++# Misc string routines.
++for ac_func in strchrnul
++do :
++  ac_fn_c_check_func "$LINENO" "strchrnul" "ac_cv_func_strchrnul"
++if test "x$ac_cv_func_strchrnul" = xyes; then :
++  cat >>confdefs.h <<_ACEOF
++#define HAVE_STRCHRNUL 1
++_ACEOF
++
++fi
++done
++
++
+ # for vtespawn
+ for ac_header in sys/resource.h
+ do :
+diff --git a/src/vteseq.cc b/src/vteseq.cc
+index 6876341..d7cd03a 100644
+--- a/src/vteseq.cc
++++ b/src/vteseq.cc
+@@ -31,6 +31,7 @@
+ #include <vte/vte.h>
+ #include "vteinternal.hh"
+ #include "vtegtk.hh"
++#include "vteutils.h"
+ #include "caps.h"
+ #include "debug.h"
+ 
+@@ -2534,7 +2535,7 @@ VteTerminalPrivate::set_current_hyperlink(char *hyperlink_params /* adopted */,
+                 }
+         }
+         if (id) {
+-                *strchrnul(id, ':') = '\0';
++                *_vte_strchrnul(id, ':') = '\0';
+         }
+         _vte_debug_print (VTE_DEBUG_HYPERLINK,
+                           "OSC 8: id=\"%s\" uri=\"%s\"\n",
+diff --git a/src/vtespawn.cc b/src/vtespawn.cc
+index df6e23b..f1780af 100644
+--- a/src/vtespawn.cc
++++ b/src/vtespawn.cc
+@@ -40,6 +40,7 @@
+ #include <glib-unix.h>
+ 
+ #include "vtespawn.hh"
++#include "vteutils.h"
+ #include "reaper.hh"
+ 
+ #define VTE_SPAWN_ERROR_TIMED_OUT (G_SPAWN_ERROR_FAILED + 1000)
+@@ -1002,16 +1003,6 @@ script_execute (const gchar *file,
+   }
+ }
+ 
+-static gchar*
+-my_strchrnul (const gchar *str, gchar c)
+-{
+-  gchar *p = (gchar*) str;
+-  while (*p && (*p != c))
+-    ++p;
+-
+-  return p;
+-}
+-
+ static gint
+ g_execute (const gchar *file,
+            gchar      **argv,
+@@ -1082,7 +1073,7 @@ g_execute (const gchar *file,
+ 	  char *startp;
+ 
+ 	  path = p;
+-	  p = my_strchrnul (path, ':');
++	  p = _vte_strchrnul (path, ':');
+ 
+ 	  if (p == path)
+ 	    /* Two adjacent colons, or a colon at the beginning or the end
+diff --git a/src/vteutils.cc b/src/vteutils.cc
+index 648d185..798858e 100644
+--- a/src/vteutils.cc
++++ b/src/vteutils.cc
+@@ -19,12 +19,13 @@
+ #include "config.h"
+ 
+ #ifndef _GNU_SOURCE
+-#define _GNU_SOURCE /* for O_TMPFILE */
++#define _GNU_SOURCE /* for O_TMPFILE and strchrnul */
+ #endif
+ 
+ #include "vteutils.h"
+ 
+ #include <fcntl.h>
++#include <string.h>
+ #include <unistd.h>
+ #include <errno.h>
+ 
+@@ -96,3 +97,17 @@ _vte_mkstemp (void)
+ 
+         return fd;
+ }
++
++char *
++_vte_strchrnul (const char *s, int c)
++{
++        char *p = (char *) s;
++#ifdef HAVE_STRCHRNUL
++        return strchrnul (p, c);
++#else
++        while (*p && (*p != c))
++                ++p;
++
++        return p;
++#endif
++}
+diff --git a/src/vteutils.h b/src/vteutils.h
+index 999e3bf..c32d6d0 100644
+--- a/src/vteutils.h
++++ b/src/vteutils.h
+@@ -24,6 +24,7 @@
+ G_BEGIN_DECLS
+ 
+ int _vte_mkstemp (void);
++char *_vte_strchrnul (const char *s, int c);
+ 
+ G_END_DECLS
+ 
