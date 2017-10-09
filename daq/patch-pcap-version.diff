@@ -1,0 +1,19 @@
+diff --git a/configure b/configure
+index 01aec5e..de7d60f 100755
+--- a/configure
++++ b/configure
+@@ -13562,13 +13562,12 @@ else
+ 
+     #include <pcap.h>
+     #include <string.h>
+-    extern char pcap_version[];
+ 
+ int
+ main ()
+ {
+ 
+-        if (strcmp(pcap_version, "1.0.0") < 0)
++        if (strcmp(pcap_lib_version(), "1.0.0") < 0)
+             return 1;
+ 
+   ;
