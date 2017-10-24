@@ -1,0 +1,20 @@
+--- configure	2017-10-23 20:21:00.000000000 -0700
++++ configure	2017-10-23 20:22:05.000000000 -0700
+@@ -5465,7 +5465,7 @@
+ # Note: m4 arguments are quoted with [ and ] so square brackets in shell
+ # statements have to be quoted.
+ case "${is_clang}-${gcc_version}" in
+-     applellvm-5.1|applellvm-6.*|applellvm-7.*|applellvm-8.*)
++     applellvm-5.1|applellvm-[6-9].*|applellvm-[1-9][0-9]*)
+ 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: ok (Apple LLVM version ${gcc_version})" >&5
+ $as_echo "ok (Apple LLVM version ${gcc_version})" >&6; }
+ 	;;
+@@ -5484,7 +5484,7 @@
+      *)
+ 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no (${is_clang}-${gcc_version})" >&5
+ $as_echo "no (${is_clang}-${gcc_version})" >&6; }
+-	as_fn_error $? "please use gcc >= 3.0 or clang >= 2.9 or icc >= 13.0" "$LINENO" 5
++	as_fn_error $? "please use gcc >= 3.0 or clang >= 2.9 or icc >= 13.0 or Apple LLVM >= 5.1" "$LINENO" 5
+ 	;;
+ esac
+ 
