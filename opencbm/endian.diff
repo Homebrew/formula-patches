@@ -1,0 +1,18 @@
+diff --git a/xu1541/misc/usb_echo_test.c b/xu1541/misc/usb_echo_test.c
+index d7681cf..40bba52 100644
+--- a/xu1541/misc/usb_echo_test.c
++++ b/xu1541/misc/usb_echo_test.c
+@@ -29,8 +29,13 @@ usb_dev_handle      *handle = NULL;
+ 
+ // Linux: newer usb.h does not have USB_LE16_TO_CPU() macro anymore
+ #ifndef USB_LE16_TO_CPU
++#ifdef __linux__
+ #include <endian.h>
+ #define USB_LE16_TO_CPU(x) x=le16toh(x);
++#elif defined(__APPLE__)
++#include <libkern/OSByteOrder.h>
++#define USB_LE16_TO_CPU(x) x=OSSwapLittleToHostInt16(x);
++#endif
+ #endif
+ 
+ /* send a number of 16 bit words to the xu1541 interface */
