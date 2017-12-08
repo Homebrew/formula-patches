@@ -1,0 +1,29 @@
+diff --git a/qtwebview/src/webview/qwebview_darwin.mm b/qtwebview/src/webview/qwebview_darwin.mm
+index ff9dc4d..824abef 100644
+--- a/qtwebview/src/webview/qwebview_darwin.mm
++++ b/qtwebview/src/webview/qwebview_darwin.mm
+@@ -253,14 +253,19 @@ - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(N
+ {
+     if (url.isValid()) {
+         requestFrameCount = 0;
+-        if (!url.isLocalFile()) {
+-            [wkWebView loadRequest:[NSURLRequest requestWithURL:url.toNSURL()]];
+-        } else {
++
++#if QT_DARWIN_PLATFORM_SDK_EQUAL_OR_ABOVE(101100, 90000, __TVOS_NA, __WATCHOS_NA)
++        if (url.isLocalFile()) {
+             // We need to pass local files via loadFileURL and the read access should cover
+             // the directory that the file is in, to facilitate loading referenced images etc
+-            [wkWebView loadFileURL:url.toNSURL()
+-           allowingReadAccessToURL:QUrl(url.toString(QUrl::RemoveFilename)).toNSURL()];
++            if (__builtin_available(macOS 10.11, iOS 9, *)) {
++                [wkWebView loadFileURL:url.toNSURL()
++               allowingReadAccessToURL:QUrl(url.toString(QUrl::RemoveFilename)).toNSURL()];
++                return;
++            }
+         }
++#endif
++        [wkWebView loadRequest:[NSURLRequest requestWithURL:url.toNSURL()]];
+     }
+ }
+ 
