@@ -1,5 +1,5 @@
 diff --git a/tads3/vmtz.cpp b/tads3/vmtz.cpp
-index 525c781..6d3acf0 100644
+index 525c781..697980f 100644
 --- a/tads3/vmtz.cpp
 +++ b/tads3/vmtz.cpp
 @@ -1984,7 +1984,7 @@ void CVmTimeZone::query(vmtzquery *result, int32_t dayno, int32_t daytime,
@@ -7,7 +7,7 @@ index 525c781..6d3acf0 100644
               *   up until that moment
               */
 -            result->set(tcur > 0 ? tcur - 1 : tcur);
-+            result->set(tcur != NULL ? tcur - 1 : tcur);
++            result->set(cur > 0 ? tcur - 1 : tcur);
              return;
          }
      }
