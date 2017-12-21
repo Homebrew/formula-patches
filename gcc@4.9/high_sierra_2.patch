@@ -1,3 +1,15 @@
+diff -pur a/libstdc++-v3/include/Makefile.in b/libstdc++-v3/include/Makefile.in
+--- a/libstdc++-v3/include/Makefile.in	2013-11-16 18:44:48.000000000 +0100
++++ b/libstdc++-v3/include/Makefile.in	2017-09-08 17:35:26.000000000 +0200
+@@ -1623,6 +1623,8 @@ ${pch3_output}: ${pch3_source} ${pch2_ou
+ @GLIBCXX_HOSTED_TRUE@install-data-local: install-headers
+ @GLIBCXX_HOSTED_FALSE@install-data-local: install-freestanding-headers
+ 
++.NOTPARALLEL: install-headers
++
+ # This is a subset of the full install-headers rule.  We only need <cstddef>,
+ # <limits>, <cstdlib>, <cstdarg>, <new>, <typeinfo>, <exception>, and any
+ # files which they include (and which we provide).  The last three headers
 diff -pur gcc-4.9.4-old/fixincludes/fixincl.x gcc-4.9.4/fixincludes/fixincl.x
 --- gcc-4.9.4-old/fixincludes/fixincl.x	2016-02-01 21:27:47.000000000 +0100
 +++ gcc-4.9.4/fixincludes/fixincl.x	2017-12-21 21:55:28.000000000 +0100
