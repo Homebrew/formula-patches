@@ -1,0 +1,26 @@
+diff --git a/generator.c b/generator.c
+index cac90f8..ee41d92 100644
+--- a/generator.c
++++ b/generator.c
+@@ -525,7 +525,7 @@ void itemize(const char *fnamecmp, struct file_struct *file, int ndx, int statre
+ 		if (crtimes_ndx) {
+ 			if (sxp->crtime == 0)
+ 				sxp->crtime = get_create_time(fnamecmp);
+-			if (cmp_time(sxp->crtime, f_crtime(file)) != 0)
++			if (cmp_time(sxp->crtime, 0, f_crtime(file), 0) != 0)
+ 				iflags |= ITEM_REPORT_CRTIME;
+ 		}
+ #if !defined HAVE_LCHMOD && !defined HAVE_SETATTRLIST
+diff --git a/rsync.c b/rsync.c
+index 53e8239..53e2963 100644
+--- a/rsync.c
++++ b/rsync.c
+@@ -611,7 +611,7 @@ int set_file_attrs(const char *fname, struct file_struct *file, stat_x *sxp,
+ 		time_t file_crtime = f_crtime(file);
+ 		if (sxp->crtime == 0)
+ 			sxp->crtime = get_create_time(fname);
+-		if (cmp_time(sxp->crtime, file_crtime) != 0
++		if (cmp_time(sxp->crtime, 0, file_crtime, 0) != 0
+ 		 && set_create_time(fname, file_crtime) == 0)
+ 			updated = 1;
+ 	}
