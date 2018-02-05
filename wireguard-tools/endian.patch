@@ -1,0 +1,43 @@
+From d99954e0376d50c31f052cd6455e8665d9d9dd66 Mon Sep 17 00:00:00 2001
+From: "Jason A. Donenfeld" <Jason@zx2c4.com>
+Date: Mon, 5 Feb 2018 12:23:10 +0100
+Subject: tools: endian.h is not portable
+
+---
+ src/tools/curve25519.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/tools/curve25519.c b/src/tools/curve25519.c
+index 901becd..664cd80 100644
+--- a/src/tools/curve25519.c
++++ b/src/tools/curve25519.c
+@@ -7,7 +7,6 @@
+ 
+ #include <stdint.h>
+ #include <string.h>
+-#include <endian.h>
+ 
+ typedef uint64_t u64;
+ typedef uint32_t u32;
+@@ -15,9 +14,15 @@ typedef uint8_t u8;
+ typedef int64_t s64;
+ typedef u64 __le64;
+ typedef u32 __le32;
+-#define le64_to_cpup(a) le64toh(*(a));
+-#define le32_to_cpup(a) le32toh(*(a));
+-#define cpu_to_le64(a) htole64(a);
++#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
++#define le64_to_cpup(a) __builtin_bswap64(*(a))
++#define le32_to_cpup(a) __builtin_bswap32(*(a))
++#define cpu_to_le64(a) __builtin_bswap64(a)
++#else
++#define le64_to_cpup(a) (*(a))
++#define le32_to_cpup(a) (*(a))
++#define cpu_to_le64(a) (a)
++#endif
+ #ifndef __always_inline
+ #define __always_inline __inline __attribute__((__always_inline__))
+ #endif
+-- 
+cgit v1.1-35-ge94e
+
