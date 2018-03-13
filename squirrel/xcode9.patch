@@ -1,6 +1,7 @@
-diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
---- squirrel3-old/squirrel/sqapi.cpp	2018-03-13 14:57:10.000000000 +0100
-+++ squirrel3/squirrel/sqapi.cpp	2018-03-13 15:04:21.000000000 +0100
+diff --git a/squirrel/sqapi.cpp b/squirrel/sqapi.cpp
+index 2005e32..f802158 100644
+--- a/squirrel/sqapi.cpp
++++ b/squirrel/sqapi.cpp
 @@ -16,7 +16,7 @@
  static bool sq_aux_gettypedarg(HSQUIRRELVM v,SQInteger idx,SQObjectType type,SQObjectPtr **o)
  {
@@ -10,7 +11,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
          SQObjectPtr oval = v->PrintObjVal(**o);
          v->Raise_Error(_SC("wrong argument type, expected '%s' got '%.50s'"),IdType2Name(type),_stringval(oval));
          return false;
-@@ -150,7 +150,7 @@ void sq_notifyallexceptions(HSQUIRRELVM 
+@@ -150,7 +150,7 @@ void sq_notifyallexceptions(HSQUIRRELVM v, SQBool enable)
  
  void sq_addref(HSQUIRRELVM v,HSQOBJECT *po)
  {
@@ -19,7 +20,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
  #ifdef NO_GARBAGE_COLLECTOR
      __AddRef(po->_type,po->_unVal);
  #else
-@@ -160,7 +160,7 @@ void sq_addref(HSQUIRRELVM v,HSQOBJECT *
+@@ -160,7 +160,7 @@ void sq_addref(HSQUIRRELVM v,HSQOBJECT *po)
  
  SQUnsignedInteger sq_getrefcount(HSQUIRRELVM v,HSQOBJECT *po)
  {
@@ -28,7 +29,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
  #ifdef NO_GARBAGE_COLLECTOR
     return po->_unVal.pRefCounted->_uiRef;
  #else
-@@ -170,7 +170,7 @@ SQUnsignedInteger sq_getrefcount(HSQUIRR
+@@ -170,7 +170,7 @@ SQUnsignedInteger sq_getrefcount(HSQUIRRELVM v,HSQOBJECT *po)
  
  SQBool sq_release(HSQUIRRELVM v,HSQOBJECT *po)
  {
@@ -37,7 +38,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
  #ifdef NO_GARBAGE_COLLECTOR
      bool ret = (po->_unVal.pRefCounted->_uiRef <= 1) ? SQTrue : SQFalse;
      __Release(po->_type,po->_unVal);
-@@ -182,7 +182,7 @@ SQBool sq_release(HSQUIRRELVM v,HSQOBJEC
+@@ -182,7 +182,7 @@ SQBool sq_release(HSQUIRRELVM v,HSQOBJECT *po)
  
  SQUnsignedInteger sq_getvmrefcount(HSQUIRRELVM SQ_UNUSED_ARG(v), const HSQOBJECT *po)
  {
@@ -46,7 +47,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
      return po->_unVal.pRefCounted->_uiRef;
  }
  
-@@ -290,7 +290,7 @@ SQRESULT sq_newclass(HSQUIRRELVM v,SQBoo
+@@ -290,7 +290,7 @@ SQRESULT sq_newclass(HSQUIRRELVM v,SQBool hasbase)
      SQClass *baseclass = NULL;
      if(hasbase) {
          SQObjectPtr &base = stack_get(v,-1);
@@ -64,7 +65,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
          return sq_throwerror(v,_SC("invalid param type"));
      return _instance(inst)->InstanceOf(_class(cl))?SQTrue:SQFalse;
  }
-@@ -397,14 +397,14 @@ void sq_newclosure(HSQUIRRELVM v,SQFUNCT
+@@ -397,14 +397,14 @@ void sq_newclosure(HSQUIRRELVM v,SQFUNCTION func,SQUnsignedInteger nfreevars)
  SQRESULT sq_getclosureinfo(HSQUIRRELVM v,SQInteger idx,SQUnsignedInteger *nparams,SQUnsignedInteger *nfreevars)
  {
      SQObject o = stack_get(v, idx);
@@ -81,7 +82,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
      {
          SQNativeClosure *c = _nativeclosure(o);
          *nparams = (SQUnsignedInteger)c->_nparamscheck;
-@@ -459,7 +459,7 @@ SQRESULT sq_bindenv(HSQUIRRELVM v,SQInte
+@@ -459,7 +459,7 @@ SQRESULT sq_bindenv(HSQUIRRELVM v,SQInteger idx)
          !sq_isclass(env) &&
          !sq_isinstance(env))
          return sq_throwerror(v,_SC("invalid environment"));
@@ -90,7 +91,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
      SQObjectPtr ret;
      if(sq_isclosure(o)) {
          SQClosure *c = _closure(o)->Clone();
-@@ -524,7 +524,7 @@ SQRESULT sq_getclosureroot(HSQUIRRELVM v
+@@ -524,7 +524,7 @@ SQRESULT sq_getclosureroot(HSQUIRRELVM v,SQInteger idx)
  SQRESULT sq_clear(HSQUIRRELVM v,SQInteger idx)
  {
      SQObject &o=stack_get(v,idx);
@@ -99,7 +100,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
          case OT_TABLE: _table(o)->Clear();  break;
          case OT_ARRAY: _array(o)->Resize(0); break;
          default:
-@@ -619,7 +619,7 @@ void sq_push(HSQUIRRELVM v,SQInteger idx
+@@ -619,7 +619,7 @@ void sq_push(HSQUIRRELVM v,SQInteger idx)
  
  SQObjectType sq_gettype(HSQUIRRELVM v,SQInteger idx)
  {
@@ -108,7 +109,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
  }
  
  SQRESULT sq_typeof(HSQUIRRELVM v,SQInteger idx)
-@@ -710,7 +710,7 @@ SQRESULT sq_clone(HSQUIRRELVM v,SQIntege
+@@ -710,7 +710,7 @@ SQRESULT sq_clone(HSQUIRRELVM v,SQInteger idx)
  SQInteger sq_getsize(HSQUIRRELVM v, SQInteger idx)
  {
      SQObjectPtr &o = stack_get(v, idx);
@@ -117,7 +118,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
      switch(type) {
      case OT_STRING:     return _string(o)->_len;
      case OT_TABLE:      return _table(o)->CountUsed();
-@@ -741,7 +741,7 @@ SQRESULT sq_getuserdata(HSQUIRRELVM v,SQ
+@@ -741,7 +741,7 @@ SQRESULT sq_getuserdata(HSQUIRRELVM v,SQInteger idx,SQUserPointer *p,SQUserPoint
  SQRESULT sq_settypetag(HSQUIRRELVM v,SQInteger idx,SQUserPointer typetag)
  {
      SQObjectPtr &o = stack_get(v,idx);
@@ -126,7 +127,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
          case OT_USERDATA:   _userdata(o)->_typetag = typetag;   break;
          case OT_CLASS:      _class(o)->_typetag = typetag;      break;
          default:            return sq_throwerror(v,_SC("invalid object type"));
-@@ -751,7 +751,7 @@ SQRESULT sq_settypetag(HSQUIRRELVM v,SQI
+@@ -751,7 +751,7 @@ SQRESULT sq_settypetag(HSQUIRRELVM v,SQInteger idx,SQUserPointer typetag)
  
  SQRESULT sq_getobjtypetag(const HSQOBJECT *o,SQUserPointer * typetag)
  {
@@ -135,7 +136,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
      case OT_INSTANCE: *typetag = _instance(*o)->_class->_typetag; break;
      case OT_USERDATA: *typetag = _userdata(*o)->_typetag; break;
      case OT_CLASS:    *typetag = _class(*o)->_typetag; break;
-@@ -779,7 +779,7 @@ SQRESULT sq_getuserpointer(HSQUIRRELVM v
+@@ -779,7 +779,7 @@ SQRESULT sq_getuserpointer(HSQUIRRELVM v, SQInteger idx, SQUserPointer *p)
  SQRESULT sq_setinstanceup(HSQUIRRELVM v, SQInteger idx, SQUserPointer p)
  {
      SQObjectPtr &o = stack_get(v,idx);
@@ -144,7 +145,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
      _instance(o)->_userpointer = p;
      return SQ_OK;
  }
-@@ -787,7 +787,7 @@ SQRESULT sq_setinstanceup(HSQUIRRELVM v,
+@@ -787,7 +787,7 @@ SQRESULT sq_setinstanceup(HSQUIRRELVM v, SQInteger idx, SQUserPointer p)
  SQRESULT sq_setclassudsize(HSQUIRRELVM v, SQInteger idx, SQInteger udsize)
  {
      SQObjectPtr &o = stack_get(v,idx);
@@ -153,7 +154,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
      if(_class(o)->_locked) return sq_throwerror(v,_SC("the class is locked"));
      _class(o)->_udsize = udsize;
      return SQ_OK;
-@@ -797,7 +797,7 @@ SQRESULT sq_setclassudsize(HSQUIRRELVM v
+@@ -797,7 +797,7 @@ SQRESULT sq_setclassudsize(HSQUIRRELVM v, SQInteger idx, SQInteger udsize)
  SQRESULT sq_getinstanceup(HSQUIRRELVM v, SQInteger idx, SQUserPointer *p,SQUserPointer typetag)
  {
      SQObjectPtr &o = stack_get(v,idx);
@@ -162,7 +163,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
      (*p) = _instance(o)->_userpointer;
      if(typetag != 0) {
          SQClass *cl = _instance(o)->_class;
-@@ -854,9 +854,9 @@ SQRESULT sq_newslot(HSQUIRRELVM v, SQInt
+@@ -854,9 +854,9 @@ SQRESULT sq_newslot(HSQUIRRELVM v, SQInteger idx, SQBool bstatic)
  {
      sq_aux_paramscheck(v, 3);
      SQObjectPtr &self = stack_get(v, idx);
@@ -174,7 +175,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
          v->NewSlot(self, key, v->GetUp(-1),bstatic?true:false);
          v->Pop(2);
      }
-@@ -869,7 +869,7 @@ SQRESULT sq_deleteslot(HSQUIRRELVM v,SQI
+@@ -869,7 +869,7 @@ SQRESULT sq_deleteslot(HSQUIRRELVM v,SQInteger idx,SQBool pushval)
      SQObjectPtr *self;
      _GETSAFE_OBJ(v, idx, OT_TABLE,self);
      SQObjectPtr &key = v->GetUp(-1);
@@ -183,7 +184,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
      SQObjectPtr res;
      if(!v->DeleteSlot(*self, key, res)){
          v->Pop();
-@@ -894,11 +894,11 @@ SQRESULT sq_rawset(HSQUIRRELVM v,SQInteg
+@@ -894,11 +894,11 @@ SQRESULT sq_rawset(HSQUIRRELVM v,SQInteger idx)
  {
      SQObjectPtr &self = stack_get(v, idx);
      SQObjectPtr &key = v->GetUp(-2);
@@ -197,7 +198,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
      case OT_TABLE:
          _table(self)->NewSlot(key, v->GetUp(-1));
          v->Pop(2);
-@@ -931,9 +931,9 @@ SQRESULT sq_rawset(HSQUIRRELVM v,SQInteg
+@@ -931,9 +931,9 @@ SQRESULT sq_rawset(HSQUIRRELVM v,SQInteger idx)
  SQRESULT sq_newmember(HSQUIRRELVM v,SQInteger idx,SQBool bstatic)
  {
      SQObjectPtr &self = stack_get(v, idx);
@@ -209,7 +210,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
      if(!v->NewSlotA(self,key,v->GetUp(-2),v->GetUp(-1),bstatic?true:false,false))
          return SQ_ERROR;
      return SQ_OK;
-@@ -942,9 +942,9 @@ SQRESULT sq_newmember(HSQUIRRELVM v,SQIn
+@@ -942,9 +942,9 @@ SQRESULT sq_newmember(HSQUIRRELVM v,SQInteger idx,SQBool bstatic)
  SQRESULT sq_rawnewmember(HSQUIRRELVM v,SQInteger idx,SQBool bstatic)
  {
      SQObjectPtr &self = stack_get(v, idx);
@@ -221,7 +222,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
      if(!v->NewSlotA(self,key,v->GetUp(-2),v->GetUp(-1),bstatic?true:false,true))
          return SQ_ERROR;
      return SQ_OK;
-@@ -954,19 +954,19 @@ SQRESULT sq_setdelegate(HSQUIRRELVM v,SQ
+@@ -954,19 +954,19 @@ SQRESULT sq_setdelegate(HSQUIRRELVM v,SQInteger idx)
  {
      SQObjectPtr &self = stack_get(v, idx);
      SQObjectPtr &mt = v->GetUp(-1);
@@ -246,7 +247,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
              _userdata(self)->SetDelegate(NULL); v->Pop(); }
          else return sq_aux_invalidtype(v, type);
          break;
-@@ -997,7 +997,7 @@ SQRESULT sq_rawdeleteslot(HSQUIRRELVM v,
+@@ -997,7 +997,7 @@ SQRESULT sq_rawdeleteslot(HSQUIRRELVM v,SQInteger idx,SQBool pushval)
  SQRESULT sq_getdelegate(HSQUIRRELVM v,SQInteger idx)
  {
      SQObjectPtr &self=stack_get(v,idx);
@@ -255,7 +256,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
      case OT_TABLE:
      case OT_USERDATA:
          if(!_delegable(self)->_delegate){
-@@ -1026,7 +1026,7 @@ SQRESULT sq_rawget(HSQUIRRELVM v,SQInteg
+@@ -1026,7 +1026,7 @@ SQRESULT sq_rawget(HSQUIRRELVM v,SQInteger idx)
  {
      SQObjectPtr &self=stack_get(v,idx);
      SQObjectPtr &obj = v->GetUp(-1);
@@ -264,7 +265,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
      case OT_TABLE:
          if(_table(self)->Get(obj,obj))
              return SQ_OK;
-@@ -1076,7 +1076,7 @@ const SQChar *sq_getlocal(HSQUIRRELVM v,
+@@ -1076,7 +1076,7 @@ const SQChar *sq_getlocal(HSQUIRRELVM v,SQUnsignedInteger level,SQUnsignedIntege
              stackbase-=ci._prevstkbase;
          }
          SQVM::CallInfo &ci=v->_callsstack[lvl];
@@ -273,7 +274,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
              return NULL;
          SQClosure *c=_closure(ci._closure);
          SQFunctionProto *func=c->_function;
-@@ -1137,7 +1137,7 @@ SQRESULT sq_reservestack(HSQUIRRELVM v,S
+@@ -1137,7 +1137,7 @@ SQRESULT sq_reservestack(HSQUIRRELVM v,SQInteger nsize)
  
  SQRESULT sq_resume(HSQUIRRELVM v,SQBool retval,SQBool raiseerror)
  {
@@ -282,7 +283,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
      {
          v->PushNull(); //retval
          if (!v->Execute(v->GetUp(-2), 0, v->_top, v->GetUp(-1), raiseerror, SQVM::ET_RESUME_GENERATOR))
-@@ -1201,7 +1201,7 @@ void sq_setreleasehook(HSQUIRRELVM v,SQI
+@@ -1201,7 +1201,7 @@ void sq_setreleasehook(HSQUIRRELVM v,SQInteger idx,SQRELEASEHOOK hook)
  {
      if(sq_gettop(v) >= 1){
          SQObjectPtr &ud=stack_get(v,idx);
@@ -291,7 +292,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
          case OT_USERDATA:   _userdata(ud)->_hook = hook;    break;
          case OT_INSTANCE:   _instance(ud)->_hook = hook;    break;
          case OT_CLASS:      _class(ud)->_hook = hook;       break;
-@@ -1214,7 +1214,7 @@ SQRELEASEHOOK sq_getreleasehook(HSQUIRRE
+@@ -1214,7 +1214,7 @@ SQRELEASEHOOK sq_getreleasehook(HSQUIRRELVM v,SQInteger idx)
  {
      if(sq_gettop(v) >= 1){
          SQObjectPtr &ud=stack_get(v,idx);
@@ -300,7 +301,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
          case OT_USERDATA:   return _userdata(ud)->_hook;    break;
          case OT_INSTANCE:   return _instance(ud)->_hook;    break;
          case OT_CLASS:      return _class(ud)->_hook;       break;
-@@ -1296,7 +1296,7 @@ const SQChar *sq_getfreevariable(HSQUIRR
+@@ -1296,7 +1296,7 @@ const SQChar *sq_getfreevariable(HSQUIRRELVM v,SQInteger idx,SQUnsignedInteger n
  {
      SQObjectPtr &self=stack_get(v,idx);
      const SQChar *name = NULL;
@@ -309,7 +310,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
      {
      case OT_CLOSURE:{
          SQClosure *clo = _closure(self);
-@@ -1324,7 +1324,7 @@ const SQChar *sq_getfreevariable(HSQUIRR
+@@ -1324,7 +1324,7 @@ const SQChar *sq_getfreevariable(HSQUIRRELVM v,SQInteger idx,SQUnsignedInteger n
  SQRESULT sq_setfreevariable(HSQUIRRELVM v,SQInteger idx,SQUnsignedInteger nval)
  {
      SQObjectPtr &self=stack_get(v,idx);
@@ -318,7 +319,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
      {
      case OT_CLOSURE:{
          SQFunctionProto *fp = _closure(self)->_function;
-@@ -1341,7 +1341,7 @@ SQRESULT sq_setfreevariable(HSQUIRRELVM 
+@@ -1341,7 +1341,7 @@ SQRESULT sq_setfreevariable(HSQUIRRELVM v,SQInteger idx,SQUnsignedInteger nval)
          else return sq_throwerror(v,_SC("invalid free var index"));
          break;
      default:
@@ -327,7 +328,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
      }
      v->Pop();
      return SQ_OK;
-@@ -1354,7 +1354,7 @@ SQRESULT sq_setattributes(HSQUIRRELVM v,
+@@ -1354,7 +1354,7 @@ SQRESULT sq_setattributes(HSQUIRRELVM v,SQInteger idx)
      SQObjectPtr &key = stack_get(v,-2);
      SQObjectPtr &val = stack_get(v,-1);
      SQObjectPtr attrs;
@@ -336,7 +337,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
          attrs = _class(*o)->_attributes;
          _class(*o)->_attributes = val;
          v->Pop(2);
-@@ -1375,7 +1375,7 @@ SQRESULT sq_getattributes(HSQUIRRELVM v,
+@@ -1375,7 +1375,7 @@ SQRESULT sq_getattributes(HSQUIRRELVM v,SQInteger idx)
      _GETSAFE_OBJ(v, idx, OT_CLASS,o);
      SQObjectPtr &key = stack_get(v,-1);
      SQObjectPtr attrs;
@@ -345,7 +346,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
          attrs = _class(*o)->_attributes;
          v->Pop();
          v->Push(attrs);
-@@ -1407,7 +1407,7 @@ SQRESULT sq_getmemberhandle(HSQUIRRELVM 
+@@ -1407,7 +1407,7 @@ SQRESULT sq_getmemberhandle(HSQUIRRELVM v,SQInteger idx,HSQMEMBERHANDLE *handle)
  
  SQRESULT _getmemberbyhandle(HSQUIRRELVM v,SQObjectPtr &self,const HSQMEMBERHANDLE *handle,SQObjectPtr *&val)
  {
@@ -354,7 +355,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
          case OT_INSTANCE: {
                  SQInstance *i = _instance(self);
                  if(handle->_static) {
-@@ -1431,7 +1431,7 @@ SQRESULT _getmemberbyhandle(HSQUIRRELVM 
+@@ -1431,7 +1431,7 @@ SQRESULT _getmemberbyhandle(HSQUIRRELVM v,SQObjectPtr &self,const HSQMEMBERHANDL
              }
              break;
          default:
@@ -363,7 +364,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
      }
      return SQ_OK;
  }
-@@ -1490,8 +1490,8 @@ SQRESULT sq_createinstance(HSQUIRRELVM v
+@@ -1490,8 +1490,8 @@ SQRESULT sq_createinstance(HSQUIRRELVM v,SQInteger idx)
  void sq_weakref(HSQUIRRELVM v,SQInteger idx)
  {
      SQObject &o=stack_get(v,idx);
@@ -374,7 +375,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
          return;
      }
      v->Push(o);
-@@ -1500,7 +1500,7 @@ void sq_weakref(HSQUIRRELVM v,SQInteger 
+@@ -1500,7 +1500,7 @@ void sq_weakref(HSQUIRRELVM v,SQInteger idx)
  SQRESULT sq_getweakrefval(HSQUIRRELVM v,SQInteger idx)
  {
      SQObjectPtr &o = stack_get(v,idx);
@@ -383,7 +384,7 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
          return sq_throwerror(v,_SC("the object must be a weakref"));
      }
      v->Push(_weakref(o)->_obj);
-@@ -1529,7 +1529,7 @@ SQRESULT sq_getdefaultdelegate(HSQUIRREL
+@@ -1529,7 +1529,7 @@ SQRESULT sq_getdefaultdelegate(HSQUIRRELVM v,SQObjectType t)
  SQRESULT sq_next(HSQUIRRELVM v,SQInteger idx)
  {
      SQObjectPtr o=stack_get(v,idx),&refpos = stack_get(v,-1),realkey,val;
@@ -392,10 +393,11 @@ diff -pur squirrel3-old/squirrel/sqapi.cpp squirrel3/squirrel/sqapi.cpp
          return sq_throwerror(v,_SC("cannot iterate a generator"));
      }
      int faketojump;
-diff -pur squirrel3-old/squirrel/sqbaselib.cpp squirrel3/squirrel/sqbaselib.cpp
---- squirrel3-old/squirrel/sqbaselib.cpp	2018-03-13 14:57:10.000000000 +0100
-+++ squirrel3/squirrel/sqbaselib.cpp	2018-03-13 15:04:21.000000000 +0100
-@@ -169,7 +169,7 @@ static SQInteger get_slice_params(HSQUIR
+diff --git a/squirrel/sqbaselib.cpp b/squirrel/sqbaselib.cpp
+index e1d5c2b..01cb6fc 100644
+--- a/squirrel/sqbaselib.cpp
++++ b/squirrel/sqbaselib.cpp
+@@ -169,7 +169,7 @@ static SQInteger get_slice_params(HSQUIRRELVM v,SQInteger &sidx,SQInteger &eidx,
      o=stack_get(v,1);
      if(top>1){
          SQObjectPtr &start=stack_get(v,2);
@@ -404,7 +406,7 @@ diff -pur squirrel3-old/squirrel/sqbaselib.cpp squirrel3/squirrel/sqbaselib.cpp
              sidx=tointeger(start);
          }
      }
-@@ -340,7 +340,7 @@ static SQInteger default_delegate_len(HS
+@@ -340,7 +340,7 @@ static SQInteger default_delegate_len(HSQUIRRELVM v)
  static SQInteger default_delegate_tofloat(HSQUIRRELVM v)
  {
      SQObjectPtr &o=stack_get(v,1);
@@ -413,7 +415,7 @@ diff -pur squirrel3-old/squirrel/sqbaselib.cpp squirrel3/squirrel/sqbaselib.cpp
      case OT_STRING:{
          SQObjectPtr res;
          if(str2num(_stringval(o),res,10)){
-@@ -369,7 +369,7 @@ static SQInteger default_delegate_tointe
+@@ -369,7 +369,7 @@ static SQInteger default_delegate_tointeger(HSQUIRRELVM v)
      if(sq_gettop(v) > 1) {
          sq_getinteger(v,2,&base);
      }
@@ -422,7 +424,7 @@ diff -pur squirrel3-old/squirrel/sqbaselib.cpp squirrel3/squirrel/sqbaselib.cpp
      case OT_STRING:{
          SQObjectPtr res;
          if(str2num(_stringval(o),res,base)){
-@@ -931,7 +931,7 @@ static SQInteger closure_setroot(HSQUIRR
+@@ -931,7 +931,7 @@ static SQInteger closure_setroot(HSQUIRRELVM v)
  static SQInteger closure_getinfos(HSQUIRRELVM v) {
      SQObject o = stack_get(v,1);
      SQTable *res = SQTable::Create(_ss(v),4);
@@ -431,7 +433,7 @@ diff -pur squirrel3-old/squirrel/sqbaselib.cpp squirrel3/squirrel/sqbaselib.cpp
          SQFunctionProto *f = _closure(o)->_function;
          SQInteger nparams = f->_nparameters + (f->_varparams?1:0);
          SQObjectPtr params = SQArray::Create(_ss(v),nparams);
-@@ -1010,7 +1010,7 @@ const SQRegFunction SQSharedState::_gene
+@@ -1010,7 +1010,7 @@ const SQRegFunction SQSharedState::_generator_default_delegate_funcz[]={
  static SQInteger thread_call(HSQUIRRELVM v)
  {
      SQObjectPtr o = stack_get(v,1);
@@ -440,7 +442,7 @@ diff -pur squirrel3-old/squirrel/sqbaselib.cpp squirrel3/squirrel/sqbaselib.cpp
          SQInteger nparams = sq_gettop(v);
          _thread(o)->Push(_thread(o)->_roottable);
          for(SQInteger i = 2; i<(nparams+1); i++)
-@@ -1029,7 +1029,7 @@ static SQInteger thread_call(HSQUIRRELVM
+@@ -1029,7 +1029,7 @@ static SQInteger thread_call(HSQUIRRELVM v)
  static SQInteger thread_wakeup(HSQUIRRELVM v)
  {
      SQObjectPtr o = stack_get(v,1);
@@ -449,7 +451,7 @@ diff -pur squirrel3-old/squirrel/sqbaselib.cpp squirrel3/squirrel/sqbaselib.cpp
          SQVM *thread = _thread(o);
          SQInteger state = sq_getvmstate(thread);
          if(state != SQ_VMSTATE_SUSPENDED) {
-@@ -1065,7 +1065,7 @@ static SQInteger thread_wakeup(HSQUIRREL
+@@ -1065,7 +1065,7 @@ static SQInteger thread_wakeup(HSQUIRRELVM v)
  static SQInteger thread_wakeupthrow(HSQUIRRELVM v)
  {
      SQObjectPtr o = stack_get(v,1);
@@ -458,7 +460,7 @@ diff -pur squirrel3-old/squirrel/sqbaselib.cpp squirrel3/squirrel/sqbaselib.cpp
          SQVM *thread = _thread(o);
          SQInteger state = sq_getvmstate(thread);
          if(state != SQ_VMSTATE_SUSPENDED) {
-@@ -1125,7 +1125,7 @@ static SQInteger thread_getstatus(HSQUIR
+@@ -1125,7 +1125,7 @@ static SQInteger thread_getstatus(HSQUIRRELVM v)
  static SQInteger thread_getstackinfos(HSQUIRRELVM v)
  {
      SQObjectPtr o = stack_get(v,1);
@@ -467,7 +469,7 @@ diff -pur squirrel3-old/squirrel/sqbaselib.cpp squirrel3/squirrel/sqbaselib.cpp
          SQVM *thread = _thread(o);
          SQInteger threadtop = sq_gettop(thread);
          SQInteger level;
-@@ -1134,7 +1134,7 @@ static SQInteger thread_getstackinfos(HS
+@@ -1134,7 +1134,7 @@ static SQInteger thread_getstackinfos(HSQUIRRELVM v)
          if(SQ_FAILED(res))
          {
              sq_settop(thread,threadtop);
@@ -476,9 +478,10 @@ diff -pur squirrel3-old/squirrel/sqbaselib.cpp squirrel3/squirrel/sqbaselib.cpp
                  sq_throwerror(v,_stringval(thread->_lasterror));
              }
              else {
-diff -pur squirrel3-old/squirrel/sqclass.cpp squirrel3/squirrel/sqclass.cpp
---- squirrel3-old/squirrel/sqclass.cpp	2018-03-13 14:57:10.000000000 +0100
-+++ squirrel3/squirrel/sqclass.cpp	2018-03-13 15:04:21.000000000 +0100
+diff --git a/squirrel/sqclass.cpp b/squirrel/sqclass.cpp
+index 9845b83..862471d 100644
+--- a/squirrel/sqclass.cpp
++++ b/squirrel/sqclass.cpp
 @@ -53,7 +53,7 @@ SQClass::~SQClass()
  bool SQClass::NewSlot(SQSharedState *ss,const SQObjectPtr &key,const SQObjectPtr &val,bool bstatic)
  {
@@ -488,7 +491,7 @@ diff -pur squirrel3-old/squirrel/sqclass.cpp squirrel3/squirrel/sqclass.cpp
      if(_locked && !belongs_to_static_table)
          return false; //the class already has an instance so cannot be modified
      if(_members->Get(key,temp) && _isfield(temp)) //overrides the default value
-@@ -63,18 +63,18 @@ bool SQClass::NewSlot(SQSharedState *ss,
+@@ -63,18 +63,18 @@ bool SQClass::NewSlot(SQSharedState *ss,const SQObjectPtr &key,const SQObjectPtr
      }
      if(belongs_to_static_table) {
          SQInteger mmidx;
@@ -519,9 +522,10 @@ diff -pur squirrel3-old/squirrel/sqclass.cpp squirrel3/squirrel/sqclass.cpp
          res = _class->_metamethods[mm];
          return true;
      }
-diff -pur squirrel3-old/squirrel/sqcompiler.cpp squirrel3/squirrel/sqcompiler.cpp
---- squirrel3-old/squirrel/sqcompiler.cpp	2018-03-13 14:57:10.000000000 +0100
-+++ squirrel3/squirrel/sqcompiler.cpp	2018-03-13 15:04:21.000000000 +0100
+diff --git a/squirrel/sqcompiler.cpp b/squirrel/sqcompiler.cpp
+index 384a5e1..812f0d5 100644
+--- a/squirrel/sqcompiler.cpp
++++ b/squirrel/sqcompiler.cpp
 @@ -191,7 +191,7 @@ public:
          }
          else {
@@ -549,10 +553,11 @@ diff -pur squirrel3-old/squirrel/sqcompiler.cpp squirrel3/squirrel/sqcompiler.cp
                      switch(ctype) {
                          case OT_INTEGER: EmitLoadConstInt(_integer(constval),_es.epos); break;
                          case OT_FLOAT: EmitLoadConstFloat(_float(constval),_es.epos); break;
-diff -pur squirrel3-old/squirrel/sqdebug.cpp squirrel3/squirrel/sqdebug.cpp
---- squirrel3-old/squirrel/sqdebug.cpp	2018-03-13 14:57:10.000000000 +0100
-+++ squirrel3/squirrel/sqdebug.cpp	2018-03-13 15:04:21.000000000 +0100
-@@ -17,8 +17,8 @@ SQRESULT sq_getfunctioninfo(HSQUIRRELVM 
+diff --git a/squirrel/sqdebug.cpp b/squirrel/sqdebug.cpp
+index 00f2b1f..9e1f4f5 100644
+--- a/squirrel/sqdebug.cpp
++++ b/squirrel/sqdebug.cpp
+@@ -17,8 +17,8 @@ SQRESULT sq_getfunctioninfo(HSQUIRRELVM v,SQInteger level,SQFunctionInfo *fi)
              SQClosure *c = _closure(ci._closure);
              SQFunctionProto *proto = c->_function;
              fi->funcid = proto;
@@ -563,7 +568,7 @@ diff -pur squirrel3-old/squirrel/sqdebug.cpp squirrel3/squirrel/sqdebug.cpp
              fi->line = proto->_lineinfos[0]._line;
              return SQ_OK;
          }
-@@ -32,12 +32,12 @@ SQRESULT sq_stackinfos(HSQUIRRELVM v, SQ
+@@ -32,12 +32,12 @@ SQRESULT sq_stackinfos(HSQUIRRELVM v, SQInteger level, SQStackInfos *si)
      if (cssize > level) {
          memset(si, 0, sizeof(SQStackInfos));
          SQVM::CallInfo &ci = v->_callsstack[cssize-level-1];
@@ -579,7 +584,7 @@ diff -pur squirrel3-old/squirrel/sqdebug.cpp squirrel3/squirrel/sqdebug.cpp
                  si->source = _stringval(func->_sourcename);
              si->line = func->GetLine(ci._ip);
                          }
-@@ -45,7 +45,7 @@ SQRESULT sq_stackinfos(HSQUIRRELVM v, SQ
+@@ -45,7 +45,7 @@ SQRESULT sq_stackinfos(HSQUIRRELVM v, SQInteger level, SQStackInfos *si)
          case OT_NATIVECLOSURE:
              si->source = _SC("NATIVE");
              si->funcname = _SC("unknown");
@@ -588,7 +593,7 @@ diff -pur squirrel3-old/squirrel/sqdebug.cpp squirrel3/squirrel/sqdebug.cpp
                  si->funcname = _stringval(_nativeclosure(ci._closure)->_name);
              si->line = -1;
              break;
-@@ -73,7 +73,7 @@ void SQVM::Raise_Error(const SQObjectPtr
+@@ -73,7 +73,7 @@ void SQVM::Raise_Error(const SQObjectPtr &desc)
  
  SQString *SQVM::PrintObjVal(const SQObjectPtr &o)
  {
@@ -597,9 +602,10 @@ diff -pur squirrel3-old/squirrel/sqdebug.cpp squirrel3/squirrel/sqdebug.cpp
      case OT_STRING: return _string(o);
      case OT_INTEGER:
          scsprintf(_sp(sq_rsl(NUMBER_MAX_CHAR+1)),sq_rsl(NUMBER_MAX_CHAR), _PRINT_INT_FMT, _integer(o));
-diff -pur squirrel3-old/squirrel/sqfuncstate.cpp squirrel3/squirrel/sqfuncstate.cpp
---- squirrel3-old/squirrel/sqfuncstate.cpp	2018-03-13 14:57:10.000000000 +0100
-+++ squirrel3/squirrel/sqfuncstate.cpp	2018-03-13 15:04:21.000000000 +0100
+diff --git a/squirrel/sqfuncstate.cpp b/squirrel/sqfuncstate.cpp
+index cc127b3..70259ca 100644
+--- a/squirrel/sqfuncstate.cpp
++++ b/squirrel/sqfuncstate.cpp
 @@ -77,7 +77,7 @@ SQInstructionDesc g_InstrDesc[]={
  #endif
  void DumpLiteral(SQObjectPtr &o)
@@ -609,7 +615,7 @@ diff -pur squirrel3-old/squirrel/sqfuncstate.cpp squirrel3/squirrel/sqfuncstate.
          case OT_STRING: scprintf(_SC("\"%s\""),_stringval(o));break;
          case OT_FLOAT: scprintf(_SC("{%f}"),_float(o));break;
          case OT_INTEGER: scprintf(_SC("{") _PRINT_INT_FMT _SC("}"),_integer(o));break;
-@@ -120,7 +120,7 @@ void SQFuncState::Dump(SQFunctionProto *
+@@ -120,7 +120,7 @@ void SQFuncState::Dump(SQFunctionProto *func)
      scprintf(_SC("SQInstruction sizeof %d\n"),sizeof(SQInstruction));
      scprintf(_SC("SQObject sizeof %d\n"),sizeof(SQObject));
      scprintf(_SC("--------------------------------------------------------------------\n"));
@@ -627,7 +633,7 @@ diff -pur squirrel3-old/squirrel/sqfuncstate.cpp squirrel3/squirrel/sqfuncstate.
          _vlocals.pop_back();
      }
      _targetstack.pop_back();
-@@ -322,7 +322,7 @@ void SQFuncState::SetStackSize(SQInteger
+@@ -322,7 +322,7 @@ void SQFuncState::SetStackSize(SQInteger n)
      while(size>n){
          size--;
          SQLocalVarInfo lvi = _vlocals.back();
@@ -636,7 +642,7 @@ diff -pur squirrel3-old/squirrel/sqfuncstate.cpp squirrel3/squirrel/sqfuncstate.
              if(lvi._end_op == UINT_MINUS_ONE) { //this means is an outer
                  _outers--;
              }
-@@ -346,7 +346,7 @@ bool SQFuncState::IsConstant(const SQObj
+@@ -346,7 +346,7 @@ bool SQFuncState::IsConstant(const SQObject &name,SQObject &e)
  bool SQFuncState::IsLocal(SQUnsignedInteger stkpos)
  {
      if(stkpos>=_vlocals.size())return false;
@@ -645,7 +651,7 @@ diff -pur squirrel3-old/squirrel/sqfuncstate.cpp squirrel3/squirrel/sqfuncstate.
      return false;
  }
  
-@@ -369,7 +369,7 @@ SQInteger SQFuncState::GetLocalVariable(
+@@ -369,7 +369,7 @@ SQInteger SQFuncState::GetLocalVariable(const SQObject &name)
      SQInteger locals=_vlocals.size();
      while(locals>=1){
          SQLocalVarInfo &lvi = _vlocals[locals-1];
@@ -654,10 +660,11 @@ diff -pur squirrel3-old/squirrel/sqfuncstate.cpp squirrel3/squirrel/sqfuncstate.
              return locals-1;
          }
          locals--;
-diff -pur squirrel3-old/squirrel/sqobject.cpp squirrel3/squirrel/sqobject.cpp
---- squirrel3-old/squirrel/sqobject.cpp	2018-03-13 14:57:10.000000000 +0100
-+++ squirrel3/squirrel/sqobject.cpp	2018-03-13 15:04:21.000000000 +0100
-@@ -43,7 +43,7 @@ const SQChar *IdType2Name(SQObjectType t
+diff --git a/squirrel/sqobject.cpp b/squirrel/sqobject.cpp
+index d5e84c9..4240675 100644
+--- a/squirrel/sqobject.cpp
++++ b/squirrel/sqobject.cpp
+@@ -43,7 +43,7 @@ const SQChar *IdType2Name(SQObjectType type)
  
  const SQChar *GetTypeName(const SQObjectPtr &obj1)
  {
@@ -666,7 +673,7 @@ diff -pur squirrel3-old/squirrel/sqobject.cpp squirrel3/squirrel/sqobject.cpp
  }
  
  SQString *SQString::Create(SQSharedState *ss,const SQChar *s,SQInteger len)
-@@ -72,7 +72,7 @@ SQInteger SQString::Next(const SQObjectP
+@@ -72,7 +72,7 @@ SQInteger SQString::Next(const SQObjectPtr &refpos, SQObjectPtr &outkey, SQObjec
  
  SQUnsignedInteger TranslateIndex(const SQObjectPtr &idx)
  {
@@ -675,7 +682,7 @@ diff -pur squirrel3-old/squirrel/sqobject.cpp squirrel3/squirrel/sqobject.cpp
          case OT_NULL:
              return 0;
          case OT_INTEGER:
-@@ -139,7 +139,7 @@ bool SQGenerator::Yield(SQVM *v,SQIntege
+@@ -139,7 +139,7 @@ bool SQGenerator::Yield(SQVM *v,SQInteger target)
  
      _stack.resize(size);
      SQObject _this = v->_stack[v->_stackbase];
@@ -684,7 +691,7 @@ diff -pur squirrel3-old/squirrel/sqobject.cpp squirrel3/squirrel/sqobject.cpp
      for(SQInteger n =1; n<target; n++) {
          _stack._vals[n] = v->_stack[v->_stackbase+n];
      }
-@@ -191,7 +191,7 @@ bool SQGenerator::Resume(SQVM *v,SQObjec
+@@ -191,7 +191,7 @@ bool SQGenerator::Resume(SQVM *v,SQObjectPtr &dest)
          et._stacksize += newbase;
      }
      SQObject _this = _stack._vals[0];
@@ -693,7 +700,7 @@ diff -pur squirrel3-old/squirrel/sqobject.cpp squirrel3/squirrel/sqobject.cpp
  
      for(SQInteger n = 1; n<size; n++) {
          v->_stack[v->_stackbase+n] = _stack._vals[n];
-@@ -312,9 +312,9 @@ bool CheckTag(HSQUIRRELVM v,SQWRITEFUNC 
+@@ -312,9 +312,9 @@ bool CheckTag(HSQUIRRELVM v,SQWRITEFUNC read,SQUserPointer up,SQUnsignedInteger3
  
  bool WriteObject(HSQUIRRELVM v,SQUserPointer up,SQWRITEFUNC write,SQObjectPtr &o)
  {
@@ -705,9 +712,10 @@ diff -pur squirrel3-old/squirrel/sqobject.cpp squirrel3/squirrel/sqobject.cpp
      case OT_STRING:
          _CHECK_IO(SafeWrite(v,write,up,&_string(o)->_len,sizeof(SQInteger)));
          _CHECK_IO(SafeWrite(v,write,up,_stringval(o),sq_rsl(_string(o)->_len)));
-diff -pur squirrel3-old/squirrel/sqobject.h squirrel3/squirrel/sqobject.h
---- squirrel3-old/squirrel/sqobject.h	2018-03-13 14:57:10.000000000 +0100
-+++ squirrel3/squirrel/sqobject.h	2018-03-13 15:04:21.000000000 +0100
+diff --git a/squirrel/sqobject.h b/squirrel/sqobject.h
+index 34b78d0..43ca975 100644
+--- a/squirrel/sqobject.h
++++ b/squirrel/sqobject.h
 @@ -60,13 +60,13 @@ enum SQMetaMethod{
  
  #define _CONSTRUCT_VECTOR(type,size,ptr) { \
@@ -755,9 +763,10 @@ diff -pur squirrel3-old/squirrel/sqobject.h squirrel3/squirrel/sqobject.h
  /////////////////////////////////////////////////////////////////////////////////////
  /////////////////////////////////////////////////////////////////////////////////////
  #if defined(SQUSEDOUBLE) && !defined(_SQ64) || !defined(SQUSEDOUBLE) && defined(_SQ64)
-diff -pur squirrel3-old/squirrel/sqstate.cpp squirrel3/squirrel/sqstate.cpp
---- squirrel3-old/squirrel/sqstate.cpp	2018-03-13 14:57:10.000000000 +0100
-+++ squirrel3/squirrel/sqstate.cpp	2018-03-13 15:04:21.000000000 +0100
+diff --git a/squirrel/sqstate.cpp b/squirrel/sqstate.cpp
+index cfb178b..06f6f0d 100644
+--- a/squirrel/sqstate.cpp
++++ b/squirrel/sqstate.cpp
 @@ -221,7 +221,7 @@ SQSharedState::~SQSharedState()
  
  SQInteger SQSharedState::GetMetaMethodIdxByName(const SQObjectPtr &name)
@@ -767,7 +776,7 @@ diff -pur squirrel3-old/squirrel/sqstate.cpp squirrel3/squirrel/sqstate.cpp
          return -1;
      SQObjectPtr ret;
      if(_table(_metamethodsmap)->Get(name,ret)) {
-@@ -234,7 +234,7 @@ SQInteger SQSharedState::GetMetaMethodId
+@@ -234,7 +234,7 @@ SQInteger SQSharedState::GetMetaMethodIdxByName(const SQObjectPtr &name)
  
  void SQSharedState::MarkObject(SQObjectPtr &o,SQCollectable **chain)
  {
@@ -776,7 +785,7 @@ diff -pur squirrel3-old/squirrel/sqstate.cpp squirrel3/squirrel/sqstate.cpp
      case OT_TABLE:_table(o)->Mark(chain);break;
      case OT_ARRAY:_array(o)->Mark(chain);break;
      case OT_USERDATA:_userdata(o)->Mark(chain);break;
-@@ -423,7 +423,7 @@ void RefTable::Mark(SQCollectable **chai
+@@ -423,7 +423,7 @@ void RefTable::Mark(SQCollectable **chain)
  {
      RefNode *nodes = (RefNode *)_nodes;
      for(SQUnsignedInteger n = 0; n < _numofslots; n++) {
@@ -785,7 +794,7 @@ diff -pur squirrel3-old/squirrel/sqstate.cpp squirrel3/squirrel/sqstate.cpp
              SQSharedState::MarkObject(nodes->obj,chain);
          }
          nodes++;
-@@ -485,7 +485,7 @@ void RefTable::Resize(SQUnsignedInteger 
+@@ -485,7 +485,7 @@ void RefTable::Resize(SQUnsignedInteger size)
      //rehash
      SQUnsignedInteger nfound = 0;
      for(SQUnsignedInteger n = 0; n < oldnumofslots; n++) {
@@ -794,7 +803,7 @@ diff -pur squirrel3-old/squirrel/sqstate.cpp squirrel3/squirrel/sqstate.cpp
              //add back;
              assert(t->refs != 0);
              RefNode *nn = Add(::HashObj(t->obj)&(_numofslots-1),t->obj);
-@@ -518,7 +518,7 @@ RefTable::RefNode *RefTable::Get(SQObjec
+@@ -518,7 +518,7 @@ RefTable::RefNode *RefTable::Get(SQObject &obj,SQHash &mainpos,RefNode **prev,bo
      mainpos = ::HashObj(obj)&(_numofslots-1);
      *prev = NULL;
      for (ref = _buckets[mainpos]; ref; ) {
@@ -803,9 +812,10 @@ diff -pur squirrel3-old/squirrel/sqstate.cpp squirrel3/squirrel/sqstate.cpp
              break;
          *prev = ref;
          ref = ref->next;
-diff -pur squirrel3-old/squirrel/sqtable.cpp squirrel3/squirrel/sqtable.cpp
---- squirrel3-old/squirrel/sqtable.cpp	2018-03-13 14:57:10.000000000 +0100
-+++ squirrel3/squirrel/sqtable.cpp	2018-03-13 15:04:21.000000000 +0100
+diff --git a/squirrel/sqtable.cpp b/squirrel/sqtable.cpp
+index 243ac69..14c0ce6 100644
+--- a/squirrel/sqtable.cpp
++++ b/squirrel/sqtable.cpp
 @@ -62,7 +62,7 @@ void SQTable::Rehash(bool force)
      _usednodes = 0;
      for (SQInteger i=0; i<oldsize; i++) {
@@ -824,7 +834,7 @@ diff -pur squirrel3-old/squirrel/sqtable.cpp squirrel3/squirrel/sqtable.cpp
          return false;
      _HashNode *n = _Get(key, HashObj(key) & (_numofnodes - 1));
      if (n) {
-@@ -118,7 +118,7 @@ bool SQTable::Get(const SQObjectPtr &key
+@@ -118,7 +118,7 @@ bool SQTable::Get(const SQObjectPtr &key,SQObjectPtr &val)
  }
  bool SQTable::NewSlot(const SQObjectPtr &key,const SQObjectPtr &val)
  {
@@ -833,7 +843,7 @@ diff -pur squirrel3-old/squirrel/sqtable.cpp squirrel3/squirrel/sqtable.cpp
      SQHash h = HashObj(key) & (_numofnodes - 1);
      _HashNode *n = _Get(key, h);
      if (n) {
-@@ -132,7 +132,7 @@ bool SQTable::NewSlot(const SQObjectPtr 
+@@ -132,7 +132,7 @@ bool SQTable::NewSlot(const SQObjectPtr &key,const SQObjectPtr &val)
      //key not found I'll insert it
      //main pos is not free
  
@@ -842,7 +852,7 @@ diff -pur squirrel3-old/squirrel/sqtable.cpp squirrel3/squirrel/sqtable.cpp
          n = _firstfree;  /* get a free place */
          SQHash mph = HashObj(mp->key) & (_numofnodes - 1);
          _HashNode *othern;  /* main position of colliding node */
-@@ -161,7 +161,7 @@ bool SQTable::NewSlot(const SQObjectPtr 
+@@ -161,7 +161,7 @@ bool SQTable::NewSlot(const SQObjectPtr &key,const SQObjectPtr &val)
      mp->key = key;
  
      for (;;) {  /* correct `firstfree' */
@@ -851,7 +861,7 @@ diff -pur squirrel3-old/squirrel/sqtable.cpp squirrel3/squirrel/sqtable.cpp
              mp->val = val;
              _usednodes++;
              return true;  /* OK; table still has a free place */
-@@ -177,7 +177,7 @@ SQInteger SQTable::Next(bool getweakrefs
+@@ -177,7 +177,7 @@ SQInteger SQTable::Next(bool getweakrefs,const SQObjectPtr &refpos, SQObjectPtr
  {
      SQInteger idx = (SQInteger)TranslateIndex(refpos);
      while (idx < _numofnodes) {
@@ -860,9 +870,10 @@ diff -pur squirrel3-old/squirrel/sqtable.cpp squirrel3/squirrel/sqtable.cpp
              //first found
              _HashNode &n = _nodes[idx];
              outkey = n.key;
-diff -pur squirrel3-old/squirrel/sqtable.h squirrel3/squirrel/sqtable.h
---- squirrel3-old/squirrel/sqtable.h	2018-03-13 14:57:10.000000000 +0100
-+++ squirrel3/squirrel/sqtable.h	2018-03-13 15:04:21.000000000 +0100
+diff --git a/squirrel/sqtable.h b/squirrel/sqtable.h
+index 1b1659c..6490d78 100644
+--- a/squirrel/sqtable.h
++++ b/squirrel/sqtable.h
 @@ -14,7 +14,7 @@
  
  inline SQHash HashObj(const SQObjectPtr &key)
@@ -890,9 +901,10 @@ diff -pur squirrel3-old/squirrel/sqtable.h squirrel3/squirrel/sqtable.h
                  res = n;
                  break;
              }
-diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
---- squirrel3-old/squirrel/sqvm.cpp	2018-03-13 14:57:10.000000000 +0100
-+++ squirrel3/squirrel/sqvm.cpp	2018-03-13 15:04:21.000000000 +0100
+diff --git a/squirrel/sqvm.cpp b/squirrel/sqvm.cpp
+index 2c9cdc8..313b370 100644
+--- a/squirrel/sqvm.cpp
++++ b/squirrel/sqvm.cpp
 @@ -19,7 +19,7 @@
  bool SQVM::BW_OP(SQUnsignedInteger op,SQObjectPtr &trg,const SQObjectPtr &o1,const SQObjectPtr &o2)
  {
@@ -902,7 +914,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
      {
          SQInteger i1 = _integer(o1), i2 = _integer(o2);
          switch(op) {
-@@ -39,7 +39,7 @@ bool SQVM::BW_OP(SQUnsignedInteger op,SQ
+@@ -39,7 +39,7 @@ bool SQVM::BW_OP(SQUnsignedInteger op,SQObjectPtr &trg,const SQObjectPtr &o1,con
  
  #define _ARITH_(op,trg,o1,o2) \
  { \
@@ -911,7 +923,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
      switch(tmask) { \
          case OT_INTEGER: trg = _integer(o1) op _integer(o2);break; \
          case (OT_FLOAT|OT_INTEGER): \
-@@ -50,7 +50,7 @@ bool SQVM::BW_OP(SQUnsignedInteger op,SQ
+@@ -50,7 +50,7 @@ bool SQVM::BW_OP(SQUnsignedInteger op,SQObjectPtr &trg,const SQObjectPtr &o1,con
  
  #define _ARITH_NOZERO(op,trg,o1,o2,err) \
  { \
@@ -920,7 +932,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
      switch(tmask) { \
          case OT_INTEGER: { SQInteger i2 = _integer(o2); if(i2 == 0) { Raise_Error(err); SQ_THROW(); } trg = _integer(o1) op i2; } break;\
          case (OT_FLOAT|OT_INTEGER): \
-@@ -61,7 +61,7 @@ bool SQVM::BW_OP(SQUnsignedInteger op,SQ
+@@ -61,7 +61,7 @@ bool SQVM::BW_OP(SQUnsignedInteger op,SQObjectPtr &trg,const SQObjectPtr &o1,con
  
  bool SQVM::ARITH_OP(SQUnsignedInteger op,SQObjectPtr &trg,const SQObjectPtr &o1,const SQObjectPtr &o2)
  {
@@ -929,7 +941,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
      switch(tmask) {
          case OT_INTEGER:{
              SQInteger res, i1 = _integer(o1), i2 = _integer(o2);
-@@ -175,7 +175,7 @@ bool SQVM::ArithMetaMethod(SQInteger op,
+@@ -175,7 +175,7 @@ bool SQVM::ArithMetaMethod(SQInteger op,const SQObjectPtr &o1,const SQObjectPtr
  bool SQVM::NEG_OP(SQObjectPtr &trg,const SQObjectPtr &o)
  {
  
@@ -938,7 +950,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
      case OT_INTEGER:
          trg = -_integer(o);
          return true;
-@@ -204,7 +204,7 @@ bool SQVM::NEG_OP(SQObjectPtr &trg,const
+@@ -204,7 +204,7 @@ bool SQVM::NEG_OP(SQObjectPtr &trg,const SQObjectPtr &o)
  #define _RET_SUCCEED(exp) { result = (exp); return true; }
  bool SQVM::ObjCmp(const SQObjectPtr &o1,const SQObjectPtr &o2,SQInteger &result)
  {
@@ -947,7 +959,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
      if(t1 == t2) {
          if(_rawval(o1) == _rawval(o2))_RET_SUCCEED(0);
          SQObjectPtr res;
-@@ -223,7 +223,7 @@ bool SQVM::ObjCmp(const SQObjectPtr &o1,
+@@ -223,7 +223,7 @@ bool SQVM::ObjCmp(const SQObjectPtr &o1,const SQObjectPtr &o2,SQInteger &result)
                  if(_delegable(o1)->GetMetaMethod(this, MT_CMP, closure)) {
                      Push(o1);Push(o2);
                      if(CallMetaMethod(closure,MT_CMP,2,res)) {
@@ -956,7 +968,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
                              Raise_Error(_SC("_cmp must return an integer"));
                              return false;
                          }
-@@ -237,7 +237,7 @@ bool SQVM::ObjCmp(const SQObjectPtr &o1,
+@@ -237,7 +237,7 @@ bool SQVM::ObjCmp(const SQObjectPtr &o1,const SQObjectPtr &o2,SQInteger &result)
              _RET_SUCCEED( _userpointer(o1) < _userpointer(o2)?-1:1 );
          }
          assert(0);
@@ -965,7 +977,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
          //  _RET_SUCCEED(_integer(res));
  
      }
-@@ -281,7 +281,7 @@ bool SQVM::CMP_OP(CmpOP op, const SQObje
+@@ -281,7 +281,7 @@ bool SQVM::CMP_OP(CmpOP op, const SQObjectPtr &o1,const SQObjectPtr &o2,SQObject
  
  bool SQVM::ToString(const SQObjectPtr &o,SQObjectPtr &res)
  {
@@ -974,7 +986,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
      case OT_STRING:
          res = o;
          return true;
-@@ -302,7 +302,7 @@ bool SQVM::ToString(const SQObjectPtr &o
+@@ -302,7 +302,7 @@ bool SQVM::ToString(const SQObjectPtr &o,SQObjectPtr &res)
              if(_delegable(o)->GetMetaMethod(this, MT_TOSTRING, closure)) {
                  Push(o);
                  if(CallMetaMethod(closure,MT_TOSTRING,1,res)) {;
@@ -983,7 +995,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
                          return true;
                  }
                  else {
-@@ -517,7 +517,7 @@ bool SQVM::FOREACH_OP(SQObjectPtr &o1,SQ
+@@ -517,7 +517,7 @@ bool SQVM::FOREACH_OP(SQObjectPtr &o1,SQObjectPtr &o2,SQObjectPtr
  &o3,SQObjectPtr &o4,SQInteger SQ_UNUSED_ARG(arg_2),int exitpos,int &jump)
  {
      SQInteger nrefidx;
@@ -992,7 +1004,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
      case OT_TABLE:
          if((nrefidx = _table(o1)->Next(false,o4, o2, o3)) == -1) _FINISH(exitpos);
          o4 = (SQInteger)nrefidx; _FINISH(1);
-@@ -540,7 +540,7 @@ bool SQVM::FOREACH_OP(SQObjectPtr &o1,SQ
+@@ -540,7 +540,7 @@ bool SQVM::FOREACH_OP(SQObjectPtr &o1,SQObjectPtr &o2,SQObjectPtr
                  Push(o4);
                  if(CallMetaMethod(closure, MT_NEXTI, 2, itr)) {
                      o4 = o2 = itr;
@@ -1001,7 +1013,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
                      if(!Get(o1, itr, o3, 0, DONT_FALL_BACK)) {
                          Raise_Error(_SC("_nexti returned an invalid idx")); // cloud be changed
                          return false;
-@@ -559,7 +559,7 @@ bool SQVM::FOREACH_OP(SQObjectPtr &o1,SQ
+@@ -559,7 +559,7 @@ bool SQVM::FOREACH_OP(SQObjectPtr &o1,SQObjectPtr &o2,SQObjectPtr
          if(_generator(o1)->_state == SQGenerator::eDead) _FINISH(exitpos);
          if(_generator(o1)->_state == SQGenerator::eSuspended) {
              SQInteger idx = 0;
@@ -1010,7 +1022,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
                  idx = _integer(o4) + 1;
              }
              o2 = idx;
-@@ -614,14 +614,14 @@ bool SQVM::CLASS_OP(SQObjectPtr &target,
+@@ -614,14 +614,14 @@ bool SQVM::CLASS_OP(SQObjectPtr &target,SQInteger baseclass,SQInteger attributes
      SQClass *base = NULL;
      SQObjectPtr attrs;
      if(baseclass != -1) {
@@ -1027,7 +1039,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
          int nparams = 2;
          SQObjectPtr ret;
          Push(target); Push(attrs);
-@@ -637,7 +637,7 @@ bool SQVM::CLASS_OP(SQObjectPtr &target,
+@@ -637,7 +637,7 @@ bool SQVM::CLASS_OP(SQObjectPtr &target,SQInteger baseclass,SQInteger attributes
  
  bool SQVM::IsEqual(const SQObjectPtr &o1,const SQObjectPtr &o2,bool &res)
  {
@@ -1036,7 +1048,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
          res = (_rawval(o1) == _rawval(o2));
      }
      else {
-@@ -653,12 +653,12 @@ bool SQVM::IsEqual(const SQObjectPtr &o1
+@@ -653,12 +653,12 @@ bool SQVM::IsEqual(const SQObjectPtr &o1,const SQObjectPtr &o2,bool &res)
  
  bool SQVM::IsFalse(SQObjectPtr &o)
  {
@@ -1145,7 +1157,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
                  if(_generator(STK(arg0))->_state == SQGenerator::eDead)
                      ci->_ip += (sarg1 - 1);
                  continue;
-@@ -1104,7 +1104,7 @@ bool SQVM::CreateClassInstance(SQClass *
+@@ -1104,7 +1104,7 @@ bool SQVM::CreateClassInstance(SQClass *theclass, SQObjectPtr &inst, SQObjectPtr
  
  void SQVM::CallErrorHandler(SQObjectPtr &error)
  {
@@ -1154,7 +1166,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
          SQObjectPtr out;
          Push(_roottable); Push(error);
          Call(_errorhandler, 2, _top-2, out,SQFalse);
-@@ -1118,8 +1118,8 @@ void SQVM::CallDebugHook(SQInteger type,
+@@ -1118,8 +1118,8 @@ void SQVM::CallDebugHook(SQInteger type,SQInteger forcedline)
      _debughook = false;
      SQFunctionProto *func=_closure(ci->_closure)->_function;
      if(_debughook_native) {
@@ -1165,7 +1177,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
          SQInteger line = forcedline?forcedline:func->GetLine(ci->_ip);
          _debughook_native(this,type,src,line,fname);
      }
-@@ -1154,8 +1154,8 @@ bool SQVM::CallNative(SQNativeClosure *n
+@@ -1154,8 +1154,8 @@ bool SQVM::CallNative(SQNativeClosure *nclosure, SQInteger nargs, SQInteger newb
      SQIntVec &tc = nclosure->_typecheck;
      if((tcs = tc.size())) {
          for(SQInteger i = 0; i < nargs && i < tcs; i++) {
@@ -1176,7 +1188,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
                  return false;
              }
          }
-@@ -1202,7 +1202,7 @@ bool SQVM::CallNative(SQNativeClosure *n
+@@ -1202,7 +1202,7 @@ bool SQVM::CallNative(SQNativeClosure *nclosure, SQInteger nargs, SQInteger newb
  
  bool SQVM::Get(const SQObjectPtr &self, const SQObjectPtr &key, SQObjectPtr &dest, SQUnsignedInteger getflags, SQInteger selfidx)
  {
@@ -1185,7 +1197,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
      case OT_TABLE:
          if(_table(self)->Get(key,dest))return true;
          break;
-@@ -1243,7 +1243,7 @@ bool SQVM::Get(const SQObjectPtr &self, 
+@@ -1243,7 +1243,7 @@ bool SQVM::Get(const SQObjectPtr &self, const SQObjectPtr &key, SQObjectPtr &des
  //#ifdef ROOT_FALLBACK
      if(selfidx == 0) {
          SQWeakRef *w = _closure(ci->_closure)->_root;
@@ -1194,7 +1206,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
          {
              if(Get(*((const SQObjectPtr *)&w->_obj),key,dest,0,DONT_FALL_BACK)) return true;
          }
-@@ -1257,7 +1257,7 @@ bool SQVM::Get(const SQObjectPtr &self, 
+@@ -1257,7 +1257,7 @@ bool SQVM::Get(const SQObjectPtr &self, const SQObjectPtr &key, SQObjectPtr &des
  bool SQVM::InvokeDefaultDelegate(const SQObjectPtr &self,const SQObjectPtr &key,SQObjectPtr &dest)
  {
      SQTable *ddel = NULL;
@@ -1203,7 +1215,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
          case OT_CLASS: ddel = _class_ddel; break;
          case OT_TABLE: ddel = _table_ddel; break;
          case OT_ARRAY: ddel = _array_ddel; break;
-@@ -1276,7 +1276,7 @@ bool SQVM::InvokeDefaultDelegate(const S
+@@ -1276,7 +1276,7 @@ bool SQVM::InvokeDefaultDelegate(const SQObjectPtr &self,const SQObjectPtr &key,
  
  SQInteger SQVM::FallBackGet(const SQObjectPtr &self,const SQObjectPtr &key,SQObjectPtr &dest)
  {
@@ -1212,7 +1224,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
      case OT_TABLE:
      case OT_USERDATA:
          //delegation
-@@ -1299,7 +1299,7 @@ SQInteger SQVM::FallBackGet(const SQObje
+@@ -1299,7 +1299,7 @@ SQInteger SQVM::FallBackGet(const SQObjectPtr &self,const SQObjectPtr &key,SQObj
              }
              else {
                  Pop(2);
@@ -1221,7 +1233,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
                      return FALLBACK_ERROR;
                  }
              }
-@@ -1314,7 +1314,7 @@ SQInteger SQVM::FallBackGet(const SQObje
+@@ -1314,7 +1314,7 @@ SQInteger SQVM::FallBackGet(const SQObjectPtr &self,const SQObjectPtr &key,SQObj
  
  bool SQVM::Set(const SQObjectPtr &self,const SQObjectPtr &key,const SQObjectPtr &val,SQInteger selfidx)
  {
@@ -1230,7 +1242,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
      case OT_TABLE:
          if(_table(self)->Set(key,val)) return true;
          break;
-@@ -1348,7 +1348,7 @@ bool SQVM::Set(const SQObjectPtr &self,c
+@@ -1348,7 +1348,7 @@ bool SQVM::Set(const SQObjectPtr &self,const SQObjectPtr &key,const SQObjectPtr
  
  SQInteger SQVM::FallBackSet(const SQObjectPtr &self,const SQObjectPtr &key,const SQObjectPtr &val)
  {
@@ -1239,7 +1251,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
      case OT_TABLE:
          if(_table(self)->_delegate) {
              if(Set(_table(self)->_delegate,key,val,DONT_FALL_BACK)) return FALLBACK_OK;
-@@ -1367,7 +1367,7 @@ SQInteger SQVM::FallBackSet(const SQObje
+@@ -1367,7 +1367,7 @@ SQInteger SQVM::FallBackSet(const SQObjectPtr &self,const SQObjectPtr &key,const
                  return FALLBACK_OK;
              }
              else {
@@ -1248,7 +1260,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
                      //error
                      Pop(3);
                      return FALLBACK_ERROR;
-@@ -1386,7 +1386,7 @@ bool SQVM::Clone(const SQObjectPtr &self
+@@ -1386,7 +1386,7 @@ bool SQVM::Clone(const SQObjectPtr &self,SQObjectPtr &target)
  {
      SQObjectPtr temp_reg;
      SQObjectPtr newobj;
@@ -1274,7 +1286,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
              Push(self); Push(key); Push(val);
              Push(attrs);
              Push(bstatic);
-@@ -1430,7 +1430,7 @@ bool SQVM::NewSlotA(const SQObjectPtr &s
+@@ -1430,7 +1430,7 @@ bool SQVM::NewSlotA(const SQObjectPtr &self,const SQObjectPtr &key,const SQObjec
      }
      if(!NewSlot(self, key, val,bstatic))
          return false;
@@ -1283,7 +1295,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
          c->SetAttributes(key,attrs);
      }
      return true;
-@@ -1438,8 +1438,8 @@ bool SQVM::NewSlotA(const SQObjectPtr &s
+@@ -1438,8 +1438,8 @@ bool SQVM::NewSlotA(const SQObjectPtr &self,const SQObjectPtr &key,const SQObjec
  
  bool SQVM::NewSlot(const SQObjectPtr &self,const SQObjectPtr &key,const SQObjectPtr &val,bool bstatic)
  {
@@ -1294,7 +1306,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
      case OT_TABLE: {
          bool rawcall = true;
          if(_table(self)->_delegate) {
-@@ -1499,7 +1499,7 @@ bool SQVM::NewSlot(const SQObjectPtr &se
+@@ -1499,7 +1499,7 @@ bool SQVM::NewSlot(const SQObjectPtr &self,const SQObjectPtr &key,const SQObject
  
  bool SQVM::DeleteSlot(const SQObjectPtr &self,const SQObjectPtr &key,SQObjectPtr &res)
  {
@@ -1303,7 +1315,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
      case OT_TABLE:
      case OT_INSTANCE:
      case OT_USERDATA: {
-@@ -1511,7 +1511,7 @@ bool SQVM::DeleteSlot(const SQObjectPtr 
+@@ -1511,7 +1511,7 @@ bool SQVM::DeleteSlot(const SQObjectPtr &self,const SQObjectPtr &key,SQObjectPtr
              return CallMetaMethod(closure,MT_DELSLOT,2,res);
          }
          else {
@@ -1312,7 +1324,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
                  if(_table(self)->Get(key,t)) {
                      _table(self)->Remove(key);
                  }
-@@ -1540,7 +1540,7 @@ bool SQVM::Call(SQObjectPtr &closure,SQI
+@@ -1540,7 +1540,7 @@ bool SQVM::Call(SQObjectPtr &closure,SQInteger nparams,SQInteger stackbase,SQObj
  #ifdef _DEBUG
  SQInteger prevstackbase = _stackbase;
  #endif
@@ -1330,7 +1342,7 @@ diff -pur squirrel3-old/squirrel/sqvm.cpp squirrel3/squirrel/sqvm.cpp
          if (ctype == OT_NATIVECLOSURE || ctype == OT_CLOSURE) {
              _stack[stackbase] = outres;
              return Call(constr,nparams,stackbase,temp,raiseerror);
-@@ -1717,7 +1717,7 @@ void SQVM::dumpstack(SQInteger stackbase
+@@ -1717,7 +1717,7 @@ void SQVM::dumpstack(SQInteger stackbase,bool dumpall)
          SQObjectPtr &obj=_stack[i];
          if(stackbase==i)scprintf(_SC(">"));else scprintf(_SC(" "));
          scprintf(_SC("[%d]:"),n);
