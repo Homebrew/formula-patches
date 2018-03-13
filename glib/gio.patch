@@ -1,5 +1,5 @@
 diff --git a/configure.ac b/configure.ac
-index 02479b206..99618ff23 100644
+index 2330024..858dd1d 100644
 --- a/configure.ac
 +++ b/configure.ac
 @@ -111,6 +111,7 @@ AC_SUBST(LT_CURRENT_MINUS_AGE)
@@ -11,33 +11,27 @@ index 02479b206..99618ff23 100644
  
  AM_CONDITIONAL(HAVE_GCC, [test "$GCC" = "yes"])
 diff --git a/gio/Makefile.am b/gio/Makefile.am
-index 07506c08d..e5d9c19bd 100644
+index 67b7fa9..ee3de62 100644
 --- a/gio/Makefile.am
 +++ b/gio/Makefile.am
-@@ -135,7 +135,7 @@ endif
+@@ -605,15 +605,14 @@ if OS_COCOA
+ # We cannot simply rename the ObjC files to .m because it plays
+ # tricks with Automake. For further reference, see:
+ # https://bugzilla.gnome.org/show_bug.cgi?id=672777
+-libgio_objc_2_0_la_CFLAGS = $(libgio_2_0_la_CFLAGS) -xobjective-c
+ libgio_objc_2_0_la_CPPFLAGS = $(libgio_2_0_la_CPPFLAGS)
+ libgio_objc_2_0_la_LDFLAGS = $(libgio_2_0_la_LDFLAGS) -Wl,-framework,Foundation -Wl,-framework,AppKit
+ libgio_objc_2_0_la_SOURCES = \
+-	gnextstepsettingsbackend.c \
+-	gosxcontenttype.c \
+-	gosxappinfo.c \
+-	gosxappinfo.h \
+-	gcocoanotificationbackend.c
++	gnextstepsettingsbackend.m \
++	gosxcontenttype.m \
++	gosxappinfo.m \
++	gosxappinfo.m \
++	gcocoanotificationbackend.m
  
- if OS_COCOA
- cocoa_settings_sources = \
--	gnextstepsettingsbackend.c
-+	gnextstepsettingsbackend.m
- 
- settings_sources += $(cocoa_settings_sources)
- endif
-@@ -282,7 +282,7 @@ appinfo_sources += $(unix_appinfo_sources)
- 
- if OS_COCOA
- if MAC_OS_X_9
--unix_sources += gcocoanotificationbackend.c
-+unix_sources += gcocoanotificationbackend.m
- endif
- endif
- 
-@@ -585,8 +585,6 @@ libgio_2_0_la_LDFLAGS = $(GLIB_LINK_FLAGS) \
- 	-export-dynamic $(no_undefined)
- 
- if OS_COCOA
--# This is dumb.  The ObjC source file should be properly named .m
--libgio_2_0_la_CFLAGS += -xobjective-c
- libgio_2_0_la_LDFLAGS += -Wl,-framework,Foundation -Wl,-framework,AppKit
- endif
- 
+ noinst_LTLIBRARIES += libgio-objc-2.0.la
+ libgio_2_0_la_LIBADD += libgio-objc-2.0.la
