@@ -716,22 +716,6 @@ diff --git a/squirrel/sqobject.h b/squirrel/sqobject.h
 index 34b78d0..43ca975 100644
 --- a/squirrel/sqobject.h
 +++ b/squirrel/sqobject.h
-@@ -60,13 +60,13 @@ enum SQMetaMethod{
- 
- #define _CONSTRUCT_VECTOR(type,size,ptr) { \
-     for(SQInteger n = 0; n < ((SQInteger)size); n++) { \
--            new (&ptr[n]) type(); \
-+            new (&ptr[n]) sqtype(); \
-         } \
- }
- 
- #define _DESTRUCT_VECTOR(type,size,ptr) { \
-     for(SQInteger nl = 0; nl < ((SQInteger)size); nl++) { \
--            ptr[nl].~type(); \
-+            ptr[nl].~sqtype(); \
-     } \
- }
- 
 @@ -101,7 +101,7 @@ struct SQWeakRef : SQRefCounted
      SQObject _obj;
  };
