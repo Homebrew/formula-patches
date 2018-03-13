@@ -1,227 +1,30 @@
-From df36935a80d7e629b42651315d406da34ddaa56c Mon Sep 17 00:00:00 2001
-From: "Gary R. Van Sickle" <grvs@users.sourceforge.net>
-Date: Sat, 13 May 2017 12:59:56 -0500
-Subject: [PATCH 1/9] Pulled aliases out of DirTree decl.
-
----
- src/libext/DirTree.h | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/src/libext/DirTree.h b/src/libext/DirTree.h
-index 5be8f4281f0b6b04515c7a8d6a797ce6a11da1e6..47e4007878c4f69785a4ea3d681f279e4d87bce5 100644
---- a/src/libext/DirTree.h
-+++ b/src/libext/DirTree.h
-@@ -98,6 +98,9 @@ class DirTraversalStats
- #undef M_STATLIST
- };
+diff -pur universalcodegrep-0.3.3-old/src/FileScanner.cpp universalcodegrep-0.3.3/src/FileScanner.cpp
+--- universalcodegrep-0.3.3-old/src/FileScanner.cpp	2016-12-30 16:38:24.000000000 +0100
++++ universalcodegrep-0.3.3/src/FileScanner.cpp	2018-03-13 20:29:31.000000000 +0100
+@@ -246,7 +246,7 @@ bool FileScanner::IsPatternLiteral(const
+ 	return is_lit;
+ }
  
-+/// Types of the file and directory include/exclude predicates.
-+using file_basename_filter_type = std::function<bool (const std::string& name) noexcept>;
-+using dir_basename_filter_type = std::function<bool (const std::string& name) noexcept>;
- 
- /**
-  * Multithreaded directory tree traversal class.
-@@ -105,9 +108,6 @@ class DirTraversalStats
- class DirTree
+-int FileScanner::LiteralMatch_default(const char *file_data, size_t file_size, size_t start_offset, size_t *ovector) noexcept
++int FileScanner::LiteralMatch_default(const char *file_data, size_t file_size, size_t start_offset, size_t *ovector) const noexcept
  {
- public:
--	/// Type of the file and directory include/exclude predicates.
--	using file_basename_filter_type = std::function<bool (const std::string& name) noexcept>;
--	using dir_basename_filter_type = std::function<bool (const std::string& name) noexcept>;
+ 	int rc = 0;
  
- 	DirTree(sync_queue<std::shared_ptr<FileID>>& output_queue,
- 			const file_basename_filter_type &file_basename_filter,
-
-From 0ee2102e9f0ba6b83ba44827f07596316c5c6bb6 Mon Sep 17 00:00:00 2001
-From: "Gary R. Van Sickle" <grvs@users.sourceforge.net>
-Date: Sat, 13 May 2017 13:36:39 -0500
-Subject: [PATCH 2/9] Interim.
-
----
- src/libext/DirTree.h | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
-
-diff --git a/src/libext/DirTree.h b/src/libext/DirTree.h
-index 47e4007878c4f69785a4ea3d681f279e4d87bce5..e0726b8362f78ee72542fe3b7637c203ba10e624 100644
---- a/src/libext/DirTree.h
-+++ b/src/libext/DirTree.h
-@@ -99,8 +99,10 @@ class DirTraversalStats
- };
+@@ -283,10 +283,6 @@ extern "C" void * resolve_CountLinesSinc
+ 	{
+ 		retval = reinterpret_cast<void*>(&FileScanner::CountLinesSinceLastMatch_sse4_2_no_popcnt);
+ 	}
+-	else if(sys_has_sse2())
+-	{
+-		retval = reinterpret_cast<void*>(&FileScanner::CountLinesSinceLastMatch_sse2);
+-	}
+ 	else
+ 	{
+ 		retval = reinterpret_cast<void*>(&FileScanner::CountLinesSinceLastMatch_default);
+@@ -295,9 +291,9 @@ extern "C" void * resolve_CountLinesSinc
+ 	return retval;
+ }
  
- /// Types of the file and directory include/exclude predicates.
--using file_basename_filter_type = std::function<bool (const std::string& name) noexcept>;
--using dir_basename_filter_type = std::function<bool (const std::string& name) noexcept>;
-+//using file_basename_filter_type = std::function<bool (const std::string& name) noexcept>;
-+//using dir_basename_filter_type = std::function<bool (const std::string& name) noexcept>;
-+typedef std::function<bool (const std::string& name) noexcept> file_basename_filter_type;
-+typedef std::function<bool (const std::string& name) noexcept> dir_basename_filter_type;
- 
- /**
-  * Multithreaded directory tree traversal class.
-
-From 703f80de8f60ed2c9548af2b14011e20abb63a38 Mon Sep 17 00:00:00 2001
-From: "Gary R. Van Sickle" <grvs@users.sourceforge.net>
-Date: Sat, 13 May 2017 13:59:11 -0500
-Subject: [PATCH 3/9] Interim.
-
----
- src/libext/DirTree.h | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/src/libext/DirTree.h b/src/libext/DirTree.h
-index e0726b8362f78ee72542fe3b7637c203ba10e624..4020397a28b2469c4fa35818a31bc4f47bee43b0 100644
---- a/src/libext/DirTree.h
-+++ b/src/libext/DirTree.h
-@@ -110,7 +110,7 @@ typedef std::function<bool (const std::string& name) noexcept> dir_basename_filt
- class DirTree
- {
- public:
--
-+	DirTree() = delete;
- 	DirTree(sync_queue<std::shared_ptr<FileID>>& output_queue,
- 			const file_basename_filter_type &file_basename_filter,
- 			const dir_basename_filter_type &dir_basename_filter,
-@@ -142,8 +142,8 @@ class DirTree
- 	/// File output queue.
- 	sync_queue<std::shared_ptr<FileID>>& m_out_queue;
- 
--	file_basename_filter_type m_file_basename_filter;
--	dir_basename_filter_type m_dir_basename_filter;
-+	file_basename_filter_type m_file_basename_filter = {};
-+	dir_basename_filter_type m_dir_basename_filter = {};
- 
- 	DirTraversalStats m_stats;
- 
-
-From 7fe68855afd8fb53acadf8b3136959a21261500a Mon Sep 17 00:00:00 2001
-From: "Gary R. Van Sickle" <grvs@users.sourceforge.net>
-Date: Sat, 13 May 2017 14:05:01 -0500
-Subject: [PATCH 4/9] Interim.
-
----
- src/libext/DirTree.h | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/src/libext/DirTree.h b/src/libext/DirTree.h
-index 4020397a28b2469c4fa35818a31bc4f47bee43b0..88eac62f2f82587ca28c76f1fec40d8e0623b22c 100644
---- a/src/libext/DirTree.h
-+++ b/src/libext/DirTree.h
-@@ -101,8 +101,8 @@ class DirTraversalStats
- /// Types of the file and directory include/exclude predicates.
- //using file_basename_filter_type = std::function<bool (const std::string& name) noexcept>;
- //using dir_basename_filter_type = std::function<bool (const std::string& name) noexcept>;
--typedef std::function<bool (const std::string& name) noexcept> file_basename_filter_type;
--typedef std::function<bool (const std::string& name) noexcept> dir_basename_filter_type;
-+typedef typename std::function<bool (const std::string& name) noexcept> file_basename_filter_type;
-+typedef typename std::function<bool (const std::string& name) noexcept> dir_basename_filter_type;
- 
- /**
-  * Multithreaded directory tree traversal class.
-
-From 72a90f79e5e48d9cc1ea36dda3e984636c9a6063 Mon Sep 17 00:00:00 2001
-From: "Gary R. Van Sickle" <grvs@users.sourceforge.net>
-Date: Sat, 13 May 2017 14:28:33 -0500
-Subject: [PATCH 5/9] Removed 'noexcept' from std::function<> template params.
-
----
- src/FileScanner.h    |  4 ++--
- src/libext/DirTree.h | 11 +++++------
- 2 files changed, 7 insertions(+), 8 deletions(-)
-
-diff --git a/src/FileScanner.h b/src/FileScanner.h
-index 37cbdf453cedd688fba00c3253a6d5620dc50e55..34546ec6680a44d059e2fae9e66e76681d0ade6d 100644
---- a/src/FileScanner.h
-+++ b/src/FileScanner.h
-@@ -135,7 +135,7 @@ class FileScanner
- 	bool ConstructCodeUnitTable(const uint8_t *pcre2_bitmap) noexcept;
- 	void ConstructRangePairTable() noexcept;
- 
--	using FindFirstPossibleCodeUnit_type = std::function<const char *(const FileScanner&, const char * __restrict__ cbegin, size_t len) noexcept>;
-+	using FindFirstPossibleCodeUnit_type = std::function<const char *(const FileScanner&, const char * __restrict__ cbegin, size_t len)>;
- 
- 	static FindFirstPossibleCodeUnit_type resolve_FindFirstPossibleCodeUnit();
- 
-@@ -157,7 +157,7 @@ class FileScanner
- 	const char * find_sse4_2_popcnt(const char * __restrict__ cbegin, size_t len) const noexcept;
- 
- 
--	using LiteralMatch_type = std::function<int (const FileScanner *obj, const char *file_data, size_t file_size, size_t start_offset, size_t *ovector) noexcept>;
-+	using LiteralMatch_type = std::function<int (const FileScanner *obj, const char *file_data, size_t file_size, size_t start_offset, size_t *ovector)>;
- 
- 	static LiteralMatch_type resolve_LiteralMatch(FileScanner *obj) noexcept;
- 
-diff --git a/src/libext/DirTree.h b/src/libext/DirTree.h
-index 88eac62f2f82587ca28c76f1fec40d8e0623b22c..d1a0482037b24fd192b1df53b27816691a6af57d 100644
---- a/src/libext/DirTree.h
-+++ b/src/libext/DirTree.h
-@@ -99,10 +99,9 @@ class DirTraversalStats
- };
- 
- /// Types of the file and directory include/exclude predicates.
--//using file_basename_filter_type = std::function<bool (const std::string& name) noexcept>;
--//using dir_basename_filter_type = std::function<bool (const std::string& name) noexcept>;
--typedef typename std::function<bool (const std::string& name) noexcept> file_basename_filter_type;
--typedef typename std::function<bool (const std::string& name) noexcept> dir_basename_filter_type;
-+using file_basename_filter_type = std::function<bool (const std::string& name)>;
-+using dir_basename_filter_type = std::function<bool (const std::string& name)>;
-+
- 
- /**
-  * Multithreaded directory tree traversal class.
-@@ -142,8 +141,8 @@ class DirTree
- 	/// File output queue.
- 	sync_queue<std::shared_ptr<FileID>>& m_out_queue;
- 
--	file_basename_filter_type m_file_basename_filter = {};
--	dir_basename_filter_type m_dir_basename_filter = {};
-+	file_basename_filter_type m_file_basename_filter;
-+	dir_basename_filter_type m_dir_basename_filter;
- 
- 	DirTraversalStats m_stats;
- 
-
-From 5850762aee34ba871ae47bc595eb05ef17ed15b4 Mon Sep 17 00:00:00 2001
-From: "Gary R. Van Sickle" <grvs@users.sourceforge.net>
-Date: Sat, 13 May 2017 14:47:40 -0500
-Subject: [PATCH 6/9] Interim.
-
----
- src/FileScanner.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/src/FileScanner.h b/src/FileScanner.h
-index 34546ec6680a44d059e2fae9e66e76681d0ade6d..dbfa698e19f499cc1341bdc14ca2d3c77ac38917 100644
---- a/src/FileScanner.h
-+++ b/src/FileScanner.h
-@@ -157,7 +157,7 @@ class FileScanner
- 	const char * find_sse4_2_popcnt(const char * __restrict__ cbegin, size_t len) const noexcept;
- 
- 
--	using LiteralMatch_type = std::function<int (const FileScanner *obj, const char *file_data, size_t file_size, size_t start_offset, size_t *ovector)>;
-+	using LiteralMatch_type = std::function<int (const FileScanner *obj, const char *file_data, size_t file_size, size_t start_offset, size_t *ovector) noexcept>;
- 
- 	static LiteralMatch_type resolve_LiteralMatch(FileScanner *obj) noexcept;
- 
-
-From 19ed3c02f6a26dfbac3f42d9a48578da46fca7f8 Mon Sep 17 00:00:00 2001
-From: "Gary R. Van Sickle" <grvs@users.sourceforge.net>
-Date: Sat, 13 May 2017 17:10:14 -0500
-Subject: [PATCH 7/9] Reworking multiversioning function types.
-
----
- src/FileScanner.cpp      | 4 ++--
- src/FileScanner.h        | 8 ++++----
- src/FileScannerPCRE2.cpp | 5 +++--
- 3 files changed, 9 insertions(+), 8 deletions(-)
-
-diff --git a/src/FileScanner.cpp b/src/FileScanner.cpp
-index 9472c98fb7d865b1c07227ed1283496d8588fa7d..07b931fb8e9cb481d3c4ce7eae6fa16f5fe05356 100644
---- a/src/FileScanner.cpp
-+++ b/src/FileScanner.cpp
-@@ -345,9 +345,9 @@ extern "C" void * resolve_CountLinesSinceLastMatch(void)
-  * @param obj
-  * @return
-  */
 -FileScanner::LiteralMatch_type FileScanner::resolve_LiteralMatch(FileScanner * obj [[maybe_unused]]) noexcept
 +decltype(FileScanner::LiteralMatch) FileScanner::resolve_LiteralMatch(FileScanner * obj [[maybe_unused]]) noexcept
  {
@@ -230,41 +33,35 @@ index 9472c98fb7d865b1c07227ed1283496d8588fa7d..07b931fb8e9cb481d3c4ce7eae6fa16f
  
  	if(sys_has_sse4_2())
  	{
-diff --git a/src/FileScanner.h b/src/FileScanner.h
-index dbfa698e19f499cc1341bdc14ca2d3c77ac38917..547bbfef7c9910ff92e036b3e8a6a2f2f6814a38 100644
---- a/src/FileScanner.h
-+++ b/src/FileScanner.h
-@@ -157,11 +157,11 @@ class FileScanner
+diff -pur universalcodegrep-0.3.3-old/src/FileScanner.h universalcodegrep-0.3.3/src/FileScanner.h
+--- universalcodegrep-0.3.3-old/src/FileScanner.h	2016-12-30 16:38:24.000000000 +0100
++++ universalcodegrep-0.3.3/src/FileScanner.h	2018-03-13 20:26:32.000000000 +0100
+@@ -145,17 +145,14 @@ protected:
  	const char * find_sse4_2_popcnt(const char * __restrict__ cbegin, size_t len) const noexcept;
  
  
--	using LiteralMatch_type = std::function<int (const FileScanner *obj, const char *file_data, size_t file_size, size_t start_offset, size_t *ovector) noexcept>;
-+	//using LiteralMatch_type = std::function<int (const FileScanner *obj, const char *file_data, size_t file_size, size_t start_offset, size_t *ovector) noexcept>;
-+	int (FileScanner::*LiteralMatch)(const char *file_data, size_t file_size, size_t start_offset, size_t *ovector) const noexcept;
-+	static decltype(LiteralMatch) resolve_LiteralMatch(FileScanner *obj) noexcept;
- 
+-	using LiteralMatch_type = std::function<int (FileScanner *obj, const char *file_data, size_t file_size, size_t start_offset, size_t *ovector) noexcept>;
+-
 -	static LiteralMatch_type resolve_LiteralMatch(FileScanner *obj) noexcept;
 -
 -	LiteralMatch_type LiteralMatch;
-+	//LiteralMatch_type LiteralMatch noexcept;
++	int (FileScanner::*LiteralMatch)(const char *file_data, size_t file_size, size_t start_offset, size_t *ovector) const noexcept;
++	static decltype(LiteralMatch) resolve_LiteralMatch(FileScanner *obj) noexcept;
  
  	//int (*FileScanner::LiteralMatch)(const char *file_data, size_t file_size, size_t start_offset, size_t *ovector) const noexcept;
  
-diff --git a/src/FileScannerPCRE2.cpp b/src/FileScannerPCRE2.cpp
-index fc95d95d732781ae83d0c8c6919f2d870e7528eb..04426e8cd51c44150cf3eb79d05d5b11d4a4b6a3 100644
---- a/src/FileScannerPCRE2.cpp
-+++ b/src/FileScannerPCRE2.cpp
-@@ -361,7 +361,8 @@ void FileScannerPCRE2::ScanFile(const char* __restrict__ file_data, size_t file_
- 			{
- 				PCRE2_SIZE old_ovector[2] = { ovector[0], ovector[1] };
- 				// Find the literal prefix.
--				rc = LiteralMatch(this, file_data, file_size, start_offset, ovector);
-+				/// @todo std::invoke from C++17 might be better here.
-+				rc = (this->*LiteralMatch)(file_data, file_size, start_offset, ovector);
- 				if(ovector[0] > file_size)
- 				{
- 					break;
-@@ -425,7 +426,7 @@ void FileScannerPCRE2::ScanFile(const char* __restrict__ file_data, size_t file_
+-	int LiteralMatch_default(const char *file_data, size_t file_size, size_t start_offset, size_t *ovector) noexcept;
++	int LiteralMatch_default(const char *file_data, size_t file_size, size_t start_offset, size_t *ovector) const noexcept;
+ 
+-	int LiteralMatch_sse4_2(const char *file_data, size_t file_size, size_t start_offset, size_t *ovector) noexcept;
++	int LiteralMatch_sse4_2(const char *file_data, size_t file_size, size_t start_offset, size_t *ovector) const noexcept;
+ 
+ 	///@}
+ 
+diff -pur universalcodegrep-0.3.3-old/src/FileScannerPCRE2.cpp universalcodegrep-0.3.3/src/FileScannerPCRE2.cpp
+--- universalcodegrep-0.3.3-old/src/FileScannerPCRE2.cpp	2016-12-30 16:38:24.000000000 +0100
++++ universalcodegrep-0.3.3/src/FileScannerPCRE2.cpp	2018-03-13 20:20:26.000000000 +0100
+@@ -356,7 +356,7 @@ void FileScannerPCRE2::ScanFile(const ch
  		}
  		else
  		{
@@ -273,104 +70,41 @@ index fc95d95d732781ae83d0c8c6919f2d870e7528eb..04426e8cd51c44150cf3eb79d05d5b11
  		}
  
  		// Check for no match.
-
-From 5a22727f20f132e3db52ea4f64f8b42ce0485a3f Mon Sep 17 00:00:00 2001
-From: "Gary R. Van Sickle" <grvs@users.sourceforge.net>
-Date: Sat, 13 May 2017 17:36:53 -0500
-Subject: [PATCH 8/9] Cleanup.
-
----
- src/FileScanner.h        | 27 +++++++++++++++++++--------
- src/FileScannerPCRE2.cpp |  1 +
- 2 files changed, 20 insertions(+), 8 deletions(-)
-
-diff --git a/src/FileScanner.h b/src/FileScanner.h
-index 547bbfef7c9910ff92e036b3e8a6a2f2f6814a38..1966918b77e7ce5237aecb46d5c18feb25389ae6 100644
---- a/src/FileScanner.h
-+++ b/src/FileScanner.h
-@@ -156,14 +156,21 @@ class FileScanner
- 	const char * find_sse4_2_no_popcnt(const char * __restrict__ cbegin, size_t len) const noexcept;
- 	const char * find_sse4_2_popcnt(const char * __restrict__ cbegin, size_t len) const noexcept;
+diff -pur universalcodegrep-0.3.3-old/src/FileScanner_sse4_2.cpp universalcodegrep-0.3.3/src/FileScanner_sse4_2.cpp
+--- universalcodegrep-0.3.3-old/src/FileScanner_sse4_2.cpp	2016-12-30 16:38:24.000000000 +0100
++++ universalcodegrep-0.3.3/src/FileScanner_sse4_2.cpp	2018-03-13 20:26:55.000000000 +0100
+@@ -285,7 +285,7 @@ const char * MULTIVERSION(FileScanner::f
  
+ #ifndef __POPCNT__ // To eliminate multiple defs.
+ 
+-int FileScanner::LiteralMatch_sse4_2(const char *file_data, size_t file_size, size_t start_offset, size_t *ovector) noexcept
++int FileScanner::LiteralMatch_sse4_2(const char *file_data, size_t file_size, size_t start_offset, size_t *ovector) const noexcept
+ {
+ 	int rc = 0;
+ 	const char* str_match;
+diff -pur universalcodegrep-0.3.3-old/src/libext/DirTree.h universalcodegrep-0.3.3/src/libext/DirTree.h
+--- universalcodegrep-0.3.3-old/src/libext/DirTree.h	2016-12-30 08:19:05.000000000 +0100
++++ universalcodegrep-0.3.3/src/libext/DirTree.h	2018-03-13 20:15:45.000000000 +0100
+@@ -98,6 +98,10 @@ private:
+ #undef M_STATLIST
+ };
+ 
++/// Types of the file and directory include/exclude predicates.
++using file_basename_filter_type = std::function<bool (const std::string& name)>;
++using dir_basename_filter_type = std::function<bool (const std::string& name)>;
++
+ 
+ /**
+  * Multithreaded directory tree traversal class.
+@@ -105,10 +109,7 @@ private:
+ class DirTree
+ {
+ public:
+-	/// Type of the file and directory include/exclude predicates.
+-	using file_basename_filter_type = std::function<bool (const std::string& name) noexcept>;
+-	using dir_basename_filter_type = std::function<bool (const std::string& name) noexcept>;
 -
--	//using LiteralMatch_type = std::function<int (const FileScanner *obj, const char *file_data, size_t file_size, size_t start_offset, size_t *ovector) noexcept>;
-+	/**
-+	 * Member function pointer to the multiversioned LiteralMatch function.
-+	 *
-+	 * @param file_data
-+	 * @param file_size
-+	 * @param start_offset
-+	 * @param ovector
-+	 * @return
-+	 */
- 	int (FileScanner::*LiteralMatch)(const char *file_data, size_t file_size, size_t start_offset, size_t *ovector) const noexcept;
--	static decltype(LiteralMatch) resolve_LiteralMatch(FileScanner *obj) noexcept;
--
--	//LiteralMatch_type LiteralMatch noexcept;
- 
--	//int (*FileScanner::LiteralMatch)(const char *file_data, size_t file_size, size_t start_offset, size_t *ovector) const noexcept;
-+	/**
-+	 * Runtime resolver function for the LiteralMatch function.
-+	 */
-+	static decltype(LiteralMatch) resolve_LiteralMatch(FileScanner *obj) noexcept;
- 
- 	int LiteralMatch_default(const char *file_data, size_t file_size, size_t start_offset, size_t *ovector) const noexcept;
- 
-@@ -172,9 +179,9 @@ class FileScanner
- 	///@}
- 
- 	/**
--	 * Analyzes the given #regex and returns true if it's a literal string.
-+	 * Analyzes the given @c regex and returns true if it's a literal string.
- 	 *
--	 * @returns  true if regex is literal.
-+	 * @returns  true if @c regex is literal.
- 	 */
- 	bool IsPatternLiteral(const std::string &regex) const noexcept;
- 
-@@ -207,6 +214,10 @@ class FileScanner
- 	/// One past the end of the last valid value in m_compiled_range_bitmap.
- 	uint16_t m_end_ranges_table {0};
- 
-+	/**
-+	 * The literal string to search for.  This string has been allocated by overaligned_alloc(), and so must be
-+	 * deallocated by std::free().  We package it up in a std::unique_ptr<> with a custom deleter to prevent leaks.
-+	 */
- 	std::unique_ptr<uint8_t,void(*)(void*)> m_literal_search_string { nullptr, std::free };
- 	size_t m_literal_search_string_len {0};
- 
-diff --git a/src/FileScannerPCRE2.cpp b/src/FileScannerPCRE2.cpp
-index 04426e8cd51c44150cf3eb79d05d5b11d4a4b6a3..b00e1bc65d5700d40167e1317cadec4da9f844d7 100644
---- a/src/FileScannerPCRE2.cpp
-+++ b/src/FileScannerPCRE2.cpp
-@@ -426,6 +426,7 @@ void FileScannerPCRE2::ScanFile(const char* __restrict__ file_data, size_t file_
- 		}
- 		else
- 		{
-+			/// @todo std::invoke from C++17 might be better here.
- 			rc = (this->*LiteralMatch)(file_data, file_size, start_offset, ovector);
- 		}
- 
-
-From 854e497024edc4657ad1303d5473664851b0855a Mon Sep 17 00:00:00 2001
-From: "Gary R. Van Sickle" <grvs@users.sourceforge.net>
-Date: Sat, 13 May 2017 18:03:03 -0500
-Subject: [PATCH 9/9] Updated News.md for #118.
-
----
- NEWS.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/NEWS.md b/NEWS.md
-index 11eb04c68cdc605e0aa296013023f4f9b2645519..930211241bfb904a59d933dc7111c8d1ac3d353e 100644
---- a/NEWS.md
-+++ b/NEWS.md
-@@ -8,7 +8,7 @@
- - Removed dependency on GNU argp.  Now using [The Lean Mean C++ Option Parser](http://optionparser.sourceforge.net/), included in `ucg` distro, for option parsing.
- 
- ### Fixed
--
-+- Resolved issue with std::function<> vs. noexcept breaking build under Clang 4.0.0.  Resolves #118.
- 
- ## [0.3.3] - 2016-12-30
- 
++	DirTree() = delete;
+ 	DirTree(sync_queue<std::shared_ptr<FileID>>& output_queue,
+ 			const file_basename_filter_type &file_basename_filter,
+ 			const dir_basename_filter_type &dir_basename_filter,
