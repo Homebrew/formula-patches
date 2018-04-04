@@ -1,0 +1,11 @@
+--- a/bash_completion
++++ b/bash_completion
+@@ -1202,7 +1202,7 @@
+     #       to `_known_hosts' is deprecated: Use `_known_hosts_real' instead.
+     [[ "$1" == -a || "$2" == -a ]] && options=-a
+     [[ "$1" == -c || "$2" == -c ]] && options="$options -c"
+-    _known_hosts_real $options "$(_get_cword :)"
++    _known_hosts_real $options -- "$(_get_cword :)"
+ } # _known_hosts()
+
+ # Helper function for completing _known_hosts.
