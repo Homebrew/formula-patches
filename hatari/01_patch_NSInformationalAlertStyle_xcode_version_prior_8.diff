@@ -1,0 +1,22 @@
+# HG changeset patch
+# User Benoît Tuduri <benoit.tuduri@gmail.com>
+# Date 1518105868 -3600
+#      Thu Feb 08 17:04:28 2018 +0100
+# Node ID d8612f8264c6dc9d9c0c1bbd39d0e0179a821f55
+# Parent  ca11115329dfb346a35d5cd0c88da574e6cac836
+this constant is not available with old version of Xcode.
+
+diff -r ca11115329df -r d8612f8264c6 src/gui-osx/PrefsController.h
+--- a/src/gui-osx/PrefsController.h	Thu Feb 08 00:11:25 2018 +0200
++++ b/src/gui-osx/PrefsController.h	Thu Feb 08 17:04:28 2018 +0100
+@@ -8,6 +8,10 @@
+ #import <Cocoa/Cocoa.h>
+ 
+ 
++#if (!defined MAC_OS_X_VERSION_10_12) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_12
++#define NSAlertStyleInformational NSInformationalAlertStyle
++#endif
++
+ @interface PrefsController : NSObject
+ {
+ 	// Preferences window
