@@ -1,0 +1,24 @@
+diff --git a/include/libtorrent/ip_filter.hpp b/include/libtorrent/ip_filter.hpp
+index dac1cab..40a11b0 100644
+--- a/include/libtorrent/ip_filter.hpp
++++ b/include/libtorrent/ip_filter.hpp
+@@ -44,6 +44,7 @@ POSSIBILITY OF SUCH DAMAGE.
+ #include <boost/utility.hpp>
+ #include <boost/cstdint.hpp>
+ #include <boost/tuple/tuple.hpp>
++#include <boost/next_prior.hpp>
+ 
+ #include "libtorrent/aux_/disable_warnings_pop.hpp"
+ 
+diff --git a/src/kademlia/routing_table.cpp b/src/kademlia/routing_table.cpp
+index 1ac00de..1d11617 100644
+--- a/src/kademlia/routing_table.cpp
++++ b/src/kademlia/routing_table.cpp
+@@ -53,6 +53,7 @@ POSSIBILITY OF SUCH DAMAGE.
+ 
+ #include <boost/cstdint.hpp>
+ #include <boost/bind.hpp>
++#include <boost/next_prior.hpp>
+ 
+ #include "libtorrent/aux_/disable_warnings_pop.hpp"
+ 
