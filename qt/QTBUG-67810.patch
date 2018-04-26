@@ -1,46 +1,12 @@
-diff --git a/qtlocation/src/plugins/geoservices/mapboxgl/mapboxgl.pro b/qtlocation/src/plugins/geoservices/mapboxgl/mapboxgl.pro
-index 17b6f53..9a586ff 100644
---- a/qtlocation/src/plugins/geoservices/mapboxgl/mapboxgl.pro
-+++ b/qtlocation/src/plugins/geoservices/mapboxgl/mapboxgl.pro
-@@ -22,6 +22,11 @@ SOURCES += \
-     qmapboxglstylechange.cpp \
-     qsgmapboxglnode.cpp
+diff --git a/qtlocation/src/3rdparty/mapbox-gl-native/mapbox-gl-native.pro b/qtlocation/src/3rdparty/mapbox-gl-native/mapbox-gl-native.pro
+index 08d53e4..ffd7012 100644
+--- a/qtlocation/src/3rdparty/mapbox-gl-native/mapbox-gl-native.pro
++++ b/qtlocation/src/3rdparty/mapbox-gl-native/mapbox-gl-native.pro
+@@ -3,6 +3,7 @@ TARGET = qmapboxgl
+ load(qt_helper_lib)
  
-+# Mapbox GL Native is always a static
-+# library linked to this plugin
-+QMAKE_CXXFLAGS += \
-+    -DQT_MAPBOXGL_STATIC
-+
- RESOURCES += mapboxgl.qrc
+ CONFIG += qt c++14 exceptions warn_off staticlib object_parallel_to_source
++CONFIG -= c++1z
  
- OTHER_FILES += \
-diff --git a/qtlocation/src/plugins/geoservices/mapboxgl/qgeomapmapboxgl.cpp b/qtlocation/src/plugins/geoservices/mapboxgl/qgeomapmapboxgl.cpp
-index dd5c9a8..d23e752 100644
---- a/qtlocation/src/plugins/geoservices/mapboxgl/qgeomapmapboxgl.cpp
-+++ b/qtlocation/src/plugins/geoservices/mapboxgl/qgeomapmapboxgl.cpp
-@@ -138,7 +138,7 @@ QSGNode *QGeoMapMapboxGLPrivate::updateSceneGraph(QSGNode *node, QQuickWindow *w
-         if (m_useFBO) {
-             static_cast<QSGMapboxGLTextureNode *>(node)->resize(m_viewportSize, window->devicePixelRatio());
-         } else {
--            map->resize(m_viewportSize, m_viewportSize * window->devicePixelRatio());
-+            map->resize(m_viewportSize);
-         }
-     }
- 
-diff --git a/qtlocation/src/plugins/geoservices/mapboxgl/qsgmapboxglnode.cpp b/qtlocation/src/plugins/geoservices/mapboxgl/qsgmapboxglnode.cpp
-index 7721fe6..ed594b5 100644
---- a/qtlocation/src/plugins/geoservices/mapboxgl/qsgmapboxglnode.cpp
-+++ b/qtlocation/src/plugins/geoservices/mapboxgl/qsgmapboxglnode.cpp
-@@ -62,10 +62,10 @@ void QSGMapboxGLTextureNode::resize(const QSize &size, qreal pixelRatio)
- {
-     const QSize& minSize = size.expandedTo(minTextureSize);
-     const QSize fbSize = minSize * pixelRatio;
--    m_map->resize(minSize, fbSize);
-+    m_map->resize(minSize);
- 
-     m_fbo.reset(new QOpenGLFramebufferObject(fbSize, QOpenGLFramebufferObject::CombinedDepthStencil));
--    m_map->setFramebufferObject(m_fbo->handle());
-+    m_map->setFramebufferObject(m_fbo->handle(), fbSize);
- 
-     QSGPlainTexture *fboTexture = static_cast<QSGPlainTexture *>(texture());
-     if (!fboTexture) {
+ QT += network-private \
+       gui-private \
