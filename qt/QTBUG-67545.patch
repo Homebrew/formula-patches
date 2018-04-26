@@ -1,0 +1,13 @@
+diff --git a/qtbase/src/platformsupport/fontdatabases/mac/qfontengine_coretext.mm b/qtbase/src/platformsupport/fontdatabases/mac/qfontengine_coretext.mm
+index 66baf16..89794ef 100644
+--- a/qtbase/src/platformsupport/fontdatabases/mac/qfontengine_coretext.mm
++++ b/qtbase/src/platformsupport/fontdatabases/mac/qfontengine_coretext.mm
+@@ -830,7 +830,7 @@ static void qcoretextfontengine_scaleMetrics(glyph_metrics_t &br, const QTransfo
+ 
+ QFixed QCoreTextFontEngine::emSquareSize() const
+ {
+-    return QFixed::QFixed(int(CTFontGetUnitsPerEm(ctfont)));
++    return QFixed(int(CTFontGetUnitsPerEm(ctfont)));
+ }
+ 
+ QFontEngine *QCoreTextFontEngine::cloneWithSize(qreal pixelSize) const
