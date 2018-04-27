@@ -1,0 +1,49 @@
+Author: John Fitzgerald <mocmaint@daper.net>
+Date:   Mon May 8 17:42:53 2017 +1200
+
+    Maint: Squelch avcodec_decode_audio4() deprecation.
+    
+    We will address this later as it requires some renovations, but avoid
+    bug reports for now.
+    
+    We know about it, we'll suppress it, we'll fix it... eventually.
+
+diff --git a/decoder_plugins/ffmpeg/ffmpeg.c b/decoder_plugins/ffmpeg/ffmpeg.c
+index 304d3ce..39012ae 100644
+--- a/decoder_plugins/ffmpeg/ffmpeg.c
++++ b/decoder_plugins/ffmpeg/ffmpeg.c
+@@ -1009,6 +1009,9 @@ static AVPacket *get_packet (struct ffmpeg_data *data)
+ }
+ 
+ /* Decode samples from packet data. */
++#ifdef HAVE_AVCODEC_RECEIVE_FRAME
++  GCC_DIAG_OFF(deprecated-declarations)
++#endif
+ static int decode_packet (struct ffmpeg_data *data, AVPacket *pkt,
+                           char *buf, int buf_len)
+ {
+@@ -1085,6 +1088,10 @@ static int decode_packet (struct ffmpeg_data *data, AVPacket *pkt,
+ 
+ 	return filled;
+ }
++#ifdef HAVE_AVCODEC_RECEIVE_FRAME
++  GCC_DIAG_ON(deprecated-declarations)
++#endif
++
+ 
+ #if SEEK_IN_DECODER
+ static bool seek_in_stream (struct ffmpeg_data *data)
+diff --git a/decoder_plugins/ffmpeg/ffmpeg.m4 b/decoder_plugins/ffmpeg/ffmpeg.m4
+index de68d6e..4028ec2 100644
+--- a/decoder_plugins/ffmpeg/ffmpeg.m4
++++ b/decoder_plugins/ffmpeg/ffmpeg.m4
+@@ -56,6 +56,9 @@ then
+ 				[Define to 1 if you have the `avcodec_free_context' function.])])
+ 		AC_CHECK_MEMBERS([struct AVStream.codecpar], [], [],
+ 	                     [#include <libavformat/avformat.h>])
++		AC_SEARCH_LIBS(avcodec_receive_frame, avcodec,
++			[AC_DEFINE([HAVE_AVCODEC_RECEIVE_FRAME], 1,
++				[Define to 1 if you have the `avcodec_receive_frame' function.])])
+         CPPFLAGS="$save_CPPFLAGS"
+         CFLAGS="$save_CFLAGS"
+         LIBS="$save_LIBS"
