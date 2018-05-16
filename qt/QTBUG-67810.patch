@@ -1,0 +1,12 @@
+diff --git a/qtlocation/src/3rdparty/mapbox-gl-native/mapbox-gl-native.pro b/qtlocation/src/3rdparty/mapbox-gl-native/mapbox-gl-native.pro
+index 08d53e4..ffd7012 100644
+--- a/qtlocation/src/3rdparty/mapbox-gl-native/mapbox-gl-native.pro
++++ b/qtlocation/src/3rdparty/mapbox-gl-native/mapbox-gl-native.pro
+@@ -3,6 +3,7 @@ TARGET = qmapboxgl
+ load(qt_helper_lib)
+ 
+ CONFIG += qt c++14 exceptions warn_off staticlib object_parallel_to_source
++CONFIG -= c++1z
+ 
+ QT += network-private \
+       gui-private \
