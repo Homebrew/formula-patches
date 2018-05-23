@@ -1,0 +1,25 @@
+From b80ca88a0134e244788d0ef330028182dcf6aa5d Mon Sep 17 00:00:00 2001
+From: ilovezfs <ilovezfs@icloud.com>
+Date: Wed, 23 May 2018 00:17:12 -0700
+Subject: [PATCH] Make sure pkgconfig directory exists
+
+---
+ Makefile.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Makefile.in b/Makefile.in
+index c7fd8e0..f3a201b 100644
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -260,7 +260,7 @@ install-static: installdirs $(STATIC_LIBS) install-headers install-doc ${install
+ 
+ installdirs: $(srcdir)/support/mkinstalldirs
+ 	-$(SHELL) $(srcdir)/support/mkinstalldirs $(DESTDIR)$(includedir) \
+-		$(DESTDIR)$(includedir)/readline $(DESTDIR)$(libdir) \
++		$(DESTDIR)$(includedir)/readline $(DESTDIR)$(libdir) $(DESTDIR)$(pkgconfigdir) \
+ 		$(DESTDIR)$(infodir) $(DESTDIR)$(man3dir) $(DESTDIR)$(docdir)
+ 
+ uninstall: uninstall-headers uninstall-doc uninstall-examples uninstall-pc
+-- 
+2.17.0
+
