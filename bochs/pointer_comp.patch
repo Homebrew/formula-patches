@@ -1,5 +1,5 @@
 --- config.cc   2018-06-01 22:18:19.000000000 -0500
-+++ config1.cc  2018-06-01 22:18:02.000000000 -0500
++++ config.cc  2018-06-01 22:18:02.000000000 -0500
 @@ -3258,7 +3258,7 @@
 
      fprintf(fp, ", biosdetect=%s", SIM->get_param_enum("biosdetect", base)->get_selected());
