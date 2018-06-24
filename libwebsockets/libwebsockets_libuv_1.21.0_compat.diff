@@ -1,0 +1,45 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 471eec2d..cd731345 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -667,6 +667,11 @@ CHECK_LIBRARY_EXISTS(cap cap_set_flag "" LWS_HAVE_LIBCAP)
+ 
+ if (LWS_WITH_LIBUV)
+ CHECK_INCLUDE_FILE(uv-version.h LWS_HAVE_UV_VERSION_H)
++  # libuv changed the location in 1.21.0. Retain both
++  # checks temporarily to ensure a smooth transition.
++  if(NOT LWS_HAVE_UV_VERSION_H)
++    CHECK_INCLUDE_FILE(uv/version.h LWS_HAVE_NEW_UV_VERSION_H)
++  endif()
+ endif()
+ 
+ 
+diff --git a/cmake/lws_config.h.in b/cmake/lws_config.h.in
+index 0da150f5..2bd71205 100644
+--- a/cmake/lws_config.h.in
++++ b/cmake/lws_config.h.in
+@@ -95,6 +95,7 @@
+ #cmakedefine LWS_HAVE_RSA_SET0_KEY
+ 
+ #cmakedefine LWS_HAVE_UV_VERSION_H
++#cmakedefine LWS_HAVE_NEW_UV_VERSION_H
+ 
+ /* CGI apis */
+ #cmakedefine LWS_WITH_CGI
+
+ 
+ /* CGI apis */
+diff --git a/lib/libwebsockets.h b/lib/libwebsockets.h
+index 6c4ebb3f..622121a5 100644
+--- a/lib/libwebsockets.h
++++ b/lib/libwebsockets.h
+@@ -166,6 +166,9 @@ typedef unsigned long long lws_intptr_t;
+ #ifdef LWS_HAVE_UV_VERSION_H
+ #include <uv-version.h>
+ #endif
++#ifdef LWS_HAVE_NEW_UV_VERSION_H
++#include <uv/version.h>
++#endif
+ #endif /* LWS_WITH_LIBUV */
+ #if defined(LWS_WITH_LIBEVENT)
+ #include <event2/event.h>
