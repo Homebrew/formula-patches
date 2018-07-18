@@ -1,0 +1,23 @@
+--- otool/main.c.orig
++++ otool/main.c
+@@ -767,14 +767,17 @@ uint32_t narch_flags,
+ enum bool all_archs,
+ enum bool version)
+ {
+-    char *objdump;
++    char objdump[MAXPATHLEN];
+     struct stat stat_buf;
+     uint32_t i;
+
+-	objdump = cmd_with_prefix("objdump");
++	strncpy(objdump, "@@CLT_BINDIR@@/objdump", MAXPATHLEN - 1);
++#ifdef LTO_SUPPORT
+ 	if(stat(objdump, &stat_buf) == -1)
+-	    objdump = cmd_with_prefix("llvm-objdump");
++	    strncpy(objdump, "@@LLVM_BINDIR@@/llvm-objdump", MAXPATHLEN - 1);
++#endif /* LTO_SUPPORT */
+
++	objdump[MAXPATHLEN - 1] = '\0';
+ 	reset_execute_list();
+ 	add_execute_list(objdump);
+ 	add_execute_list("-macho");
