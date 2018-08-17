@@ -1,5 +1,5 @@
 diff --git a/gio/Makefile.am b/gio/Makefile.am
-index ee3de62..08ce11c 100644
+index 16c6387..22c2d34 100644
 --- a/gio/Makefile.am
 +++ b/gio/Makefile.am
 @@ -255,9 +255,7 @@ endif
@@ -9,45 +9,47 @@ index ee3de62..08ce11c 100644
 -if !OS_COCOA
  appinfo_headers += gdesktopappinfo.h
 -endif
- 
- 
+
+
  unix_sources = \
 @@ -396,11 +394,9 @@ portal_sources = \
  	$(NULL)
- 
+
  if OS_UNIX
 -if !OS_COCOA
  contenttype_sources += gcontenttype.c
  appinfo_sources += gdesktopappinfo.c
  endif
 -endif
- 
+
  gio_base_sources =		\
  	gappinfo.c 		\
-@@ -609,9 +605,6 @@ libgio_objc_2_0_la_CPPFLAGS = $(libgio_2_0_la_CPPFLAGS)
+@@ -609,10 +605,7 @@ libgio_objc_2_0_la_CFLAGS = $(libgio_2_0_la_CFLAGS) -xobjective-c
+ libgio_objc_2_0_la_CPPFLAGS = $(libgio_2_0_la_CPPFLAGS)
  libgio_objc_2_0_la_LDFLAGS = $(libgio_2_0_la_LDFLAGS) -Wl,-framework,Foundation -Wl,-framework,AppKit
  libgio_objc_2_0_la_SOURCES = \
- 	gnextstepsettingsbackend.m \
--	gosxcontenttype.m \
--	gosxappinfo.m \
--	gosxappinfo.m \
- 	gcocoanotificationbackend.m
- 
- noinst_LTLIBRARIES += libgio-objc-2.0.la
-@@ -889,7 +882,6 @@ gdbus_LDADD = libgio-2.0.la 				\
+-	gnextstepsettingsbackend.c \
+-	gosxcontenttype.c \
+-	gosxappinfo.c \
+-	gosxappinfo.h
++	gnextstepsettingsbackend.c
+ if MAC_OS_X_9
+ libgio_objc_2_0_la_SOURCES += \
+ 	gcocoanotificationbackend.c
+@@ -893,7 +886,6 @@ gdbus_LDADD = libgio-2.0.la 				\
  	$(NULL)
- 
+
  if OS_UNIX
 -if !OS_COCOA
  # ------------------------------------------------------------------------
  # gapplication(1) tool
  bin_PROGRAMS += gapplication
-@@ -900,7 +892,6 @@ gapplication_LDADD = libgio-2.0.la 			\
+@@ -904,7 +896,6 @@ gapplication_LDADD = libgio-2.0.la 			\
  	$(top_builddir)/glib/libglib-2.0.la		\
  	$(NULL)
  endif
 -endif
- 
+
  completiondir = $(datadir)/bash-completion/completions
  completion_DATA = \
 diff --git a/gio/giomodule.c b/gio/giomodule.c
