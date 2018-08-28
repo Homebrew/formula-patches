@@ -20,7 +20,7 @@ index 0d85426..6792ff6 100644
 +  <policy domain="path" rights="none" pattern="@*"/>
 +  <!--
 +    Imagemagick does not need to have been explicitly built against Ghostscript
-+    to be vulnerable to Ghostscript-related vulnerabilities. `convert` will
++    to be vulnerable to Ghostscript-related vulnerabilities. convert will
 +    happily use tools it can find at runtime, regardless of build options.
 +    http://seclists.org/oss-sec/2018/q3/142
 +    If you need to use Ghostscript functionality you should comment out the
