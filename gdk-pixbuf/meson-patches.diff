@@ -1,0 +1,61 @@
+diff --git a/gdk-pixbuf/meson.build b/gdk-pixbuf/meson.build
+index 1995ffd..13bb57a 100644
+--- a/gdk-pixbuf/meson.build
++++ b/gdk-pixbuf/meson.build
+@@ -246,7 +246,8 @@ foreach l: loaders
+                         include_directories: [ root_inc, gdk_pixbuf_inc ],
+                         c_args: common_cflags + gdk_pixbuf_cflags + cflags,
+                         install: true,
+-                        install_dir: gdk_pixbuf_loaderdir)
++                        install_dir: gdk_pixbuf_loaderdir,
++                        name_suffix: 'so')
+
+     # We need the path to build loaders.cache for tests
+     dynamic_loaders += mod.full_path()
+@@ -291,18 +292,6 @@ foreach bin: gdkpixbuf_bin
+   set_variable(bin_name.underscorify(), bin)
+ endforeach
+
+-# The 'loaders.cache' used for testing, so we don't accidentally
+-# load the installed cache; we always build it by default
+-loaders_cache = custom_target('loaders.cache',
+-                              output: 'loaders.cache',
+-                              capture: true,
+-                              command: [
+-                                gdk_pixbuf_query_loaders,
+-                                dynamic_loaders,
+-                              ],
+-                              build_by_default: true)
+-loaders_dep = declare_dependency(sources: [ loaders_cache ])
+-
+ pkgconfig = import('pkgconfig')
+ pkgconfig.generate(
+   name: 'GdkPixbuf',
+diff --git a/meson.build b/meson.build
+index 43b11f6..bc89b0c 100644
+--- a/meson.build
++++ b/meson.build
+@@ -177,12 +177,6 @@ if host_machine.system() == 'linux'
+   gdk_pixbuf_conf.set('OS_LINUX', 1)
+ endif
+
+-if host_machine.system() == 'darwin'
+-  # Maintain compatibility with autotools on macOS
+-  common_ldflags += [ '-compatibility_version 1', '-current_version 1.0', ]
+-  gdk_pixbuf_conf.set('OS_DARWIN', 1)
+-endif
+-
+ # Dependencies
+ gobject_dep = dependency('gobject-2.0', version: glib_req_version)
+ gmodule_dep = dependency('gmodule-no-export-2.0')
+@@ -396,9 +390,6 @@ endif
+ # i18n
+ subdir('po')
+
+-subdir('tests')
+-subdir('thumbnailer')
+-
+ # Documentation
+ subdir('docs')
+
+
