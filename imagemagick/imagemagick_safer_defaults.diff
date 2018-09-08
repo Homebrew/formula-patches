@@ -1,34 +1,8 @@
 diff --git a/config/policy.xml b/config/policy.xml
-index 0d85426..6792ff6 100644
+index 8083d3d..7823262 100644
 --- a/config/policy.xml
 +++ b/config/policy.xml
-@@ -52,25 +52,38 @@
-     <policy domain="coder" rights="read|write" pattern="{GIF,JPEG,PNG,WEBP}" />
- -->
- <policymap>
-+  <policy domain="resource" name="memory" value="256MiB"/>
-+  <policy domain="resource" name="map" value="512MiB"/>
-+  <policy domain="resource" name="width" value="16KP"/>
-+  <policy domain="resource" name="height" value="16KP"/>
-+  <policy domain="resource" name="area" value="128MB"/>
-+  <policy domain="resource" name="disk" value="1GiB"/>
-+  <!-- use curl -->
-+  <policy domain="delegate" rights="none" pattern="URL" />
-+  <policy domain="delegate" rights="none" pattern="HTTPS" />
-+  <policy domain="delegate" rights="none" pattern="HTTP" />
-+  <!-- in order to avoid to get image with password text -->
-+  <policy domain="path" rights="none" pattern="@*"/>
-+  <!--
-+    Imagemagick does not need to have been explicitly built against Ghostscript
-+    to be vulnerable to Ghostscript-related vulnerabilities. convert will
-+    happily use tools it can find at runtime, regardless of build options.
-+    http://seclists.org/oss-sec/2018/q3/142
-+    If you need to use Ghostscript functionality you should comment out the
-+    below line, at your own risk.
-+  -->
-+  <policy domain="coder" rights="none" pattern="{EPS,PS2,PS3,PS,PDF,XPS}" />
-   <!-- <policy domain="system" name="shred" value="2"/> -->
-   <!-- <policy domain="system" name="precision" value="6"/> -->
+@@ -57,21 +57,34 @@
    <!-- <policy domain="system" name="memory-map" value="anonymous"/> -->
    <!-- <policy domain="system" name="max-memory-request" value="256MiB"/> -->
    <!-- <policy domain="resource" name="temporary-path" value="/tmp"/> -->
@@ -36,16 +10,39 @@ index 0d85426..6792ff6 100644
 -  <!-- <policy domain="resource" name="map" value="4GiB"/> -->
 -  <!-- <policy domain="resource" name="width" value="10KP"/> -->
 -  <!-- <policy domain="resource" name="height" value="10KP"/> -->
++  <policy domain="resource" name="memory" value="256MiB"/>
++  <policy domain="resource" name="map" value="512MiB"/>
++  <policy domain="resource" name="width" value="16KP"/>
++  <policy domain="resource" name="height" value="16KP"/>
    <!-- <policy domain="resource" name="list-length" value="128"/> -->
 -  <!-- <policy domain="resource" name="area" value="100MP"/> -->
 -  <!-- <policy domain="resource" name="disk" value="16EiB"/> -->
++  <policy domain="resource" name="area" value="128MB"/>
++  <policy domain="resource" name="disk" value="1GiB"/>
++  <!-- use curl -->
++  <policy domain="delegate" rights="none" pattern="URL" />
++  <policy domain="delegate" rights="none" pattern="HTTPS" />
++  <policy domain="delegate" rights="none" pattern="HTTP" />
++  <!--
++    Imagemagick does not need to have been explicitly built against Ghostscript
++    to be vulnerable to Ghostscript-related vulnerabilities. convert will
++    happily use tools it can find at runtime, regardless of build options.
++    http://seclists.org/oss-sec/2018/q3/142
++    https://www.kb.cert.org/vuls/id/332928
++    If you need to use Ghostscript functionality you should comment out the
++    below line, at your own risk.
++  -->
++  <policy domain="coder" rights="none" pattern="{EPS,PS2,PS3,PS,PDF,XPS}" />
    <!-- <policy domain="resource" name="file" value="768"/> -->
    <!-- <policy domain="resource" name="thread" value="4"/> -->
    <!-- <policy domain="resource" name="throttle" value="0"/> -->
    <!-- <policy domain="resource" name="time" value="3600"/> -->
    <!-- <policy domain="coder" rights="none" pattern="MVG" /> -->
+-  <!-- <policy domain="module" rights="none" pattern="{PS,PDF,XPS}" /> -->
 -  <!-- <policy domain="delegate" rights="none" pattern="HTTPS" /> -->
 -  <!-- <policy domain="path" rights="none" pattern="@*" /> -->
++  <!-- in order to avoid to get image with password text -->
++  <policy domain="path" rights="none" pattern="@*"/>
    <!-- <policy domain="cache" name="memory-map" value="anonymous"/> -->
    <!-- <policy domain="cache" name="synchronize" value="True"/> -->
    <!-- <policy domain="cache" name="shared-secret" value="passphrase" stealth="true"/> -->
