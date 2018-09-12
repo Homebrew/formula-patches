@@ -1,0 +1,77 @@
+diff --git a/Makefile b/Makefile
+index 3f9669f..21c0311 100644
+--- a/Makefile
++++ b/Makefile
+@@ -3,7 +3,7 @@
+ 
+ include config.mk
+ 
+-SRC = ii.c strlcpy.c
++SRC = ii.c
+ OBJ = $(SRC:.c=.o)
+ 
+ IICFLAGS = -DVERSION=\"$(VERSION)\" -D_DEFAULT_SOURCE $(CFLAGS)
+@@ -19,7 +19,7 @@ options:
+ .c.o:
+ 	$(CC) $(IICFLAGS) -c $<
+ 
+-ii: $(OBJ)
++ii: $(OBJ) $(LIBS)
+ 	$(CC) $(LDFLAGS) -o $@ $(OBJ) $(LIBS)
+ 
+ $(OBJ): arg.h
+diff --git a/config.mk b/config.mk
+index 3b629db..957bae0 100644
+--- a/config.mk
++++ b/config.mk
+@@ -6,6 +6,9 @@ PREFIX    = /usr/local
+ MANPREFIX = ${PREFIX}/share/man
+ DOCPREFIX = ${PREFIX}/share/doc
+ 
+-CFLAGS   = -Os
++# on systems which provide strlcpy(3),
++# remove NEED_STRLCPY from CFLAGS and
++# remove strlcpy.o from LIBS
++CFLAGS   = -DNEED_STRLCPY -Os
+ LDFLAGS  = -s
+-LIBS     =
++LIBS     = strlcpy.o
+diff --git a/ii.c b/ii.c
+index fc02d7f..6c87314 100644
+--- a/ii.c
++++ b/ii.c
+@@ -24,8 +24,9 @@ char *argv0;
+ 
+ #include "arg.h"
+ 
+-#undef strlcpy
++#ifdef NEED_STRLCPY
+ size_t strlcpy(char *, const char *, size_t);
++#endif /* NEED_STRLCPY */
+ 
+ #define IRC_CHANNEL_MAX   200
+ #define IRC_MSG_MAX       512 /* guaranteed to be <= than PIPE_BUF */
+@@ -459,15 +460,21 @@ proc_channels_input(int ircfd, Channel *c, char *buf)
+ 	char *p = NULL;
+ 	size_t buflen;
+ 
+-	if (buf[0] != '/' && buf[0] != '\0') {
++	if (buf[0] == '\0')
++		return;
++	if (buf[0] != '/') {
+ 		proc_channels_privmsg(ircfd, c, buf);
+ 		return;
+ 	}
++
+ 	msg[0] = '\0';
++	if ((buflen = strlen(buf)) < 2)
++		return;
+ 	if (buf[2] == ' ' || buf[2] == '\0') {
+-		buflen = strlen(buf);
+ 		switch (buf[1]) {
+ 		case 'j': /* join */
++			if (buflen < 3)
++				return;
+ 			if ((p = strchr(&buf[3], ' '))) /* password parameter */
+ 				*p = '\0';
+ 			if ((buf[3] == '#') || (buf[3] == '&') || (buf[3] == '+') ||
