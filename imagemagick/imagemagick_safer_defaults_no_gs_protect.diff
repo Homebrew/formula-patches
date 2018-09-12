@@ -10,10 +10,10 @@ index 8083d3d..235342a 100644
 -  <!-- <policy domain="resource" name="map" value="4GiB"/> -->
 -  <!-- <policy domain="resource" name="width" value="10KP"/> -->
 -  <!-- <policy domain="resource" name="height" value="10KP"/> -->
-+  <policy domain="resource" name="memory" value="256MiB"/>
-+  <policy domain="resource" name="map" value="512MiB"/>
-+  <policy domain="resource" name="width" value="16KP"/>
-+  <policy domain="resource" name="height" value="16KP"/>
++  <policy domain="resource" name="memory" value="1GiB"/>
++  <policy domain="resource" name="map" value="2GiB"/>
++  <policy domain="resource" name="width" value="32KP"/>
++  <policy domain="resource" name="height" value="32KP"/>
    <!-- <policy domain="resource" name="list-length" value="128"/> -->
 -  <!-- <policy domain="resource" name="area" value="100MP"/> -->
 -  <!-- <policy domain="resource" name="disk" value="16EiB"/> -->
