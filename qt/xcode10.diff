@@ -1,0 +1,12 @@
+diff -pur a/qtwebengine/src/3rdparty/chromium/media/audio/mac/coreaudio_dispatch_override.cc b/qtwebengine/src/3rdparty/chromium/media/audio/mac/coreaudio_dispatch_override.cc
+--- a/qtwebengine/src/3rdparty/chromium/media/audio/mac/coreaudio_dispatch_override.cc	2018-06-15 09:47:20.000000000 +0200
++++ b/qtwebengine/src/3rdparty/chromium/media/audio/mac/coreaudio_dispatch_override.cc	2018-09-19 12:06:04.000000000 +0200
+@@ -16,7 +16,7 @@
+ namespace {
+ struct dyld_interpose_tuple {
+   template <typename T>
+-  dyld_interpose_tuple(const T* replacement, const T* replacee)
++  dyld_interpose_tuple(T* replacement, T* replacee)
+       : replacement(reinterpret_cast<const void*>(replacement)),
+         replacee(reinterpret_cast<const void*>(replacee)) {}
+   const void* replacement;
