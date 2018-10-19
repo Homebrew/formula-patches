@@ -1,0 +1,87 @@
+diff -pur The Unarchiver-2/XADMaster/XADMaster.xcodeproj/project.pbxproj The Unarchiver/XADMaster/XADMaster.xcodeproj/project.pbxproj
+--- The Unarchiver-2/XADMaster/XADMaster.xcodeproj/project.pbxproj	2016-05-20 20:45:30.000000000 +0200
++++ The Unarchiver/XADMaster/XADMaster.xcodeproj/project.pbxproj	2018-10-19 16:11:28.000000000 +0200
+@@ -323,7 +323,6 @@
+ 		1B34AAAE11C30E0200396C26 /* emulation.c in Sources */ = {isa = PBXBuildFile; fileRef = 1B06D54F0DDA623800D9C000 /* emulation.c */; };
+ 		1B34AAB111C30E6A00396C26 /* RARBug.c in Sources */ = {isa = PBXBuildFile; fileRef = 1BCD65510EF8164900D86C43 /* RARBug.c */; };
+ 		1B34AAB811C30EDB00396C26 /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 1B3FABA70EC52532006D2F06 /* libz.dylib */; };
+-		1B34AABC11C30F5400396C26 /* libstdc++.6.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 1B34AABB11C30F5400396C26 /* libstdc++.6.dylib */; };
+ 		1B34AAC711C30F9A00396C26 /* BraIA64.c in Sources */ = {isa = PBXBuildFile; fileRef = 1BCD61550EF349EE00D86C43 /* BraIA64.c */; };
+ 		1B34AB2D11C3196800396C26 /* StuffItXEnglishDictionary.c in Sources */ = {isa = PBXBuildFile; fileRef = 1B34AB2C11C3196800396C26 /* StuffItXEnglishDictionary.c */; };
+ 		1B34AB2E11C3196800396C26 /* StuffItXEnglishDictionary.c in Sources */ = {isa = PBXBuildFile; fileRef = 1B34AB2C11C3196800396C26 /* StuffItXEnglishDictionary.c */; };
+@@ -1081,7 +1080,6 @@
+ 		1B91D18811E1677B0081E40A /* libUniversalDetector.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1B23E1B11190F8CC00620319 /* libUniversalDetector.a */; };
+ 		1B91D18911E1677B0081E40A /* libXADMaster.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1B34A97511C2FD0500396C26 /* libXADMaster.a */; };
+ 		1B91D18A11E1677B0081E40A /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 1B3FABA70EC52532006D2F06 /* libz.dylib */; };
+-		1B91D18B11E1677B0081E40A /* libstdc++.6.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 1B34AABB11C30F5400396C26 /* libstdc++.6.dylib */; };
+ 		1B91D19511E167B60081E40A /* lsar.m in Sources */ = {isa = PBXBuildFile; fileRef = 1B91D17711E167720081E40A /* lsar.m */; };
+ 		1B91D1A111E237AD0081E40A /* CommandLineCommon.m in Sources */ = {isa = PBXBuildFile; fileRef = 1B91D1A011E237AD0081E40A /* CommandLineCommon.m */; };
+ 		1B91D1A211E237AD0081E40A /* CommandLineCommon.m in Sources */ = {isa = PBXBuildFile; fileRef = 1B91D1A011E237AD0081E40A /* CommandLineCommon.m */; };
+@@ -1418,6 +1416,9 @@
+ 		1BF3BA9013EE08A300BE7400 /* XADPlatform.h in Headers */ = {isa = PBXBuildFile; fileRef = 1BF3BA8F13EE08A300BE7400 /* XADPlatform.h */; settings = {ATTRIBUTES = (Public, ); }; };
+ 		1BF3BA9113EE08A300BE7400 /* XADPlatform.h in Headers */ = {isa = PBXBuildFile; fileRef = 1BF3BA8F13EE08A300BE7400 /* XADPlatform.h */; };
+ 		1BF3BA9213EE08A300BE7400 /* XADPlatform.h in Headers */ = {isa = PBXBuildFile; fileRef = 1BF3BA8F13EE08A300BE7400 /* XADPlatform.h */; };
++		E75C1CE2217A1D900094CBDC /* libc++.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E75C1CE1217A1D900094CBDC /* libc++.dylib */; };
++		E75C1CE3217A1D900094CBDC /* libc++.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E75C1CE1217A1D900094CBDC /* libc++.dylib */; };
++		E75C1CE4217A1D900094CBDC /* libc++.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E75C1CE1217A1D900094CBDC /* libc++.dylib */; };
+ /* End PBXBuildFile section */
+ 
+ /* Begin PBXBuildRule section */
+@@ -1816,7 +1817,6 @@
+ 		1B34A7EA11C2E0E800396C26 /* XADRAR13CryptHandle.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = XADRAR13CryptHandle.m; sourceTree = "<group>"; };
+ 		1B34A97511C2FD0500396C26 /* libXADMaster.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libXADMaster.a; sourceTree = BUILT_PRODUCTS_DIR; };
+ 		1B34AA8411C30BC100396C26 /* UniversalDetector.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniversalDetector.framework; path = ../../Build/Debug/UniversalDetector.framework; sourceTree = SOURCE_ROOT; };
+-		1B34AABB11C30F5400396C26 /* libstdc++.6.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libstdc++.6.dylib"; path = "/usr/lib/libstdc++.6.dylib"; sourceTree = "<absolute>"; };
+ 		1B34AB2C11C3196800396C26 /* StuffItXEnglishDictionary.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = StuffItXEnglishDictionary.c; sourceTree = "<group>"; };
+ 		1B34AC0D11CED29A00396C26 /* CSCommandLineParser.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CSCommandLineParser.h; sourceTree = "<group>"; };
+ 		1B34AC0E11CED29A00396C26 /* CSCommandLineParser.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = CSCommandLineParser.m; sourceTree = "<group>"; };
+@@ -2202,6 +2202,7 @@
+ 		56FBC8DC0A57531D00BE98CF /* UniversalDetector.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = UniversalDetector.xcodeproj; path = ../UniversalDetector/UniversalDetector.xcodeproj; sourceTree = SOURCE_ROOT; };
+ 		56FBC92B0A57541300BE98CF /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = SOURCE_ROOT; };
+ 		8DC2EF5B0486A6940098B216 /* XADMaster.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = XADMaster.framework; sourceTree = BUILT_PRODUCTS_DIR; };
++		E75C1CE1217A1D900094CBDC /* libc++.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libc++.dylib"; path = "../../../../../usr/lib/libc++.dylib"; sourceTree = "<group>"; };
+ /* End PBXFileReference section */
+ 
+ /* Begin PBXFrameworksBuildPhase section */
+@@ -2215,7 +2216,7 @@
+ 				1B34AA7611C30B5200396C26 /* libUniversalDetector.a in Frameworks */,
+ 				1B34AAA811C30DA400396C26 /* libXADMaster.a in Frameworks */,
+ 				1B34AAB811C30EDB00396C26 /* libz.dylib in Frameworks */,
+-				1B34AABC11C30F5400396C26 /* libstdc++.6.dylib in Frameworks */,
++				E75C1CE3217A1D900094CBDC /* libc++.dylib in Frameworks */,
+ 			);
+ 			runOnlyForDeploymentPostprocessing = 0;
+ 		};
+@@ -2298,7 +2299,7 @@
+ 				1B91D18811E1677B0081E40A /* libUniversalDetector.a in Frameworks */,
+ 				1B91D18911E1677B0081E40A /* libXADMaster.a in Frameworks */,
+ 				1B91D18A11E1677B0081E40A /* libz.dylib in Frameworks */,
+-				1B91D18B11E1677B0081E40A /* libstdc++.6.dylib in Frameworks */,
++				E75C1CE4217A1D900094CBDC /* libc++.dylib in Frameworks */,
+ 			);
+ 			runOnlyForDeploymentPostprocessing = 0;
+ 		};
+@@ -2342,6 +2343,7 @@
+ 				1B3FAC5D0EC5255A006D2F06 /* Foundation.framework in Frameworks */,
+ 				1BBCC54D0EE73B7F006C3AE2 /* libbz2.dylib in Frameworks */,
+ 				1B216A800F8E9D9E001207C9 /* Carbon.framework in Frameworks */,
++				E75C1CE2217A1D900094CBDC /* libc++.dylib in Frameworks */,
+ 				1B34AA8511C30BC100396C26 /* UniversalDetector.framework in Frameworks */,
+ 			);
+ 			runOnlyForDeploymentPostprocessing = 0;
+@@ -2399,6 +2401,7 @@
+ 			children = (
+ 				1B3FABA70EC52532006D2F06 /* libz.dylib */,
+ 				1BBCC54C0EE73B7F006C3AE2 /* libbz2.dylib */,
++				E75C1CE1217A1D900094CBDC /* libc++.dylib */,
+ 				1B3FAC5C0EC5255A006D2F06 /* Foundation.framework */,
+ 				1B216A7F0F8E9D9E001207C9 /* Carbon.framework */,
+ 				1B34AA8411C30BC100396C26 /* UniversalDetector.framework */,
+@@ -2712,7 +2715,6 @@
+ 			isa = PBXGroup;
+ 			children = (
+ 				1B23E1B11190F8CC00620319 /* libUniversalDetector.a */,
+-				1B34AABB11C30F5400396C26 /* libstdc++.6.dylib */,
+ 			);
+ 			name = "Static Linking";
+ 			sourceTree = "<group>";
