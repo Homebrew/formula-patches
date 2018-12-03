@@ -1,7 +1,7 @@
-diff --git bfd/mach-o.c bfd/mach-o.c
+diff --git a/bfd/mach-o.c b/bfd/mach-o.c
 index ce72a3d..2c060a7 100644
---- bfd/mach-o.c
-+++ bfd/mach-o.c
+--- a/bfd/mach-o.c
++++ b/bfd/mach-o.c
 @@ -4595,16 +4595,12 @@ bfd_mach_o_read_version_min (bfd *abfd, bfd_mach_o_load_command *command)
  {
    bfd_mach_o_version_min_command *cmd = &command->command.version_min;
@@ -84,10 +84,10 @@ index ce72a3d..2c060a7 100644
      default:
        command->len = 0;
        _bfd_error_handler (_("%pB: unknown load command %#x"),
-diff --git bfd/mach-o.h bfd/mach-o.h
+diff --git a/bfd/mach-o.h b/bfd/mach-o.h
 index d80d439..61428d6 100644
---- bfd/mach-o.h
-+++ bfd/mach-o.h
+--- a/bfd/mach-o.h
++++ b/bfd/mach-o.h
 @@ -113,6 +113,18 @@ bfd_mach_o_segment_command;
  #define BFD_MACH_O_PROT_WRITE   0x02
  #define BFD_MACH_O_PROT_EXECUTE 0x04
@@ -173,10 +173,10 @@ index d80d439..61428d6 100644
    arelent *dyn_reloc_cache;
  }
  bfd_mach_o_data_struct;
-diff --git include/mach-o/external.h include/mach-o/external.h
+diff --git a/include/mach-o/external.h b/include/mach-o/external.h
 index 2609bad..bf3c0c8 100644
---- include/mach-o/external.h
-+++ include/mach-o/external.h
+--- a/include/mach-o/external.h
++++ b/include/mach-o/external.h
 @@ -308,7 +308,7 @@ struct mach_o_twolevel_hints_command_external
  struct mach_o_version_min_command_external
  {
@@ -215,10 +215,10 @@ index 2609bad..bf3c0c8 100644
    unsigned char length[2];	/* Number of bytes.  */
    unsigned char kind[2];	/* Kind.  See BFD_MACH_O_DICE_ values.  */
  };
-diff --git include/mach-o/loader.h include/mach-o/loader.h
+diff --git a/include/mach-o/loader.h b/include/mach-o/loader.h
 index c075a8e..c7a06d3 100644
---- include/mach-o/loader.h
-+++ include/mach-o/loader.h
+--- a/include/mach-o/loader.h
++++ b/include/mach-o/loader.h
 @@ -161,31 +161,34 @@ typedef enum bfd_mach_o_load_command_type
    /* Load a dynamically linked shared library that is allowed to be
         missing (weak).  */
@@ -278,3 +278,4 @@ index c075a8e..c7a06d3 100644
 +  BFD_MACH_O_LC_BUILD_VERSION = 0x32,          /* Generic build version.  */
  }
  bfd_mach_o_load_command_type;
+ 
