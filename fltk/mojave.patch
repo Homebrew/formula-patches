@@ -4,7 +4,7 @@
    fl_window = i->xid;
    Fl_X::set_high_resolution( i->mapped_to_retina() );
    current_ = this;
--
+-  
 -  NSGraphicsContext *nsgc;
 -#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
 -  if (fl_mac_os_version >= 100400)
