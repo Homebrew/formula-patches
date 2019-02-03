@@ -1,0 +1,870 @@
+diff --git a/auditbeat/module/file_integrity/monitor/monitor_test.go b/auditbeat/module/file_integrity/monitor/monitor_test.go
+index 729184c9f2f3866234334acf0378dbfd4c29db06..0b496c8e604d2085e7ac1ce921f16c21472c9ccf 100644
+--- a/auditbeat/module/file_integrity/monitor/monitor_test.go
++++ b/auditbeat/module/file_integrity/monitor/monitor_test.go
+@@ -248,7 +248,7 @@ func TestRecursiveSubdirPermissions(t *testing.T) {
+ 	// File "b/b" is missing because a watch to b couldn't be installed
+
+ 	expected := map[string]fsnotify.Op{
+-		dest: fsnotify.Create,
++		dest:                       fsnotify.Create,
+ 		filepath.Join(dest, "a"):   fsnotify.Create,
+ 		filepath.Join(dest, "a/a"): fsnotify.Create,
+ 		filepath.Join(dest, "b"):   fsnotify.Create,
+diff --git a/libbeat/autodiscover/appenders/config/config.go b/libbeat/autodiscover/appenders/config/config.go
+index 070d53806893dd25cb6c1bff044575fb704e503e..d95e6c7bbd4ed07c16de917adf4ec34e38352bc8 100644
+--- a/libbeat/autodiscover/appenders/config/config.go
++++ b/libbeat/autodiscover/appenders/config/config.go
+@@ -52,7 +52,7 @@ func NewConfigAppender(cfg *common.Config) (autodiscover.Appender, error) {
+ 	config := configs{}
+ 	err := cfg.Unpack(&config)
+ 	if err != nil {
+-		return nil, fmt.Errorf("unable to unpack config appender due to error: %v", err)
++		return nil, fmt.Errorf("unable to unpack config appender due to error: %+v", err)
+ 	}
+
+ 	var configMaps []configMap
+diff --git a/libbeat/autodiscover/providers/jolokia/discovery.go b/libbeat/autodiscover/providers/jolokia/discovery.go
+index fc704dafb16e94156f49303b5fe2d8f7acb835eb..6492ab4415100bd2c5107ab56c38fee5d4ea9ed5 100644
+--- a/libbeat/autodiscover/providers/jolokia/discovery.go
++++ b/libbeat/autodiscover/providers/jolokia/discovery.go
+@@ -192,7 +192,7 @@ var queryMessage = []byte(`{"type":"query"}`)
+ func (d *Discovery) sendProbe(config InterfaceConfig) {
+ 	interfaces, err := d.interfaces(config.Name)
+ 	if err != nil {
+-		logp.Err("failed to get interfaces: ", err)
++		logp.Err("failed to get interfaces: %+v", err)
+ 		return
+ 	}
+
+diff --git a/libbeat/autodiscover/providers/kubernetes/kubernetes.go b/libbeat/autodiscover/providers/kubernetes/kubernetes.go
+index c2f3b133c93254cc830340e269bb68493529f329..7f35e52229544ec9266a285295c3f668c814e603 100644
+--- a/libbeat/autodiscover/providers/kubernetes/kubernetes.go
++++ b/libbeat/autodiscover/providers/kubernetes/kubernetes.go
+@@ -73,7 +73,7 @@ func AutodiscoverBuilder(bus bus.Bus, c *common.Config) (autodiscover.Provider,
+ 		Namespace:   config.Namespace,
+ 	})
+ 	if err != nil {
+-		logp.Err("kubernetes: Couldn't create watcher for %t", &kubernetes.Pod{})
++		logp.Err("kubernetes: Couldn't create watcher for %T", &kubernetes.Pod{})
+ 		return nil, err
+ 	}
+
+diff --git a/libbeat/common/kubernetes/util.go b/libbeat/common/kubernetes/util.go
+index eb4654143d35379153219e74cba2531b313f10c6..38ee7c8c6a3cb1f3ae9f4cfe9fcb4ac178387046 100644
+--- a/libbeat/common/kubernetes/util.go
++++ b/libbeat/common/kubernetes/util.go
+@@ -75,19 +75,19 @@ func DiscoverKubernetesNode(host string, inCluster bool, client *k8s.Client) (no
+ 	if inCluster {
+ 		ns, err := inClusterNamespace()
+ 		if err != nil {
+-			logp.Err("kubernetes: Couldn't get namespace when beat is in cluster with error: ", err.Error())
++			logp.Err("kubernetes: Couldn't get namespace when beat is in cluster with error: %+v", err.Error())
+ 			return defaultNode
+ 		}
+ 		podName, err := os.Hostname()
+ 		if err != nil {
+-			logp.Err("kubernetes: Couldn't get hostname as beat pod name in cluster with error: ", err.Error())
++			logp.Err("kubernetes: Couldn't get hostname as beat pod name in cluster with error: %+v", err.Error())
+ 			return defaultNode
+ 		}
+ 		logp.Info("kubernetes: Using pod name %s and namespace %s to discover kubernetes node", podName, ns)
+ 		pod := v1.Pod{}
+ 		err = client.Get(context.TODO(), ns, podName, &pod)
+ 		if err != nil {
+-			logp.Err("kubernetes: Querying for pod failed with error: %v", err.Error())
++			logp.Err("kubernetes: Querying for pod failed with error: %+v", err.Error())
+ 			return defaultNode
+ 		}
+ 		logp.Info("kubernetes: Using node %s discovered by in cluster pod node query", pod.Spec.GetNodeName())
+@@ -103,7 +103,7 @@ func DiscoverKubernetesNode(host string, inCluster bool, client *k8s.Client) (no
+ 	nodes := v1.NodeList{}
+ 	err := client.List(context.TODO(), k8s.AllNamespaces, &nodes)
+ 	if err != nil {
+-		logp.Err("kubernetes: Querying for nodes failed with error: ", err.Error())
++		logp.Err("kubernetes: Querying for nodes failed with error: %+v", err.Error())
+ 		return defaultNode
+ 	}
+ 	for _, n := range nodes.Items {
+diff --git a/libbeat/common/transport/tlscommon/tls.go b/libbeat/common/transport/tlscommon/tls.go
+index 6fe79e8df1d2b1da32b36946d0300d7bfc4d7260..43eb371cdb2a5abca51f85e3f2fa65ac321428eb 100644
+--- a/libbeat/common/transport/tlscommon/tls.go
++++ b/libbeat/common/transport/tlscommon/tls.go
+@@ -48,19 +48,19 @@ func LoadCertificate(config *CertificateConfig) (*tls.Certificate, error) {
+
+ 	certPEM, err := ReadPEMFile(certificate, config.Passphrase)
+ 	if err != nil {
+-		logp.Critical("Failed reading certificate file %v: %v", certificate, err)
++		logp.Critical("Failed reading certificate file %v: %+v", certificate, err)
+ 		return nil, fmt.Errorf("%v %v", err, certificate)
+ 	}
+
+ 	keyPEM, err := ReadPEMFile(key, config.Passphrase)
+ 	if err != nil {
+-		logp.Critical("Failed reading key file %v: %v", key, err)
++		logp.Critical("Failed reading key file %v: %+v", key, err)
+ 		return nil, fmt.Errorf("%v %v", err, key)
+ 	}
+
+ 	cert, err := tls.X509KeyPair(certPEM, keyPEM)
+ 	if err != nil {
+-		logp.Critical("Failed loading client certificate", err)
++		logp.Critical("Failed loading client certificate %+v", err)
+ 		return nil, err
+ 	}
+
+diff --git a/libbeat/kibana/fields_transformer.go b/libbeat/kibana/fields_transformer.go
+index 8f4f7005a384da99d81bb568af0b63b8af4a1e20..581f4bcb1e8205b9536106aa7290b82e468fca00 100644
+--- a/libbeat/kibana/fields_transformer.go
++++ b/libbeat/kibana/fields_transformer.go
+@@ -41,7 +41,7 @@ func newFieldsTransformer(version *common.Version, fields common.Fields) (*field
+ 		version:                   version,
+ 		transformedFields:         []common.MapStr{},
+ 		transformedFieldFormatMap: common.MapStr{},
+-		keys: common.MapStr{},
++		keys:                      common.MapStr{},
+ 	}, nil
+ }
+
+diff --git a/libbeat/outputs/elasticsearch/client.go b/libbeat/outputs/elasticsearch/client.go
+index 308767b1eaaffe3f8709daef61f6c26a7d6a235f..83bf3fe83a5d798484bca3c84f8bc0d7d5ac34e8 100644
+--- a/libbeat/outputs/elasticsearch/client.go
++++ b/libbeat/outputs/elasticsearch/client.go
+@@ -761,7 +761,7 @@ func (conn *Connection) execRequest(
+ ) (int, []byte, error) {
+ 	req, err := http.NewRequest(method, url, body)
+ 	if err != nil {
+-		logp.Warn("Failed to create request", err)
++		logp.Warn("Failed to create request %+v", err)
+ 		return 0, nil, err
+ 	}
+ 	if body != nil {
+diff --git a/libbeat/outputs/transport/transptest/testing.go b/libbeat/outputs/transport/transptest/testing.go
+index f657b173278c02c9dcf1f8945f5ce963a4a9ca1d..402be992d1dfea44b714038a33bb6c646235f518 100644
+--- a/libbeat/outputs/transport/transptest/testing.go
++++ b/libbeat/outputs/transport/transptest/testing.go
+@@ -236,7 +236,7 @@ func GenCertForTestingPurpose(t *testing.T, host, name, keyPassword string) erro
+ 		NotAfter:              time.Now().AddDate(10, 0, 0),
+ 		SubjectKeyId:          []byte("12345"),
+ 		BasicConstraintsValid: true,
+-		IsCA: true,
++		IsCA:                  true,
+ 		ExtKeyUsage: []x509.ExtKeyUsage{
+ 			x509.ExtKeyUsageClientAuth,
+ 			x509.ExtKeyUsageServerAuth},
+diff --git a/libbeat/plugin/cli.go b/libbeat/plugin/cli.go
+index 6171bef7e6bd0e8ece46bccf6f939b2e054b6081..425b2b4293430e885694d10d8d4f052e4125d5aa 100644
+--- a/libbeat/plugin/cli.go
++++ b/libbeat/plugin/cli.go
+@@ -39,7 +39,7 @@ func (p *pluginList) String() string {
+ func (p *pluginList) Set(v string) error {
+ 	for _, path := range p.paths {
+ 		if path == v {
+-			logp.Warn("%s is already a registered plugin")
++			logp.Warn("%s is already a registered plugin", path)
+ 			return nil
+ 		}
+ 	}
+diff --git a/libbeat/processors/add_kubernetes_metadata/kubernetes.go b/libbeat/processors/add_kubernetes_metadata/kubernetes.go
+index 63915e4b6ead8d88442ec4d54d158c0e29e57e10..414d98b0b446054f2667b847429c18d95f3d15cf 100644
+--- a/libbeat/processors/add_kubernetes_metadata/kubernetes.go
++++ b/libbeat/processors/add_kubernetes_metadata/kubernetes.go
+@@ -103,7 +103,7 @@ func newKubernetesAnnotator(cfg *common.Config) (processors.Processor, error) {
+
+ 	config.Host = kubernetes.DiscoverKubernetesNode(config.Host, config.InCluster, client)
+
+-	logp.Debug("kubernetes", "Using host ", config.Host)
++	logp.Debug("kubernetes", "Using host: %s", config.Host)
+ 	logp.Debug("kubernetes", "Initializing watcher")
+
+ 	watcher, err := kubernetes.NewWatcher(client, &kubernetes.Pod{}, kubernetes.WatchOptions{
+@@ -112,7 +112,7 @@ func newKubernetesAnnotator(cfg *common.Config) (processors.Processor, error) {
+ 		Namespace:   config.Namespace,
+ 	})
+ 	if err != nil {
+-		logp.Err("kubernetes: Couldn't create watcher for %t", &kubernetes.Pod{})
++		logp.Err("kubernetes: Couldn't create watcher for %T", &kubernetes.Pod{})
+ 		return nil, err
+ 	}
+
+diff --git a/vendor/github.com/magefile/mage/Gopkg.lock b/vendor/github.com/magefile/mage/Gopkg.lock
+deleted file mode 100644
+index bef2d0092eb5e822ef996e91009ac977094a9fe8..0000000000000000000000000000000000000000
+--- a/vendor/github.com/magefile/mage/Gopkg.lock
++++ /dev/null
+@@ -1,9 +0,0 @@
+-# This file is autogenerated, do not edit; changes may be undone by the next 'dep ensure'.
+-
+-
+-[solve-meta]
+-  analyzer-name = "dep"
+-  analyzer-version = 1
+-  inputs-digest = "ab4fef131ee828e96ba67d31a7d690bd5f2f42040c6766b1b12fe856f87e0ff7"
+-  solver-name = "gps-cdcl"
+-  solver-version = 1
+diff --git a/vendor/github.com/magefile/mage/Gopkg.toml b/vendor/github.com/magefile/mage/Gopkg.toml
+deleted file mode 100644
+index 9425a542966774e51926f4c0e34eb92ea27288da..0000000000000000000000000000000000000000
+--- a/vendor/github.com/magefile/mage/Gopkg.toml
++++ /dev/null
+@@ -1,22 +0,0 @@
+-
+-# Gopkg.toml example
+-#
+-# Refer to https://github.com/golang/dep/blob/master/docs/Gopkg.toml.md
+-# for detailed Gopkg.toml documentation.
+-#
+-# required = ["github.com/user/thing/cmd/thing"]
+-# ignored = ["github.com/user/project/pkgX", "bitbucket.org/user/project/pkgA/pkgY"]
+-#
+-# [[constraint]]
+-#   name = "github.com/user/project"
+-#   version = "1.0.0"
+-#
+-# [[constraint]]
+-#   name = "github.com/user/project2"
+-#   branch = "dev"
+-#   source = "github.com/myfork/project2"
+-#
+-# [[override]]
+-#  name = "github.com/x/y"
+-#  version = "2.4.0"
+-
+diff --git a/vendor/github.com/magefile/mage/README.md b/vendor/github.com/magefile/mage/README.md
+index 63826bb7106b534de6700f15a90283256eaedada..b757a92c690ef0eb67c83f6710f57e5a02a8ba19 100644
+--- a/vendor/github.com/magefile/mage/README.md
++++ b/vendor/github.com/magefile/mage/README.md
+@@ -1,6 +1,9 @@
++[![Built with Mage](https://magefile.org/badge.svg)](https://magefile.org)
++[![Build Status](https://travis-ci.org/magefile/mage.svg?branch=master)](https://travis-ci.org/magefile/mage) [![Build status](https://ci.appveyor.com/api/projects/status/n6h146y79xgxkidl/branch/master?svg=true)](https://ci.appveyor.com/project/natefinch/mage/branch/master)
++
+ <p align="center"><img src="https://user-images.githubusercontent.com/3185864/32058716-5ee9b512-ba38-11e7-978a-287eb2a62743.png"/></p>
+
+-## About [![Build Status](https://travis-ci.org/magefile/mage.svg?branch=master)](https://travis-ci.org/magefile/mage)
++## About
+
+ Mage is a make/rake-like build tool using Go.  You write plain-old go functions,
+ and Mage automatically uses them as Makefile-like runnable targets.
+diff --git a/vendor/github.com/magefile/mage/go.mod b/vendor/github.com/magefile/mage/go.mod
+new file mode 100644
+index 0000000000000000000000000000000000000000..d702af13eb71b402d94ec464155685de91e1aa34
+--- /dev/null
++++ b/vendor/github.com/magefile/mage/go.mod
+@@ -0,0 +1 @@
++module github.com/magefile/mage
+diff --git a/vendor/github.com/magefile/mage/go.sum b/vendor/github.com/magefile/mage/go.sum
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/vendor/github.com/magefile/mage/magefile.go b/vendor/github.com/magefile/mage/magefile.go
+index 2bb3ace6fee20138bc52c9d3636e61dda37a137b..12e9a48daab1df3c03d30bb913adb88dbbbbe6ca 100644
+--- a/vendor/github.com/magefile/mage/magefile.go
++++ b/vendor/github.com/magefile/mage/magefile.go
+@@ -1,5 +1,8 @@
+ //+build mage
+
++// This is the build script for Mage. The install target is all you really need.
++// The release target is for generating offial releases and is really only
++// useful to project admins.
+ package main
+
+ import (
+@@ -7,25 +10,24 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
++	"regexp"
+ 	"runtime"
+ 	"strings"
+ 	"time"
+
++	"github.com/magefile/mage/mg"
+ 	"github.com/magefile/mage/sh"
+ )
+
+ // Runs "go install" for mage.  This generates the version info the binary.
+ func Install() error {
+-	ldf, err := flags()
+-	if err != nil {
+-		return err
+-	}
+-
+ 	name := "mage"
+ 	if runtime.GOOS == "windows" {
+ 		name += ".exe"
+ 	}
+-	gopath, err := sh.Output("go", "env", "GOPATH")
++
++	gocmd := mg.GoCmd()
++	gopath, err := sh.Output(gocmd, "env", "GOPATH")
+ 	if err != nil {
+ 		return fmt.Errorf("can't determine GOPATH: %v", err)
+ 	}
+@@ -42,19 +44,23 @@ func Install() error {
+ 	// install` turns into a no-op, and `go install -a` fails on people's
+ 	// machines that have go installed in a non-writeable directory (such as
+ 	// normal OS installs in /usr/bin)
+-	return sh.RunV("go", "build", "-o", path, "-ldflags="+ldf, "github.com/magefile/mage")
++	return sh.RunV(gocmd, "build", "-o", path, "-ldflags="+flags(), "github.com/magefile/mage")
+ }
+
++var releaseTag = regexp.MustCompile(`^v1\.[0-9]+\.[0-9]+$`)
++
+ // Generates a new release.  Expects the TAG environment variable to be set,
+ // which will create a new tag with that name.
+ func Release() (err error) {
+-	if os.Getenv("TAG") == "" {
+-		return errors.New("MSG and TAG environment variables are required")
++	tag := os.Getenv("TAG")
++	if !releaseTag.MatchString(tag) {
++		return errors.New("TAG environment variable must be in semver v1.x.x format, but was " + tag)
+ 	}
+-	if err := sh.RunV("git", "tag", "-a", "$TAG"); err != nil {
++
++	if err := sh.RunV("git", "tag", "-a", tag, "-m", tag); err != nil {
+ 		return err
+ 	}
+-	if err := sh.RunV("git", "push", "origin", "$TAG"); err != nil {
++	if err := sh.RunV("git", "push", "origin", tag); err != nil {
+ 		return err
+ 	}
+ 	defer func() {
+@@ -71,14 +77,14 @@ func Clean() error {
+ 	return sh.Rm("dist")
+ }
+
+-func flags() (string, error) {
++func flags() string {
+ 	timestamp := time.Now().Format(time.RFC3339)
+ 	hash := hash()
+ 	tag := tag()
+ 	if tag == "" {
+ 		tag = "dev"
+ 	}
+-	return fmt.Sprintf(`-X "github.com/magefile/mage/mage.timestamp=%s" -X "github.com/magefile/mage/mage.commitHash=%s" -X "github.com/magefile/mage/mage.gitTag=%s"`, timestamp, hash, tag), nil
++	return fmt.Sprintf(`-X "github.com/magefile/mage/mage.timestamp=%s" -X "github.com/magefile/mage/mage.commitHash=%s" -X "github.com/magefile/mage/mage.gitTag=%s"`, timestamp, hash, tag)
+ }
+
+ // tag returns the git tag for the current branch or "" if none.
+diff --git a/vendor/golang.org/x/crypto/blake2b/blake2b.go b/vendor/golang.org/x/crypto/blake2b/blake2b.go
+index 6dedb89467ae18a9824fca2cc7874c590a128739..58ea8753618e5641cbbd31cec2a5ed0cb02da3c4 100644
+--- a/vendor/golang.org/x/crypto/blake2b/blake2b.go
++++ b/vendor/golang.org/x/crypto/blake2b/blake2b.go
+@@ -92,6 +92,8 @@ func New256(key []byte) (hash.Hash, error) { return newDigest(Size256, key) }
+ // values equal or greater than:
+ // - 32 if BLAKE2b is used as a hash function (The key is zero bytes long).
+ // - 16 if BLAKE2b is used as a MAC function (The key is at least 16 bytes long).
++// When the key is nil, the returned hash.Hash implements BinaryMarshaler
++// and BinaryUnmarshaler for state (de)serialization as documented by hash.Hash.
+ func New(size int, key []byte) (hash.Hash, error) { return newDigest(size, key) }
+
+ func newDigest(hashSize int, key []byte) (*digest, error) {
+@@ -150,6 +152,50 @@ type digest struct {
+ 	keyLen int
+ }
+
++const (
++	magic         = "b2b"
++	marshaledSize = len(magic) + 8*8 + 2*8 + 1 + BlockSize + 1
++)
++
++func (d *digest) MarshalBinary() ([]byte, error) {
++	if d.keyLen != 0 {
++		return nil, errors.New("crypto/blake2b: cannot marshal MACs")
++	}
++	b := make([]byte, 0, marshaledSize)
++	b = append(b, magic...)
++	for i := 0; i < 8; i++ {
++		b = appendUint64(b, d.h[i])
++	}
++	b = appendUint64(b, d.c[0])
++	b = appendUint64(b, d.c[1])
++	// Maximum value for size is 64
++	b = append(b, byte(d.size))
++	b = append(b, d.block[:]...)
++	b = append(b, byte(d.offset))
++	return b, nil
++}
++
++func (d *digest) UnmarshalBinary(b []byte) error {
++	if len(b) < len(magic) || string(b[:len(magic)]) != magic {
++		return errors.New("crypto/blake2b: invalid hash state identifier")
++	}
++	if len(b) != marshaledSize {
++		return errors.New("crypto/blake2b: invalid hash state size")
++	}
++	b = b[len(magic):]
++	for i := 0; i < 8; i++ {
++		b, d.h[i] = consumeUint64(b)
++	}
++	b, d.c[0] = consumeUint64(b)
++	b, d.c[1] = consumeUint64(b)
++	d.size = int(b[0])
++	b = b[1:]
++	copy(d.block[:], b[:BlockSize])
++	b = b[BlockSize:]
++	d.offset = int(b[0])
++	return nil
++}
++
+ func (d *digest) BlockSize() int { return BlockSize }
+
+ func (d *digest) Size() int { return d.size }
+@@ -219,3 +265,25 @@ func (d *digest) finalize(hash *[Size]byte) {
+ 		binary.LittleEndian.PutUint64(hash[8*i:], v)
+ 	}
+ }
++
++func appendUint64(b []byte, x uint64) []byte {
++	var a [8]byte
++	binary.BigEndian.PutUint64(a[:], x)
++	return append(b, a[:]...)
++}
++
++func appendUint32(b []byte, x uint32) []byte {
++	var a [4]byte
++	binary.BigEndian.PutUint32(a[:], x)
++	return append(b, a[:]...)
++}
++
++func consumeUint64(b []byte) ([]byte, uint64) {
++	x := binary.BigEndian.Uint64(b)
++	return b[8:], x
++}
++
++func consumeUint32(b []byte) ([]byte, uint32) {
++	x := binary.BigEndian.Uint32(b)
++	return b[4:], x
++}
+diff --git a/vendor/golang.org/x/crypto/blake2b/blake2bAVX2_amd64.go b/vendor/golang.org/x/crypto/blake2b/blake2bAVX2_amd64.go
+index 8c41cf6c79ea75463e00b94c94b5b3f5f46b48e1..4d31dd0fdcd5db7bd47845e67a98662b080b6b0e 100644
+--- a/vendor/golang.org/x/crypto/blake2b/blake2bAVX2_amd64.go
++++ b/vendor/golang.org/x/crypto/blake2b/blake2bAVX2_amd64.go
+@@ -6,21 +6,14 @@
+
+ package blake2b
+
++import "golang.org/x/sys/cpu"
++
+ func init() {
+-	useAVX2 = supportsAVX2()
+-	useAVX = supportsAVX()
+-	useSSE4 = supportsSSE4()
++	useAVX2 = cpu.X86.HasAVX2
++	useAVX = cpu.X86.HasAVX
++	useSSE4 = cpu.X86.HasSSE41
+ }
+
+-//go:noescape
+-func supportsSSE4() bool
+-
+-//go:noescape
+-func supportsAVX() bool
+-
+-//go:noescape
+-func supportsAVX2() bool
+-
+ //go:noescape
+ func hashBlocksAVX2(h *[8]uint64, c *[2]uint64, flag uint64, blocks []byte)
+
+@@ -31,13 +24,14 @@ func hashBlocksAVX(h *[8]uint64, c *[2]uint64, flag uint64, blocks []byte)
+ func hashBlocksSSE4(h *[8]uint64, c *[2]uint64, flag uint64, blocks []byte)
+
+ func hashBlocks(h *[8]uint64, c *[2]uint64, flag uint64, blocks []byte) {
+-	if useAVX2 {
++	switch {
++	case useAVX2:
+ 		hashBlocksAVX2(h, c, flag, blocks)
+-	} else if useAVX {
++	case useAVX:
+ 		hashBlocksAVX(h, c, flag, blocks)
+-	} else if useSSE4 {
++	case useSSE4:
+ 		hashBlocksSSE4(h, c, flag, blocks)
+-	} else {
++	default:
+ 		hashBlocksGeneric(h, c, flag, blocks)
+ 	}
+ }
+diff --git a/vendor/golang.org/x/crypto/blake2b/blake2bAVX2_amd64.s b/vendor/golang.org/x/crypto/blake2b/blake2bAVX2_amd64.s
+index 784bce6a9c43c57aedc008747e90aefd240c485c..5593b1b3dce267af7eeab923a763cba6ab0428a0 100644
+--- a/vendor/golang.org/x/crypto/blake2b/blake2bAVX2_amd64.s
++++ b/vendor/golang.org/x/crypto/blake2b/blake2bAVX2_amd64.s
+@@ -748,15 +748,3 @@ noinc:
+
+ 	MOVQ BP, SP
+ 	RET
+-
+-// func supportsAVX2() bool
+-TEXT ·supportsAVX2(SB), 4, $0-1
+-	MOVQ runtime·support_avx2(SB), AX
+-	MOVB AX, ret+0(FP)
+-	RET
+-
+-// func supportsAVX() bool
+-TEXT ·supportsAVX(SB), 4, $0-1
+-	MOVQ runtime·support_avx(SB), AX
+-	MOVB AX, ret+0(FP)
+-	RET
+diff --git a/vendor/golang.org/x/crypto/blake2b/blake2b_amd64.go b/vendor/golang.org/x/crypto/blake2b/blake2b_amd64.go
+index 2ab7c30fc2ba58eea0cdefdc24cd75a9fd6626c5..30e2fcd581fd5e57535ed0d1d275a6a8d19ea37e 100644
+--- a/vendor/golang.org/x/crypto/blake2b/blake2b_amd64.go
++++ b/vendor/golang.org/x/crypto/blake2b/blake2b_amd64.go
+@@ -6,13 +6,12 @@
+
+ package blake2b
+
++import "golang.org/x/sys/cpu"
++
+ func init() {
+-	useSSE4 = supportsSSE4()
++	useSSE4 = cpu.X86.HasSSE41
+ }
+
+-//go:noescape
+-func supportsSSE4() bool
+-
+ //go:noescape
+ func hashBlocksSSE4(h *[8]uint64, c *[2]uint64, flag uint64, blocks []byte)
+
+diff --git a/vendor/golang.org/x/crypto/blake2b/blake2b_amd64.s b/vendor/golang.org/x/crypto/blake2b/blake2b_amd64.s
+index 64530740b40f8407917af35a127c0c9739f339e3..578e947b3bf9058dc478e453cc10a650ef554737 100644
+--- a/vendor/golang.org/x/crypto/blake2b/blake2b_amd64.s
++++ b/vendor/golang.org/x/crypto/blake2b/blake2b_amd64.s
+@@ -279,12 +279,3 @@ noinc:
+
+ 	MOVQ BP, SP
+ 	RET
+-
+-// func supportsSSE4() bool
+-TEXT ·supportsSSE4(SB), 4, $0-1
+-	MOVL $1, AX
+-	CPUID
+-	SHRL $19, CX  // Bit 19 indicates SSE4 support
+-	ANDL $1, CX  // CX != 0 if support SSE4
+-	MOVB CX, ret+0(FP)
+-	RET
+diff --git a/vendor/golang.org/x/sys/cpu/cpu.go b/vendor/golang.org/x/sys/cpu/cpu.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..3d88f866739e963f6f99a784d350ec14207feb66
+--- /dev/null
++++ b/vendor/golang.org/x/sys/cpu/cpu.go
+@@ -0,0 +1,38 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package cpu implements processor feature detection for
++// various CPU architectures.
++package cpu
++
++// CacheLinePad is used to pad structs to avoid false sharing.
++type CacheLinePad struct{ _ [cacheLineSize]byte }
++
++// X86 contains the supported CPU features of the
++// current X86/AMD64 platform. If the current platform
++// is not X86/AMD64 then all feature flags are false.
++//
++// X86 is padded to avoid false sharing. Further the HasAVX
++// and HasAVX2 are only set if the OS supports XMM and YMM
++// registers in addition to the CPUID feature bit being set.
++var X86 struct {
++	_            CacheLinePad
++	HasAES       bool // AES hardware implementation (AES NI)
++	HasADX       bool // Multi-precision add-carry instruction extensions
++	HasAVX       bool // Advanced vector extension
++	HasAVX2      bool // Advanced vector extension 2
++	HasBMI1      bool // Bit manipulation instruction set 1
++	HasBMI2      bool // Bit manipulation instruction set 2
++	HasERMS      bool // Enhanced REP for MOVSB and STOSB
++	HasFMA       bool // Fused-multiply-add instructions
++	HasOSXSAVE   bool // OS supports XSAVE/XRESTOR for saving/restoring XMM registers.
++	HasPCLMULQDQ bool // PCLMULQDQ instruction - most often used for AES-GCM
++	HasPOPCNT    bool // Hamming weight instruction POPCNT.
++	HasSSE2      bool // Streaming SIMD extension 2 (always available on amd64)
++	HasSSE3      bool // Streaming SIMD extension 3
++	HasSSSE3     bool // Supplemental streaming SIMD extension 3
++	HasSSE41     bool // Streaming SIMD extension 4 and 4.1
++	HasSSE42     bool // Streaming SIMD extension 4 and 4.2
++	_            CacheLinePad
++}
+diff --git a/vendor/golang.org/x/sys/cpu/cpu_arm.go b/vendor/golang.org/x/sys/cpu/cpu_arm.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..d93036f7522bf7f9545aa9dbb55be2afab36aabf
+--- /dev/null
++++ b/vendor/golang.org/x/sys/cpu/cpu_arm.go
+@@ -0,0 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++const cacheLineSize = 32
+diff --git a/vendor/golang.org/x/sys/cpu/cpu_arm64.go b/vendor/golang.org/x/sys/cpu/cpu_arm64.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..1d2ab2902a769684cfb8b7fb32b67d72e20f9014
+--- /dev/null
++++ b/vendor/golang.org/x/sys/cpu/cpu_arm64.go
+@@ -0,0 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++const cacheLineSize = 64
+diff --git a/vendor/golang.org/x/sys/cpu/cpu_gc_x86.go b/vendor/golang.org/x/sys/cpu/cpu_gc_x86.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..f7cb46971cb051570ca190a86b277875f14f5cd8
+--- /dev/null
++++ b/vendor/golang.org/x/sys/cpu/cpu_gc_x86.go
+@@ -0,0 +1,16 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build 386 amd64 amd64p32
++// +build !gccgo
++
++package cpu
++
++// cpuid is implemented in cpu_x86.s for gc compiler
++// and in cpu_gccgo.c for gccgo.
++func cpuid(eaxArg, ecxArg uint32) (eax, ebx, ecx, edx uint32)
++
++// xgetbv with ecx = 0 is implemented in cpu_x86.s for gc compiler
++// and in cpu_gccgo.c for gccgo.
++func xgetbv() (eax, edx uint32)
+diff --git a/vendor/golang.org/x/sys/cpu/cpu_gccgo.c b/vendor/golang.org/x/sys/cpu/cpu_gccgo.c
+new file mode 100644
+index 0000000000000000000000000000000000000000..e363c7d1319782c7ea58c87367a4f99528ff4c32
+--- /dev/null
++++ b/vendor/golang.org/x/sys/cpu/cpu_gccgo.c
+@@ -0,0 +1,43 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build 386 amd64 amd64p32
++// +build gccgo
++
++#include <cpuid.h>
++#include <stdint.h>
++
++// Need to wrap __get_cpuid_count because it's declared as static.
++int
++gccgoGetCpuidCount(uint32_t leaf, uint32_t subleaf,
++                   uint32_t *eax, uint32_t *ebx,
++                   uint32_t *ecx, uint32_t *edx)
++{
++	return __get_cpuid_count(leaf, subleaf, eax, ebx, ecx, edx);
++}
++
++// xgetbv reads the contents of an XCR (Extended Control Register)
++// specified in the ECX register into registers EDX:EAX.
++// Currently, the only supported value for XCR is 0.
++//
++// TODO: Replace with a better alternative:
++//
++//     #include <xsaveintrin.h>
++//
++//     #pragma GCC target("xsave")
++//
++//     void gccgoXgetbv(uint32_t *eax, uint32_t *edx) {
++//       unsigned long long x = _xgetbv(0);
++//       *eax = x & 0xffffffff;
++//       *edx = (x >> 32) & 0xffffffff;
++//     }
++//
++// Note that _xgetbv is defined starting with GCC 8.
++void
++gccgoXgetbv(uint32_t *eax, uint32_t *edx)
++{
++	__asm("  xorl %%ecx, %%ecx\n"
++	      "  xgetbv"
++	    : "=a"(*eax), "=d"(*edx));
++}
+diff --git a/vendor/golang.org/x/sys/cpu/cpu_gccgo.go b/vendor/golang.org/x/sys/cpu/cpu_gccgo.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..ba49b91bd398cd72c437e85af46655d204416794
+--- /dev/null
++++ b/vendor/golang.org/x/sys/cpu/cpu_gccgo.go
+@@ -0,0 +1,26 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build 386 amd64 amd64p32
++// +build gccgo
++
++package cpu
++
++//extern gccgoGetCpuidCount
++func gccgoGetCpuidCount(eaxArg, ecxArg uint32, eax, ebx, ecx, edx *uint32)
++
++func cpuid(eaxArg, ecxArg uint32) (eax, ebx, ecx, edx uint32) {
++	var a, b, c, d uint32
++	gccgoGetCpuidCount(eaxArg, ecxArg, &a, &b, &c, &d)
++	return a, b, c, d
++}
++
++//extern gccgoXgetbv
++func gccgoXgetbv(eax, edx *uint32)
++
++func xgetbv() (eax, edx uint32) {
++	var a, d uint32
++	gccgoXgetbv(&a, &d)
++	return a, d
++}
+diff --git a/vendor/golang.org/x/sys/cpu/cpu_mips64x.go b/vendor/golang.org/x/sys/cpu/cpu_mips64x.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..6165f121249abd4b272a6e7d35f9da50c9433532
+--- /dev/null
++++ b/vendor/golang.org/x/sys/cpu/cpu_mips64x.go
+@@ -0,0 +1,9 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build mips64 mips64le
++
++package cpu
++
++const cacheLineSize = 32
+diff --git a/vendor/golang.org/x/sys/cpu/cpu_mipsx.go b/vendor/golang.org/x/sys/cpu/cpu_mipsx.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..1269eee88d00626c89276d04b371a8249e916eb5
+--- /dev/null
++++ b/vendor/golang.org/x/sys/cpu/cpu_mipsx.go
+@@ -0,0 +1,9 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build mips mipsle
++
++package cpu
++
++const cacheLineSize = 32
+diff --git a/vendor/golang.org/x/sys/cpu/cpu_ppc64x.go b/vendor/golang.org/x/sys/cpu/cpu_ppc64x.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..d10759a524f2858dc26cc7bfdcc81d7c595336e8
+--- /dev/null
++++ b/vendor/golang.org/x/sys/cpu/cpu_ppc64x.go
+@@ -0,0 +1,9 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ppc64 ppc64le
++
++package cpu
++
++const cacheLineSize = 128
+diff --git a/vendor/golang.org/x/sys/cpu/cpu_s390x.go b/vendor/golang.org/x/sys/cpu/cpu_s390x.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..684c4f005d09eacd825ed1b68937f863fdaff519
+--- /dev/null
++++ b/vendor/golang.org/x/sys/cpu/cpu_s390x.go
+@@ -0,0 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++const cacheLineSize = 256
+diff --git a/vendor/golang.org/x/sys/cpu/cpu_x86.go b/vendor/golang.org/x/sys/cpu/cpu_x86.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..71e288b06223d542f5dc4865015987be6e53f2f3
+--- /dev/null
++++ b/vendor/golang.org/x/sys/cpu/cpu_x86.go
+@@ -0,0 +1,55 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build 386 amd64 amd64p32
++
++package cpu
++
++const cacheLineSize = 64
++
++func init() {
++	maxID, _, _, _ := cpuid(0, 0)
++
++	if maxID < 1 {
++		return
++	}
++
++	_, _, ecx1, edx1 := cpuid(1, 0)
++	X86.HasSSE2 = isSet(26, edx1)
++
++	X86.HasSSE3 = isSet(0, ecx1)
++	X86.HasPCLMULQDQ = isSet(1, ecx1)
++	X86.HasSSSE3 = isSet(9, ecx1)
++	X86.HasFMA = isSet(12, ecx1)
++	X86.HasSSE41 = isSet(19, ecx1)
++	X86.HasSSE42 = isSet(20, ecx1)
++	X86.HasPOPCNT = isSet(23, ecx1)
++	X86.HasAES = isSet(25, ecx1)
++	X86.HasOSXSAVE = isSet(27, ecx1)
++
++	osSupportsAVX := false
++	// For XGETBV, OSXSAVE bit is required and sufficient.
++	if X86.HasOSXSAVE {
++		eax, _ := xgetbv()
++		// Check if XMM and YMM registers have OS support.
++		osSupportsAVX = isSet(1, eax) && isSet(2, eax)
++	}
++
++	X86.HasAVX = isSet(28, ecx1) && osSupportsAVX
++
++	if maxID < 7 {
++		return
++	}
++
++	_, ebx7, _, _ := cpuid(7, 0)
++	X86.HasBMI1 = isSet(3, ebx7)
++	X86.HasAVX2 = isSet(5, ebx7) && osSupportsAVX
++	X86.HasBMI2 = isSet(8, ebx7)
++	X86.HasERMS = isSet(9, ebx7)
++	X86.HasADX = isSet(19, ebx7)
++}
++
++func isSet(bitpos uint, value uint32) bool {
++	return value&(1<<bitpos) != 0
++}
+diff --git a/vendor/golang.org/x/sys/cpu/cpu_x86.s b/vendor/golang.org/x/sys/cpu/cpu_x86.s
+new file mode 100644
+index 0000000000000000000000000000000000000000..47f084128cc3f83b9a41743b6406f5031e5c2974
+--- /dev/null
++++ b/vendor/golang.org/x/sys/cpu/cpu_x86.s
+@@ -0,0 +1,27 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build 386 amd64 amd64p32
++// +build !gccgo
++
++#include "textflag.h"
++
++// func cpuid(eaxArg, ecxArg uint32) (eax, ebx, ecx, edx uint32)
++TEXT ·cpuid(SB), NOSPLIT, $0-24
++	MOVL eaxArg+0(FP), AX
++	MOVL ecxArg+4(FP), CX
++	CPUID
++	MOVL AX, eax+8(FP)
++	MOVL BX, ebx+12(FP)
++	MOVL CX, ecx+16(FP)
++	MOVL DX, edx+20(FP)
++	RET
++
++// func xgetbv() (eax, edx uint32)
++TEXT ·xgetbv(SB),NOSPLIT,$0-8
++	MOVL $0, CX
++	XGETBV
++	MOVL AX, eax+0(FP)
++	MOVL DX, edx+4(FP)
++	RET
