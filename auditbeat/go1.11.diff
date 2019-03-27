@@ -126,19 +126,6 @@ index 8f4f7005a384da99d81bb568af0b63b8af4a1e20..581f4bcb1e8205b9536106aa7290b82e
  	}, nil
  }
 
-diff --git a/libbeat/outputs/elasticsearch/client.go b/libbeat/outputs/elasticsearch/client.go
-index 308767b1eaaffe3f8709daef61f6c26a7d6a235f..83bf3fe83a5d798484bca3c84f8bc0d7d5ac34e8 100644
---- a/libbeat/outputs/elasticsearch/client.go
-+++ b/libbeat/outputs/elasticsearch/client.go
-@@ -761,7 +761,7 @@ func (conn *Connection) execRequest(
- ) (int, []byte, error) {
- 	req, err := http.NewRequest(method, url, body)
- 	if err != nil {
--		logp.Warn("Failed to create request", err)
-+		logp.Warn("Failed to create request %+v", err)
- 		return 0, nil, err
- 	}
- 	if body != nil {
 diff --git a/libbeat/outputs/transport/transptest/testing.go b/libbeat/outputs/transport/transptest/testing.go
 index f657b173278c02c9dcf1f8945f5ce963a4a9ca1d..402be992d1dfea44b714038a33bb6c646235f518 100644
 --- a/libbeat/outputs/transport/transptest/testing.go
