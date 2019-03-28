@@ -1,0 +1,1031 @@
+--- mmv-1.01b.orig/mmv.1
++++ mmv-1.01b/mmv.1
+@@ -2,7 +2,7 @@
+ .\" To print the MS-DOS version, use option -rO2.
+ .\" Under System V, take out the '.\"  ' from the next line.
+ .\" .nr O 1
+-.TH MMV 1 "November 20, 1989 (v1.0)"
++.TH MMV 1 "November 20, 2001 (v1.0lfs)"
+ .ie !'\nO'2' \{\
+ .SH NAME
+ mmv \- move/copy/append/link multiple files by wildcard patterns
+@@ -21,13 +21,14 @@
+ \}
+ .SH SYNOPSIS
+ .B mmv
+-.if '\nO'2' [\fB-m\fP|\fBx\fP|\fBr\fP|\fBc\fP|\fBo\fP|\fBa\fP|\fBz\fP]
+-.if '\nO'0' [\fB-m\fP|\fBx\fP|\fBr\fP|\fBc\fP|\fBo\fP|\fBa\fP|\fBl\fP|\fBs\fP]
+-.if '\nO'1' [\fB-m\fP|\fBx\fP|\fBr\fP|\fBc\fP|\fBo\fP|\fBa\fP|\fBl\fP]
+-[\fB-h\fP]
+-[\fB-d\fP|\fBp\fP]
+-[\fB-g\fP|\fBt\fP]
+-[\fB-v\fP|\fBn\fP]
++.if '\nO'2' [\fB\-m\fP|\fBx\fP|\fBr\fP|\fBc\fP|\fBo\fP|\fBa\fP|\fBz\fP]
++.if '\nO'0' [\fB\-m\fP|\fBx\fP|\fBr\fP|\fBc\fP|\fBo\fP|\fBa\fP|\fBl\fP|\fBs\fP]
++.if '\nO'1' [\fB\-m\fP|\fBx\fP|\fBr\fP|\fBc\fP|\fBo\fP|\fBa\fP|\fBl\fP]
++[\fB\-h\fP]
++[\fB\-d\fP|\fBp\fP]
++[\fB\-g\fP|\fBt\fP]
++[\fB\-v\fP|\fBn\fP]
++[\fB\-\-\fP]
+ [\fBfrom to\fP]
+ .if '\nO'2' \{\
+ .br
+@@ -56,6 +57,9 @@
+ and gives the user the choice of either
+ proceeding by avoiding the offending parts
+ or aborting.
++.I mmv
++does support large files (LFS) but it does *NOT* support 
++sparse files (i.e. it explodes them).
+ 
+ .ce
+ The Task Options
+@@ -71,7 +75,7 @@
+ .ie '\nO'2' \{\
+ a default (patchable by
+ .IR mmvpatch ,
+-and initially -x)
++and initially \-x)
+ determines the task.
+ \}
+ .el \{\
+@@ -81,18 +85,18 @@
+ 
+ 	command name	default task
+ 
+-	mmv			-x
++	mmv			\-x
+ .br
+-	mcp			-c
++	mcp			\-c
+ .br
+-	mad			-a
++	mad			\-a
+ .br
+-	mln			-l
++	mln			\-l
+ \}
+ .PP
+ The task option choices are:
+ .TP
+--m :
++\-m :
+ move source file to target name.
+ Both must be on the same device.
+ Will not move directories.
+@@ -102,8 +106,8 @@
+ directory is different than the old.
+ \}
+ .TP
+--x :
+-same as -m, except cross-device moves are done
++\-x :
++same as \-m, except cross-device moves are done
+ by copying, then deleting source.
+ When copying, sets the
+ .ie !'\nO'2' permission bits
+@@ -111,7 +115,7 @@
+ and file modification time
+ of the target file to that of the source file.
+ .TP
+--r :
++\-r :
+ rename source file or directory to target name.
+ The target name must not include a path:
+ the file remains in the same directory in all cases.
+@@ -119,7 +123,7 @@
+ .IR mmv .
+ .if '\nO'2' It is only available under DOS version 3.0 or higher.
+ .TP
+--c :
++\-c :
+ copy source file to target name.
+ Sets the file modification time and
+ .ie !'\nO'2' permission bits
+@@ -128,7 +132,7 @@
+ regardless of whether the target file already exists.
+ Chains and cycles (to be explained below) are not allowed.
+ .TP
+--o :
++\-o :
+ overwrite target name with source file.
+ .ie '\nO'2' \{\
+ If target file exists, its attributes are left unchanged.
+@@ -146,38 +150,38 @@
+ In either case, the file modification time is set to the current time.
+ \}
+ .TP
+--a :
++\-a :
+ append contents of source file to target name.
+ Target file modification time is set to the current time.
+ If target file does not exist,
+ it is created with
+ .ie '\nO'2' attributes
+ .el permission bits
+-set as under -o.
+-Unlike all other options, -a allows multiple source files to have the
+-same target name, e.g. "mmv -a
++set as under \-o.
++Unlike all other options, \-a allows multiple source files to have the
++same target name, e.g. "mmv \-a
+ .ie '\nO'2' *.c
+ .el \\*.c
+ big" will append all ".c" files to "big".
+-Chains and cycles are also allowed, so "mmv -a f f" will double up "f".
++Chains and cycles are also allowed, so "mmv \-a f f" will double up "f".
+ .ie '\nO'2' \{\
+ .TP
+--z :
+-same as -a, but if the target file exists, and its last character is a ^Z,
++\-z :
++same as \-a, but if the target file exists, and its last character is a ^Z,
+ and the source file is not empty,
+ this ^Z is truncated before doing the append.
+ \}
+ .el \{\
+ .TP
+--l :
++\-l :
+ link target name to source file.
+ Both must be on the same device,
+ and the source must not be a directory.
+ Chains and cycles are not allowed.
+ .if '\nO'0' \{\
+ .TP
+--s :
+-same as -l, but use symbolic links instead of hard links.
++\-s :
++same as \-l, but use symbolic links instead of hard links.
+ For the resulting link to aim back at the source,
+ either the source name must begin with a '/',
+ or the target must reside in either the current or the source directory.
+@@ -190,7 +194,7 @@
+ Only one of these option may be given,
+ and it applies to all matching files.
+ Remaining options need not be given separately,
+-i.e. "mmv -mk" is allowed.
++i.e. "mmv \-mk" is allowed.
+ 
+ .ce
+ Multiple Pattern Pairs
+@@ -232,7 +236,7 @@
+ a c
+ .in -3
+ 
+-would give the error message "a -> c : no match" because file "a"
++would give the error message "a \-> c : no match" because file "a"
+ (even if it exists)
+ was already matched by the first pattern pair.
+ 
+@@ -255,10 +259,10 @@
+ and matching any one of a set of characters.
+ .PP
+ Between the '[' and ']', a range from character 'a' through character 'z'
+-is specified with "a-z".
++is specified with "a\-z".
+ The set of matching characters can be negated by inserting
+ a '^' after the '['.
+-Thus, "[^b-e2-5_]"
++Thus, "[^b\-e2\-5_]"
+ will match any character but 'b' through 'e', '2' through '5', and '_'.
+ .if '\nO'2' \{\
+ .PP
+@@ -305,13 +309,13 @@
+ in the sense that it is not assigned a wildcard index (see below).
+ \}
+ .PP
+-Since matching a directory under a task option other than -r or -s
++Since matching a directory under a task option other than \-r or \-s
+ would result in an error,
+-tasks other than -r and -s
++tasks other than \-r and \-s
+ match directories only against completely explicit
+ .I from
+ patterns (i.e. not containing wildcards).
+-Under -r and -s, this applies only to "." and "..".
++Under \-r and \-s, this applies only to "." and "..".
+ .PP
+ .ie '\nO'2' \{\
+ Hidden and system files are also only matched
+@@ -324,7 +328,7 @@
+ .I from
+ patterns that begin with an explicit '.'.
+ \}
+-However, if -h is specified, they are matched normally.
++However, if \-h is specified, they are matched normally.
+ .if !'\nO'2' \{\
+ .PP
+ Warning: since the shell normally expands wildcards
+@@ -332,8 +336,9 @@
+ .IR mmv ,
+ it is usually necessary to enclose the command-line
+ .I from
+-pattern
+-in quotes.
++and
++.I to
++patterns in quotes.
+ \}
+ 
+ .ce
+@@ -363,7 +368,7 @@
+ pattern is "xyz#2.#1",
+ then "abc.txt" is targeted to "xyztxt.".
+ (The first '*' matched "", and the second matched "txt".)
+-Similarly, for the pattern pair ";*.[clp]" -> "#1#3\*(SL#2",
++Similarly, for the pattern pair ";*.[clp]" \-> "#1#3\*(SL#2",
+ "foo1\*(SLfoo2\*(SLprog.c" is targeted to "foo1\*(SLfoo2\*(SLc\*(SLprog".
+ Note that there is no '\*(SL' following the "#1" in the
+ .I to
+@@ -397,7 +402,7 @@
+ does not expand it at all).
+ \}
+ .PP
+-For all task options other than -r, if the target name is a directory,
++For all task options other than \-r, if the target name is a directory,
+ the real target name is formed by appending
+ a '\*(SL' followed by the last component
+ of the source file name.
+@@ -434,7 +439,7 @@
+ .br
+ b c
+ 
+-specifies the chain "a" -> "b" -> "c".
++specifies the chain "a" \-> "b" \-> "c".
+ A cycle is a chain where the last target name
+ refers back to the first source file,
+ e.g. "mmv a a".
+@@ -461,9 +466,9 @@
+ .I mmv
+ checks if any of its actions will result
+ in the destruction of existing files.
+-If the -d (delete) option is specified,
++If the \-d (delete) option is specified,
+ all file deletions or overwrites are done silently.
+-Under -p (protect), all deletions or overwrites
++Under \-p (protect), all deletions or overwrites
+ (except those specified with "(*)" on the standard input, see below)
+ are treated as errors.
+ And if neither option is specified,
+@@ -487,16 +492,16 @@
+ queries the user whether he wishes
+ to continue by avoiding the erroneous actions or to abort altogether.
+ This and all other queries may be avoided by specifying either the
+--g (go) or -t (terminate) option.
++\-g (go) or \-t (terminate) option.
+ The former will resolve all difficulties by avoiding the erroneous actions;
+ the latter will abort
+ .I mmv
+ if any errors are detected.
+ Specifying either of them defaults
+ .I mmv
+-to -p, unless -d is specified
++to \-p, unless \-d is specified
+ (see above).
+-Thus, -g and -t are most useful when running
++Thus, \-g and \-t are most useful when running
+ .I mmv
+ in the background or in
+ a shell script,
+@@ -508,28 +513,28 @@
+ Once the actions to be performed are determined,
+ .I mmv
+ performs them silently,
+-unless either the -v (verbose) or -n (no-execute) option is specified.
++unless either the \-v (verbose) or \-n (no-execute) option is specified.
+ The former causes
+ .I mmv
+ to report each performed action
+ on the standard output as
+ 
+-a -> b : done.
++a \-> b : done.
+ 
+ Here, "a" and "b" would be replaced by the source and target names,
+ respectively.
+ If the action deletes the old target,
+ a "(*)" is inserted after the the target name.
+-Also, the "->" symbol is modified when a cycle has to be broken:
++Also, the "\->" symbol is modified when a cycle has to be broken:
+ the '>' is changed to a '^' on the action prior to which the old target
+ is renamed to a temporary,
+-and the '-' is changed to a '=' on the action where the temporary is used.
++and the '\-' is changed to a '=' on the action where the temporary is used.
+ .PP
+-Under -n, none of the actions are performed,
++Under \-n, none of the actions are performed,
+ but messages like the above are printed on the standard output
+ with the ": done." omitted.
+ .PP
+-The output generated by -n can (after editing, if desired)
++The output generated by \-n can (after editing, if desired)
+ be fed back to
+ .I mmv
+ on the standard input
+@@ -545,9 +550,9 @@
+ ignores lines on the standard input that look
+ like its own error and "done" messages,
+ as well as all lines beginning with white space,
+-and will accept pattern pairs with or without the intervening "->"
+-(or "-^", "=>", or "=^").
+-Lines with "(*)" after the target pattern have the effect of enabling -d
++and will accept pattern pairs with or without the intervening "\->"
++(or "\-^", "=>", or "=^").
++Lines with "(*)" after the target pattern have the effect of enabling \-d
+ for the files matching this pattern only,
+ so that such deletions are done silently.
+ When feeding
+@@ -596,11 +601,11 @@
+ .I mmv
+ named as follows:
+ 
+-	-x, -m, -r		mmv.exe
++	\-x, \-m, \-r		mmv.exe
+ .br
+-	-c, -o			mcp.exe
++	\-c, \-o			mcp.exe
+ .br
+-	-a, -z			mad.exe
++	\-a, \-z			mad.exe
+ .PP
+ .I Mmvpatch
+ also determines the best way to uniquely identify directories.
+--- mmv-1.01b.orig/mmv.c
++++ mmv-1.01b/mmv.c
+@@ -62,7 +62,8 @@
+ %s [-m|x%s|c|o|a|z] [-h] [-d|p] [-g|t] [-v|n] [from to]\n\
+ \n\
+ Use #N in the ``to'' pattern to get the string matched\n\
+-by the N'th ``from'' pattern wildcard.\n";
++by the N'th ``from'' pattern wildcard.\n\
++Use -- as the end of options.\n";
+ 
+ #define OTHEROPT (_osmajor < 3 ? "" : "|r")
+ 
+@@ -75,7 +76,9 @@
+ string matched by the N'th ``from'' pattern wildcard.\n\
+ \n\
+ A ``from'' pattern containing wildcards should be quoted when given\n\
+-on the command line.\n";
++on the command line. Also you may need to quote ``to'' pattern.\n\
++\n\
++Use -- as the end of options.\n";
+ 
+ #ifdef IS_SYSV
+ #define OTHEROPT ""
+@@ -85,6 +88,7 @@
+ 
+ #endif
+ 
++#include <unistd.h>
+ #include <stdio.h>
+ #include <ctype.h>
+ 
+@@ -120,14 +124,12 @@
+ #else
+ /* for various flavors of UN*X */
+ 
++#include <libgen.h>
++#include <stdlib.h>
+ #include <sys/types.h>
+ #include <sys/stat.h>
+ #include <sys/file.h>
+ 
+-extern char *getenv();
+-extern long lseek();
+-extern char *malloc();
+-
+ #ifdef HAS_DIRENT
+ #include <dirent.h>
+ typedef struct dirent DIRENTRY;
+@@ -390,7 +392,7 @@
+ static int snap(/* REP *first, REP *p */);
+ static void showdone(/* REP *fin */);
+ static void breakout(/*  */);
+-static int breakrep(/* */);
++static void breakrep(int);
+ static void breakstat(/* */);
+ static void quit(/*  */);
+ static int copymove(/* REP *p */);
+@@ -436,9 +438,11 @@
+ static SLICER slicer[2] = {{NULL, NULL, 0}, {NULL, NULL, 0}};
+ 
+ static int badreps = 0, paterr = 0, direrr, failed = 0, gotsig = 0, repbad;
+-static FILE *outfile = stdout;
++static FILE *outfile;
+ 
++#ifdef IS_MSDOS
+ static char IDF[] = "$$mmvdid.";
++#endif
+ static char TEMP[] = "$$mmvtmp.";
+ static char TOOLONG[] = "(too long)";
+ static char EMPTY[] = "(empty)";
+@@ -456,12 +460,12 @@
+ char fullrep[MAXPATH + 1];
+ static char *(start[MAXWILD]);
+ static int len[MAXWILD];
+-static char hasdot[MAXWILD];
+ static REP mistake;
+ #define MISTAKE (&mistake)
+ 
+ #ifdef IS_MSDOS
+ 
++static char hasdot[MAXWILD];
+ static int olddevflag, curdisk, maxdisk;
+ static struct {
+ 	char ph_banner[30];
+@@ -497,6 +501,8 @@
+ {
+ 	char *frompat, *topat;
+ 
++	outfile = stdout;
++
+ 	init();
+ 	procargs(argc, argv, &frompat, &topat);
+ 	domatch(frompat, topat);
+@@ -560,7 +566,7 @@
+ 	char **pfrompat, **ptopat;
+ {
+ 	char *p, c;
+-	char *cmdname = argv[0];
++	char *cmdname = basename(argv[0]);
+ 
+ #ifdef IS_MSDOS
+ #define CMDNAME (patch.ph_name)
+@@ -575,6 +581,11 @@
+ 	for (argc--, argv++; argc > 0 && **argv == '-'; argc--, argv++)
+ 		for (p = *argv + 1; *p != '\0'; p++) {
+ 			c = mylower(*p);
++			if (c == '-') {
++				argc--;
++				argv++;
++				goto endargs;
++			}
+ 			if (c == 'v' && !noex)
+ 				verbose = 1;
+ 			else if (c == 'n' && !verbose)
+@@ -618,7 +629,8 @@
+ 			}
+ 		}
+ 
+-	if (op == DFLT)
++endargs:
++	if (op == DFLT) {
+ 		if (strcmp(cmdname, MOVENAME) == 0)
+ 			op = XMOVE;
+ 		else if (strcmp(cmdname, COPYNAME) == 0)
+@@ -629,6 +641,8 @@
+ 			op = HARDLINK;
+ 		else
+ 			op = DFLTOP;
++	}
++	
+ 	if (
+ 		op & DIRMOVE &&
+ #ifdef IS_MSDOS
+@@ -775,7 +789,7 @@
+ static int parsepat()
+ {
+ 	char *p, *lastname, c;
+-	int totwilds, instage, x, havedot;
++	int totwilds, instage, x;
+ 	static char TRAILESC[] = "%s -> %s : trailing %c is superfluous.\n";
+ 
+ 	lastname = from;
+@@ -999,20 +1013,16 @@
+ 				printf(TRAILESC, from, to, ESC);
+ 				return(-1);
+ 			}
++#ifdef IS_MSDOS
+ 		default:
+ 			if (
+-#ifdef IS_MSDOS
+ 				c <= ' ' || c >= 127 ||
+ 				strchr(":/\\*?[]=+;,\"|<>", c) != NULL
+-#else
+-				c & 0x80
+-#endif
+ 			) {
+ 				printf("%s -> %s : illegal character '%c' (0x%02X).\n",
+ 					from, to, c, c);
+ 				return(-1);
+ 			}
+-#ifdef IS_MSDOS
+ 			if (isupper(c))
+ 				*p = c + ('a' - 'A');
+ #endif
+@@ -1042,7 +1052,7 @@
+ 	DIRINFO *di;
+ 	HANDLE *h, *hto;
+ 	int prelen, litlen, nfils, i, k, flags, try;
+-	FILEINFO **pf, *fdel;
++	FILEINFO **pf, *fdel = NULL;
+ 	char *nto, *firstesc;
+ 	REP *p;
+ 	int wantdirs, ret = 1, laststage = (stage + 1 == nstages);
+@@ -1172,11 +1182,12 @@
+ 	if (*p == '.' || (!matchall && ffrom->fi_attrib & (FA_HIDDEN | FA_SYSTEM)))
+ 		return(strcmp(pat, p) == 0);
+ #else
+-	if (*p == '.')
++	if (*p == '.') {
+ 		if (p[1] == '\0' || (p[1] == '.' && p[2] == '\0'))
+ 			return(strcmp(pat, p) == 0);
+ 		else if (!matchall && *pat != '.')
+ 			return(0);
++	}
+ #endif
+ 	return(-1);
+ }
+@@ -1312,7 +1323,7 @@
+ {
+ 	char tpath[MAXPATH + 1];
+ 	char *pathend;
+-	FILEINFO *fdel;
++	FILEINFO *fdel = NULL;
+ 	int hlen, tlen;
+ 
+ 	if (op & DIRMOVE) {
+@@ -1405,7 +1416,9 @@
+ static int badname(s)
+ 	char *s;
+ {
++#ifdef IS_MSDOS
+ 	char *ext;
++#endif
+ 
+ 	return (
+ #ifdef IS_MSDOS
+@@ -1715,20 +1728,19 @@
+ 	struct stat dstat;
+ 	DIRID d;
+ 	DEVID v;
+-	DIRINFO **newdirs, *di;
+-	int nfils;
+-	FILEINFO **fils;
++	DIRINFO *di = NULL;
+ 	char *myp, *lastslash = NULL;
+ 	int sticky;
+ 	HANDLE *h;
+ 
+-	if (hsearch(p, which, &h))
++	if (hsearch(p, which, &h)) {
+ 		if (h->h_di == NULL) {
+ 			direrr = h->h_err;
+ 			return(NULL);
+ 		}
+ 		else
+ 			return(h);
++	}
+ 
+ 	if (*p == '\0')
+ 		myp = ".";
+@@ -1899,7 +1911,10 @@
+ 	char *pat, *s, **start1;
+ 	int *len1;
+ {
+-	char c, *olds;
++	char c;
++#ifdef IS_MSDOS
++	char *olds;
++#endif
+ 
+ 	*start1 = 0;
+ 	for(;;)
+@@ -2376,9 +2391,9 @@
+ static void doreps()
+ {
+ 	char *fstart;
+-	int k, printaliased = 0, alias;
++	int k, printaliased = 0, alias = 0;
+ 	REP *first, *p;
+-	long aliaslen;
++	long aliaslen = 0l;
+ 
+ #ifdef IS_MSDOS
+ 	ctrlbrk(breakrep);
+@@ -2396,11 +2411,12 @@
+ 			}
+ 			strcpy(fullrep, p->r_hto->h_name);
+ 			strcat(fullrep, p->r_nto);
+-			if (!noex && (p->r_flags & R_ISCYCLE))
++			if (!noex && (p->r_flags & R_ISCYCLE)) {
+ 				if (op & APPEND)
+ 					aliaslen = appendalias(first, p, &printaliased);
+ 				else
+ 					alias = movealias(first, p, &printaliased);
++			}
+ 			strcpy(pathbuf, p->r_hfrom->h_name);
+ 			fstart = pathbuf + strlen(pathbuf);
+ 			if ((p->r_flags & R_ISALIASED) && !(op & APPEND))
+@@ -2459,7 +2475,7 @@
+ 	REP *first, *p;
+ 	int *pprintaliased;
+ {
+-	long ret;
++	long ret = 0l;
+ 
+ #ifdef IS_MSDOS
+ 	int fd;
+@@ -2578,10 +2594,10 @@
+ }
+ 
+ 
+-static int breakrep()
++static void breakrep(int signum)
+ {
+ 	gotsig = 1;
+-	return(1);
++	return;
+ }
+ 
+ 
+@@ -2624,11 +2640,12 @@
+ 
+ static int copy(ff, len)
+ 	FILEINFO *ff;
+-	long len;
++	off_t len;
+ {
+-	char buf[BUFSIZE], c;
++	char buf[BUFSIZE];
+ 	int f, t, k, mode, perm;
+ #ifdef IS_MSDOS
++        char c;
+ 	struct ftime tim;
+ #else
+ #ifdef IS_SYSV
+@@ -2672,7 +2689,7 @@
+ 		return(-1);
+ 	}
+ 	if (op & APPEND)
+-		lseek(t, 0L, 2);
++		lseek(t, (off_t)0, SEEK_END);
+ #ifdef IS_MSDOS
+ 	if (op & ZAPPEND && filelength(t) != 0) {
+ 		if (lseek(t, -1L, 1) == -1L || read(t, &c, 1) != 1) {
+@@ -2684,10 +2701,10 @@
+ 			lseek(t, -1L, 1);
+ 	}
+ #endif
+-	if ((op & APPEND) && len != -1L) {
++	if ((op & APPEND) && len != (off_t)-1) {
+ 		while (
+ 			len != 0 &&
+-			(k = read(f, buf, len > BUFSIZE ? BUFSIZE : (unsigned)len)) > 0 &&
++			(k = read(f, buf, (len > BUFSIZE) ? BUFSIZE : (size_t)len)) > 0 &&
+ 			write(t, buf, k) == k
+ 		)
+ 			len -= k;
+@@ -2711,7 +2728,9 @@
+ 				tim.modtime = fstat.st_mtime,
+ #else
+ 				tim[0].tv_sec = fstat.st_atime,
++				tim[0].tv_usec = 0,
+ 				tim[1].tv_sec = fstat.st_mtime,
++				tim[1].tv_usec = 0,
+ #endif
+ 				utimes(fullrep, tim)
+ 			)
+--- mmv-1.01b.orig/Makefile
++++ mmv-1.01b/Makefile
+@@ -1,10 +1,10 @@
+ # Possible defines in CONF:
+ #	IS_MSDOS IS_SYSV IS_V7 IS_BSD HAS_DIRENT HAS_RENAME MV_DIR
+ 
+-CC		=gcc -traditional
++CC		=gcc
+ LD		=$(CC)
+ CONF		=-DIS_SYSV -DHAS_DIRENT -DHAS_RENAME
+-CFLAGS		=-O2 -m486 $(CONF)
++CFLAGS		=-O2 $(CONF)
+ LDFLAGS		=-s -N
+ 
+ #IBIN		=$(LOCAL)$(ARCH)/bin
+--- mmv-1.01b.orig/debian/changelog
++++ mmv-1.01b/debian/changelog
+@@ -0,0 +1,152 @@
++mmv (1.01b-15) unstable; urgency=low
++
++  * New Maintainer (closes: #485999)
++  * Update to Standards-Version 3.8.1:
++    - Switch from DEB_BUILD_OPTIONS debug to noopt, add support for parallel.
++  * Replace call to dh_md5sums with direct creation and remove Build-Depends
++    on debhelper.
++  * Don't ignore make clean errors anymore and use $(MAKE) instead of make in
++    debian/rules.
++  * Add empty line before .ce The Task Options (closes: #411182)
++  * Initialize tv_usec (closes: #452993)
++  * Add mising linebreak to an italic line (closes: #411181)
++  * Wrap cmdname in basename() (closes: #452989)
++  * Add reference to the full text of the GPL file in the common-licenses
++    directory.
++  * Escape all relevant dashes in the manpage to not turn them into hyphens.
++
++ -- Gerfried Fuchs <rhonda@debian.at>  Sat, 30 May 2009 18:08:18 +0200
++
++mmv (1.01b-14) unstable; urgency=low
++
++  * Thanks for NMU to Joey, Ai and Uwe
++  * applied Patch to initialize var (Closes: Bug #316363)
++  * removed 2 dozent GCC warnings (uninitialized, unused, ambiquous else)
++
++ -- Bernd Eckenfels <ecki@debian.org>  Sat, 04 Feb 2006 23:58:43 +0100
++
++mmv (1.01b-12.3) unstable; urgency=low
++
++  * NMU
++  * Remove postinst and prerm, finishing /usr/doc transition. Closes: #322813
++
++ -- Joey Hess <joeyh@debian.org>  Tue, 10 Jan 2006 00:54:51 -0500
++
++mmv (1.01b-12.2) unstable; urgency=low
++
++  * NMU
++  * Fix segfault at startup on amd64 (and possibly other architectures)
++    due to implicit declaration of functions from stdlib.h. (Closes: #322541)
++
++ -- Ari Pollak <ari@debian.org>  Sat, 13 Aug 2005 01:01:13 -0400
++
++mmv (1.01b-12.1) unstable; urgency=low
++
++  * Non-Maintainer Upload (BSP 2005-08-06).
++  * Fixed FTBFS with gcc 3.4 / 4.0 by applying patch from
++    Andreas Jochens (Closes: #260574).
++
++ -- Uwe Hermann <uwe@debian.org>  Sat,  6 Aug 2005 22:07:06 +0200
++
++mmv (1.01b-12) unstable; urgency=low
++
++  * LFS support! (not sure if this breaks something :) (Closes: Bug #106822)
++  * support -- as option terminator (Closes: Bug #52417)
++
++ -- Bernd Eckenfels <ecki@debian.org>  Tue, 20 Nov 2001 19:03:24 +0100
++
++mmv (1.01b-11) unstable; urgency=medium
++
++  * added Build-Depends (Closes: Bug #105025)
++  * bumped Standards Version from 3.0.1 to 3.6.5
++  * make strig/-g depending on environemnt variable
++  * added a comment about quoting 'to' patter (Closes: Bug #106076)
++
++ -- Bernd Eckenfels <ecki@debian.org>  Sat, 10 Nov 2001 18:28:56 +0100
++
++mmv (1.01b-10.1) unstable; urgency=LOW
++
++  * reupload cause it was rejected
++
++ -- Bernd Eckenfels <ecki@debian.org>  Thu,  3 Aug 2000 02:38:20 +0200
++
++mmv (1.01b-10) unstable; urgency=LOW
++
++  * debian/rules clean will now kill *~ files
++
++ -- Bernd Eckenfels <ecki@debian.org>  Sun, 23 Jul 2000 04:28:46 +0200
++
++mmv (1.01b-9) unstable; urgency=LOW
++
++  * closes: #67605 (no special handling for char > 127 anymore)
++  * clsoes: #60128 (i think it was fixed by hartmut already)
++  * man page and doc now in /usr/share, new standards version
++
++ -- Bernd Eckenfels <ecki@debian.org>  Sun, 23 Jul 2000 04:08:19 +0200
++
++mmv (1.01b-8.1) unstable; urgency=LOW
++
++  * NMU
++  * fixed the invalid initializer for glibc-2.1
++  * closes: #31929
++  * changed in debian/rules in the clean target:
++      + /bin/rm -f  into -rm -f 
++      + make into -make
++      + added *~
++
++ -- Hartmut Koptein <koptein@debian.org>  Fri,  9 Jul 1999 10:24:17 +0200
++
++mmv (1.01b-8) unstable; urgency=LOW
++
++  * should compile now with different headers (Bug#26955).
++
++ -- Bernd Eckenfels <ecki@debian.org>  Sun,  1 Nov 1998 05:36:36 +0100
++
++mmv (1.01b-7) frozen unstable; urgency=LOW
++
++  * Remove debian/files with make clean (Bug#21526).
++
++ -- Michael Meskes <meskes@debian.org>  Wed, 22 Apr 1998 16:19:30 +0200
++
++mmv (1.01b-6) frozen unstable; urgency=LOW
++
++  * Make lintian happy.
++
++ -- Michael Meskes <meskes@debian.org>  Fri, 17 Apr 1998 14:36:19 +0200
++
++mmv (1.01b-5) unstable; urgency=LOW
++
++  * Added new copyright notice and moved package back into main.
++    My thanks go to Joost for getting into touch with the upstream author.
++
++ -- Michael Meskes <meskes@debian.org>  Thu,  5 Mar 1998 10:42:42 +0100
++
++mmv (1.01b-4) unstable; urgency=LOW
++
++  * Updated standard
++  * Added man page links.
++
++ -- Michael Meskes <meskes@debian.org>  Fri, 27 Feb 1998 15:33:54 +0100
++
++mmv (1.01b-3) unstable; urgency=LOW
++
++  * Moved package to non-free. Sorry, I cannot reach the upstream author to
++    clarify the problems with his copyright. (#14908).
++  * Do not comress copyright file. (#14460)
++
++ -- Michael Meskes <meskes@debian.org>  Fri, 19 Dec 1997 10:47:37 +0100
++
++mmv (1.01b-2) unstable; urgency=LOW
++
++  * Put copyright file into /usr/doc/mmv/copyright (#10623)
++  * Removed -m486 option in Makefile (#10780).
++  * Corrected man page permission (#4913).
++  * Compiled against libc6.
++
++ -- Michael Meskes <meskes@debian.org>  Tue,  5 Aug 1997 13:11:36 +0200
++
++mmv (1.01b-1) unstable; urgency=LOW
++
++  * Initial release
++
++ -- Michael Meskes <meskes@debian.org>  Tue, 15 Oct 1996 13:02:46 +0200
+--- mmv-1.01b.orig/debian/control
++++ mmv-1.01b/debian/control
+@@ -0,0 +1,15 @@
++Source: mmv
++Maintainer: Gerfried Fuchs <rhonda@debian.at>
++Section: utils
++Priority: optional
++Standards-Version: 3.8.1
++
++Package: mmv
++Architecture: any
++Description: Move/Copy/Append/Link multiple files
++ mmv is a program to move/copy/append/link multiple files
++ according to a set of wildcard patterns. This multiple action is
++ performed safely, i.e. without any unexpected deletion of files due to
++ collisions of target names with existing filenames or with other
++ target names.
++Depends: ${shlibs:Depends}
+--- mmv-1.01b.orig/debian/rules
++++ mmv-1.01b/debian/rules
+@@ -0,0 +1,98 @@
++#! /usr/bin/make -f
++
++INSTALL_PROGRAM=install
++CC = gcc
++LDFLAGS =
++CFLAGS = -g -Wall -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
++
++
++ifneq (,$(filter noopt,$(DEB_BUILD_OPTIONS)))
++    CFLAGS += -O0
++else
++    CFLAGS += -O2
++endif
++
++ifeq (,$(filter nostrip,$(DEB_BUILD_OPTIONS)))
++    INSTALL_PROGRAM += -s
++    LDFLAGS += -s
++    STRIP = true
++endif
++
++ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
++    NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
++    MAKEFLAGS += -j$(NUMJOBS)
++endif
++
++
++# The package
++p = mmv
++# The version
++v = $(shell dpkg-parsechangelog | sed -n 's/^Version: //p')
++# The architecture
++a = $(shell dpkg --print-architecture)
++
++dir = `pwd`
++
++build:
++# Builds the binary package.
++	$(checkdir)
++	$(MAKE) CC="$(CC)" LDFLAGS="$(LDFLAGS)" CFLAGS="$(CFLAGS)"
++	touch build
++
++clean:
++# Undoes the effect of `make -f debian/rules build'.
++	$(checkdir)
++	[ ! -f Makefile ] || $(MAKE) clean
++	-rm -f debian/files* debian/substvars* debian/*~ core */core *~
++	rm -rf debian/tmp
++	-rm build
++
++binary: binary-arch binary-indep
++
++binary-indep:
++	$(checkdir)
++
++binary-arch: build
++	$(checkdir)
++	test -f build || $(MAKE) -f debian/rules build
++# Makes a binary package.
++	/bin/rm -rf debian/tmp
++	test -f stamp-build || $(MAKE) -f debian/rules build
++	install -d -g root -m 755 -o root debian/tmp
++	chmod g-s debian/tmp
++	install -d -g root -m 755 -o root debian/tmp/DEBIAN
++	install -d -g root -m 755 -o root debian/tmp/usr/bin
++	install -d -g root -m 755 -o root debian/tmp/usr/share/man/man1
++	$(INSTALL_PROGRAM) -g root -o root -m 755 mmv debian/tmp/usr/bin
++	test "$(STRIP)" != true || strip \
++		--remove-section=.comment --remove-section=.note \
++		debian/tmp/usr/bin/mmv
++	install -g root -o root -m 644 mmv.1 debian/tmp/usr/share/man/man1
++	gzip -9f debian/tmp/usr/share/man/man1/mmv.1
++	(cd debian/tmp/usr/bin;\
++	 ln -s mmv mcp; \
++	 ln -s mmv mad; \
++	 ln -s mmv mln;)
++	(cd debian/tmp/usr/share/man/man1;\
++	 ln -s mmv.1.gz mcp.1.gz; \
++	 ln -s mmv.1.gz mad.1.gz; \
++	 ln -s mmv.1.gz mln.1.gz;)
++	install -d -g root -m 755 -o root debian/tmp/usr/share/doc/$(p)
++	install -g root -m 644 -o root READ.ME \
++		debian/tmp/usr/share/doc/$(p)
++	install -g root -m 644 -o root debian/changelog \
++		debian/tmp/usr/share/doc/$(p)/changelog.Debian
++	gzip -f9 debian/tmp/usr/share/doc/$(p)/*
++	install -g root -m 644 -o root debian/copyright \
++	  debian/tmp/usr/share/doc/$(p)
++	chmod -R g-sw debian/tmp/usr/share/doc/$(p)
++	chown -R root.root debian/tmp/usr/share/doc/$(p)
++	dpkg-shlibdeps debian/tmp/usr/bin/mmv
++	dpkg-gencontrol -isp
++	cd debian/tmp && find * -type f ! -regex '^DEBIAN/.*' -print0 | \
++                xargs -r0 md5sum > DEBIAN/md5sums
++	dpkg --build debian/tmp && dpkg-name -o -s .. debian/tmp.deb
++
++define checkdir
++        test -f mmv.1
++endef
+--- mmv-1.01b.orig/debian/copyright
++++ mmv-1.01b/debian/copyright
+@@ -0,0 +1,48 @@
++This is the Debian GNU/Linux prepackaged version of mmv.
++
++This package was put together by Michael Meskes <meskes@debian.org>,
++from sources obtained from USENET.
++
++It was maintained by Bernd Eckenfels <ecki@debian.org> with some
++enhancements (NLS Char Support, glibc compiles) from Bernd and kind
++contributions from Hartmut Koptein <koptein@et-inf.fho-emden.de>.
++
++At the moment it is maintained by Gerfried Fuchs <rhonda@debian.at>.
++
++Copyright (c) 1989 Vladimir Lanin
++
++Mmv is freeware. That means that the entire package of software and
++documentation is copyrighted, and may not be distributed with any
++modifications or for any charge (without the author's explicit written
++permission). Other than that, it may be used and distributed freely.
++
++Vladimir Lanin
++330 Wadsworth Ave, Apt 6F
++New York, NY 10040
++
++lanin@csd2.nyu.edu
++...!cmcl2!csd2!lanin
++
++However, Vladimir told me:
++
++Michael,
++
++This message is to serve as an announcement that I am changing the
++copyright of mmv to GPL.
++
++If this message is in any way insufficient to do so, please tell me what
++I have to do. Please keep in mind that I do not have in hand either the
++full GPL text or the source code of the last mmv release (oops).
++
++If there is any other way that I can help out, please tell me.
++
++Thanks,
++
++Vladimir Lanin
++vlad@brm.com
++
++Thanks to Joost for getting into touch with him.
++
++On Debian systems, the complete text of the GNU Library General
++Public License can be found in /usr/share/common-licenses/LGPL-2 file,
++later versions can be found in the same directory.
