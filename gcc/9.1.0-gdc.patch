@@ -1,0 +1,200 @@
+diff -uprN a/gcc/config/darwin-d.c b/gcc/config/darwin-d.c
+--- a/gcc/config/darwin-d.c	1970-01-01 09:00:00.000000000 +0900
++++ b/gcc/config/darwin-d.c	2019-05-12 02:18:58.000000000 +0900
+@@ -0,0 +1,56 @@
++/* Darwin support needed only by D front-end.
++   Copyright (C) 2018-2019 Free Software Foundation, Inc.
++
++GCC is free software; you can redistribute it and/or modify it under
++the terms of the GNU General Public License as published by the Free
++Software Foundation; either version 3, or (at your option) any later
++version.
++
++GCC is distributed in the hope that it will be useful, but WITHOUT ANY
++WARRANTY; without even the implied warranty of MERCHANTABILITY or
++FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
++for more details.
++
++You should have received a copy of the GNU General Public License
++along with GCC; see the file COPYING3.  If not see
++<http://www.gnu.org/licenses/>.  */
++
++#include "config.h"
++#include "system.h"
++#include "coretypes.h"
++#include "tm.h"
++#include "memmodel.h"
++#include "tm_p.h"
++#include "d/d-target.h"
++#include "d/d-target-def.h"
++
++/* Implement TARGET_D_OS_VERSIONS for Darwin targets.  */
++
++static void
++darwin_d_os_builtins (void)
++{
++  d_add_builtin_version ("Posix");
++  //d_add_builtin_version ("Darwin");
++  d_add_builtin_version ("OSX");
++}
++
++/* Implement TARGET_D_CRITSEC_SIZE for Darwin targets.  */
++
++static unsigned
++darwin_d_critsec_size (void)
++{
++  /* This is the sizeof pthread_mutex_t.  */
++#ifdef GNU_USER_TARGET_D_CRITSEC_SIZE
++  return GNU_USER_TARGET_D_CRITSEC_SIZE;
++#else
++  return (POINTER_SIZE == 64) ? 40 : 24;
++#endif
++}
++
++#undef TARGET_D_OS_VERSIONS
++#define TARGET_D_OS_VERSIONS darwin_d_os_builtins
++
++#undef TARGET_D_CRITSEC_SIZE
++#define TARGET_D_CRITSEC_SIZE darwin_d_critsec_size
++
++struct gcc_targetdm targetdm = TARGETDM_INITIALIZER;
+diff -uprN a/gcc/config/t-darwin b/gcc/config/t-darwin
+--- a/gcc/config/t-darwin	2019-01-01 21:31:55.000000000 +0900
++++ b/gcc/config/t-darwin	2019-05-12 02:00:00.000000000 +0900
+@@ -26,6 +26,9 @@ darwin-c.o: $(srcdir)/config/darwin-c.c
+ 	$(COMPILE) $(PREPROCESSOR_DEFINES) $<
+ 	$(POSTCOMPILE)
+ 
++darwin-d.o: config/darwin-d.c
++	$(COMPILE) $<
++	$(POSTCOMPILE)
+ 
+ darwin-f.o: $(srcdir)/config/darwin-f.c
+ 	$(COMPILE) $<
+diff -uprN a/gcc/config.gcc b/gcc/config.gcc
+--- a/gcc/config.gcc	2019-04-15 17:05:03.000000000 +0900
++++ b/gcc/config.gcc	2019-05-12 02:15:59.000000000 +0900
+@@ -695,8 +695,10 @@ case ${target} in
+   extra_options="${extra_options} darwin.opt"
+   c_target_objs="${c_target_objs} darwin-c.o"
+   cxx_target_objs="${cxx_target_objs} darwin-c.o"
++  d_target_objs="${d_target_objs} darwin-d.o"
+   fortran_target_objs="darwin-f.o"
+   target_has_targetcm=yes
++  target_has_targetdm=yes
+   extra_objs="${extra_objs} darwin.o"
+   extra_gcc_objs="darwin-driver.o"
+   default_use_cxa_atexit=yes
+diff -uprN a/gcc/d/modules.cc b/gcc/d/modules.cc
+--- a/gcc/d/modules.cc	2019-04-24 05:08:46.000000000 +0900
++++ b/gcc/d/modules.cc	2019-05-12 02:25:55.000000000 +0900
+@@ -418,7 +418,11 @@ register_moduleinfo (Module *decl, tree 
+   DECL_EXTERNAL (mref) = 0;
+   DECL_PRESERVE_P (mref) = 1;
+ 
++#ifdef __MACH__
++  set_decl_section_name (mref, "__DATA,__minfodata");
++#else
+   set_decl_section_name (mref, "minfo");
++#endif
+   d_pushdecl (mref);
+   rest_of_decl_compilation (mref, 1, 0);
+ 
+diff -uprN a/libphobos/configure b/libphobos/configure
+--- a/libphobos/configure	2019-05-03 17:01:59.000000000 +0900
++++ b/libphobos/configure	2019-05-12 02:36:08.000000000 +0900
+@@ -12179,6 +12179,7 @@ $as_echo_n "checking for $compiler optio
+       # PIC is the default on this platform
+       # Common symbols not allowed in MH_DYLIB files
+       lt_prog_compiler_pic_D='-fno-common'
++      enable_shared='no' # otherwise core/thread.d fails to compile.
+       ;;
+ 
+     haiku*)
+diff -uprN a/libphobos/libdruntime/config/x86/switchcontext.S b/libphobos/libdruntime/config/x86/switchcontext.S
+--- a/libphobos/libdruntime/config/x86/switchcontext.S	2019-04-25 07:46:59.000000000 +0900
++++ b/libphobos/libdruntime/config/x86/switchcontext.S	2019-05-12 02:29:55.000000000 +0900
+@@ -28,7 +28,9 @@ see the files COPYING3 and COPYING.RUNTI
+ 
+     .text
+     .globl CSYM(fiber_switchContext)
++#ifndef __MACH__
+     .type CSYM(fiber_switchContext), @function
++#endif
+     .align 16
+ CSYM(fiber_switchContext):
+     .cfi_startproc
+@@ -56,13 +58,17 @@ CSYM(fiber_switchContext):
+     // 'return' to complete switch
+     ret
+     .cfi_endproc
++#ifndef __MACH__
+     .size CSYM(fiber_switchContext),.-CSYM(fiber_switchContext)
++#endif
+ 
+ #elif defined(__x86_64__) && !defined(__ILP32__)
+ 
+     .text
+     .globl CSYM(fiber_switchContext)
++#ifndef __MACH__
+     .type CSYM(fiber_switchContext), @function
++#endif
+     .align 16
+ CSYM(fiber_switchContext):
+     .cfi_startproc
+@@ -91,6 +97,8 @@ CSYM(fiber_switchContext):
+     // 'return' to complete switch
+     ret
+     .cfi_endproc
++#ifndef __MACH__
+    .size CSYM(fiber_switchContext),.-CSYM(fiber_switchContext)
++#endif
+ 
+ #endif
+diff -uprN a/libphobos/libdruntime/gcc/drtstuff.c b/libphobos/libdruntime/gcc/drtstuff.c
+--- a/libphobos/libdruntime/gcc/drtstuff.c	2019-02-15 02:47:49.000000000 +0900
++++ b/libphobos/libdruntime/gcc/drtstuff.c	2019-05-12 02:25:36.000000000 +0900
+@@ -24,16 +24,24 @@ see the files COPYING3 and COPYING.RUNTI
+ <http://www.gnu.org/licenses/>.  */
+ 
+ /* Avoid interference with targets without support for named sections.  */
+-#ifdef __ELF__
++#if defined(__ELF__) || defined(__MACH__)
+ 
+ #ifdef DRT_BEGIN
+ void *__start_minfo[]
++#ifdef __MACH__
++__attribute__((used, section("__TEXT,minfo"), aligned(sizeof(void *)))) = { };
++#else
+ __attribute__((used, section("minfo"), aligned(sizeof(void *)))) = { };
+ #endif
++#endif
+ 
+ #ifdef DRT_END
+ void *__stop_minfo[]
++#ifdef __MACH__
++__attribute__((used, section("__TEXT,minfo"), aligned(sizeof(void *)))) = { };
++#else
+ __attribute__((used, section("minfo"), aligned(sizeof(void *)))) = { };
+ #endif
++#endif
+ 
+ #endif /* __ELF__ */
+diff -uprN a/libphobos/libdruntime/gcc/sections/osx.d b/libphobos/libdruntime/gcc/sections/osx.d
+--- a/libphobos/libdruntime/gcc/sections/osx.d	2019-04-14 00:29:15.000000000 +0900
++++ b/libphobos/libdruntime/gcc/sections/osx.d	2019-05-12 02:00:00.000000000 +0900
+@@ -213,7 +213,7 @@ extern (C) void sections_osx_onAddImage(
+         }
+         else if (_sections.modules.ptr !is null)
+         {
+-            fprintf(stderr, "Shared libraries are not yet supported on OSX.\n");
++            //fprintf(stderr, "Shared libraries are not yet supported on OSX.\n");
+         }
+ 
+         debug(PRINTF) printf("  minfodata\n");
+@@ -282,3 +282,5 @@ ubyte[] getSection(in mach_header* heade
+         return (cast(ubyte*)sect.addr + slide)[0 .. cast(size_t)sect.size];
+     return null;
+ }
++
++extern(C) __gshared void _d_dso_registry() {} ///
