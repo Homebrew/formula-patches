@@ -1,0 +1,44 @@
+From 9d091bbb30d561dc1071e2e38d51edddcf1f0409 Mon Sep 17 00:00:00 2001
+From: Tim Blechmann <tim@klingt.org>
+Date: Wed, 5 Jun 2019 00:49:21 +0800
+Subject: [PATCH] daemon: fix `MemTotal` on macos
+
+the mach codepath doesn't obtain `MemTotal`, which will always cause the
+a pessimistic 100MB memory limit. as later on, we'll just return 0.
+
+the best way on macos to obtain the total memory is reading `hw.memsize`
+---
+ daemon/load.cpp | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/daemon/load.cpp b/daemon/load.cpp
+index 5972aca9..6b4926aa 100644
+--- a/daemon/load.cpp
++++ b/daemon/load.cpp
+@@ -54,6 +54,10 @@
+ #include <devstat.h>
+ #endif
+ 
++#ifdef __APPLE__
++#include <sys/sysctl.h>
++#endif
++
+ using namespace std;
+ 
+ // what the kernel puts as ticks in /proc/stat
+@@ -260,6 +264,15 @@ static unsigned int calculateMemLoad(unsigned long int &NetMemFree)
+     // blunt lie - but when's sche macht
+     Buffers = MemInactive;
+ 
++#ifdef __APPLE__
++    {
++        size_t len = sizeof(MemTotal);
++        if ((sysctlbyname("hw.memsize", &MemTotal, &len, NULL, 0) == -1) || !len) {
++            MemTotal = 0;
++        }
++    }
++#endif
++
+ #elif defined( USE_SYSCTL )
+     size_t len = sizeof(MemFree);
+ 
