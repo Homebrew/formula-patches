@@ -1,0 +1,44 @@
+From 26954bde4443c4bfbfe7608f35584b6b810f3f2c Mon Sep 17 00:00:00 2001
+From: Than McIntosh <thanm@google.com>
+Date: Wed, 19 Jun 2019 13:33:33 -0400
+Subject: [PATCH] cmd/link: macos: set initial protection of 0 for __DWARF
+ segment
+
+For later versions of MacOS, the dynamic loader is more picky about
+enforcing restrictions on __DWARF MachO load commands/segments,
+triggering aborts of the form
+
+  dyld: malformed mach-o image: segment __DWARF has vmsize < filesize
+
+for Go programs that use cgo on Darwin. The error is being triggered
+because the Go linker is setting "vmsize" in the DWARF segment entry
+to zero as a way to signal that the DWARF doesn't need to be mapped
+into memory at runtime (which we need to continue to do).
+
+This patch changes the initial protection on the __DWARF segment to
+zero, which dyld seems to be happy with (this is used for other similar
+non-loadable sections such as __LLVM).
+
+Fixes #32673
+
+Change-Id: I9a73449c6d26c172f3d70361719943af381f37e6
+Reviewed-on: https://go-review.googlesource.com/c/go/+/182958
+Run-TryBot: Than McIntosh <thanm@google.com>
+TryBot-Result: Gobot Gobot <gobot@golang.org>
+Reviewed-by: Cherry Zhang <cherryyz@google.com>
+---
+ go/src/cmd/link/internal/ld/macho_combine_dwarf.go | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/go/src/cmd/link/internal/ld/macho_combine_dwarf.go b/go/src/cmd/link/internal/ld/macho_combine_dwarf.go
+index dd2ab4c5b058df1ab2cc5e9361577b05730bef47..3c123a092f3caef17043663fee479b7ab5d74de5 100644
+--- a/go/src/cmd/link/internal/ld/macho_combine_dwarf.go
++++ b/go/src/cmd/link/internal/ld/macho_combine_dwarf.go
+@@ -409,6 +409,7 @@ func machoUpdateDwarfHeader(r *loadCmdReader, buildmode BuildMode, compressedSec
+ 	segv := reflect.ValueOf(seg).Elem()
+ 	segv.FieldByName("Offset").SetUint(uint64(dwarfstart))
+ 	segv.FieldByName("Addr").SetUint(uint64(dwarfaddr))
++	segv.FieldByName("Prot").SetUint(0)
+ 
+ 	if compressedSects != nil {
+ 		var segSize uint64
