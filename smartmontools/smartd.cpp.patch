@@ -1,0 +1,12 @@
+diff -u a/smartd.cpp b/smartd.cpp
+--- a/smartd.cpp	2018-12-20 22:02:39.000000000 +0900
++++ b/smartd.cpp	2019-07-19 10:27:07.000000000 +0900
+@@ -1149,7 +1149,7 @@
+   mail->lastsent=epoch;
+ 
+   // print warning string into message
+-  char message[256];
++  char message[512];
+   va_list ap;
+   va_start(ap, fmt);
+   vsnprintf(message, sizeof(message), fmt, ap);
