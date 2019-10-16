@@ -1,0 +1,22 @@
+diff -urN a/plugin/x/client/mysqlxclient/xmessage.h b/plugin/x/client/mysqlxclient/xmessage.h
+--- a/plugin/x/client/mysqlxclient/xmessage.h	2019-09-20 18:30:51.000000000 +1000
++++ b/plugin/x/client/mysqlxclient/xmessage.h	2019-10-16 09:12:15.000000000 +1000
+@@ -36,7 +36,6 @@
+ #include <google/protobuf/repeated_field.h>
+ #include <google/protobuf/text_format.h>
+ #include <google/protobuf/wire_format_lite.h>
+-#include <google/protobuf/wire_format_lite_inl.h>
+ 
+ #ifdef USE_MYSQLX_FULL_PROTO
+ 
+diff -urN a/plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h b/plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h
+--- a/plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h	2019-09-20 18:30:51.000000000 +1000
++++ b/plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h	2019-10-16 09:11:27.000000000 +1000
+@@ -38,7 +38,6 @@
+ #include <google/protobuf/repeated_field.h>
+ #include <google/protobuf/text_format.h>
+ #include <google/protobuf/wire_format_lite.h>
+-#include <google/protobuf/wire_format_lite_inl.h>
+ 
+ #ifdef USE_MYSQLX_FULL_PROTO
+ #include "plugin/x/generated/protobuf/mysqlx.pb.h"
