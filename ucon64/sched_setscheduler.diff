@@ -1,0 +1,110 @@
+diff --git a/src/config.h.in b/src/config.h.in
+index d353df7..4360c4b 100644
+--- a/src/config.h.in
++++ b/src/config.h.in
+@@ -34,6 +34,9 @@
+ /* Define to 1 if you have the `realpath' function. */
+ #undef HAVE_REALPATH
+ 
++/* Define to 1 if you have the `sched_setscheduler' function. */
++#undef HAVE_SCHED_SETSCHEDULER
++
+ /* Define to 1 if you have the <stdint.h> header file. */
+ #undef HAVE_STDINT_H
+ 
+diff --git a/src/config.h.orig b/src/config.h.orig
+index 11519b4..a6c1784 100644
+--- a/src/config.h.orig
++++ b/src/config.h.orig
+@@ -35,6 +35,9 @@
+ /* Define to 1 if you have the `realpath' function. */
+ /* #undef HAVE_REALPATH */
+ 
++/* Define to 1 if you have the `sched_setscheduler' function. */
++/* #undef HAVE_SCHED_SETSCHEDULER */
++
+ /* Define to 1 if you have the <stdint.h> header file. */
+ /* #undef HAVE_STDINT_H */
+ 
+diff --git a/src/config.h.vc6 b/src/config.h.vc6
+index f8aa27b..120d206 100644
+--- a/src/config.h.vc6
++++ b/src/config.h.vc6
+@@ -35,6 +35,9 @@
+ /* Define to 1 if you have the `realpath' function. */
+ /* #undef HAVE_REALPATH */
+ 
++/* Define to 1 if you have the `sched_setscheduler' function. */
++/* #undef HAVE_SCHED_SETSCHEDULER */
++
+ /* Define to 1 if you have the <stdint.h> header file. */
+ /* #undef HAVE_STDINT_H */
+ 
+diff --git a/src/configure b/src/configure
+index 5ac207e..26dfee1 100755
+--- a/src/configure
++++ b/src/configure
+@@ -4206,7 +4206,7 @@ fi
+ done
+ 
+ 
+-for ac_func in realpath clock_nanosleep strnlen
++for ac_func in realpath clock_nanosleep strnlen sched_setscheduler
+ do :
+   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
+ ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
+diff --git a/src/configure.in b/src/configure.in
+index e75698b..b7bef14 100644
+--- a/src/configure.in
++++ b/src/configure.in
+@@ -223,7 +223,7 @@ dnl Checks for library functions.
+ AC_FUNC_MEMCMP
+ AC_FUNC_STRFTIME
+ AC_FUNC_VPRINTF
+-AC_CHECK_FUNCS(realpath clock_nanosleep strnlen)
++AC_CHECK_FUNCS(realpath clock_nanosleep strnlen sched_setscheduler)
+ 
+ AC_PROG_RANLIB
+ AC_PROG_INSTALL
+diff --git a/src/ucon64.c b/src/ucon64.c
+index f96d5f3..950abc6 100644
+--- a/src/ucon64.c
++++ b/src/ucon64.c
+@@ -35,11 +35,9 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ #include <stdlib.h>
+ #ifdef  HAVE_UNISTD_H
+ #include <unistd.h>
+-#ifdef  _POSIX_PRIORITY_SCHEDULING
+-// if _POSIX_PRIORITY_SCHEDULING is defined in unistd.h it indicates
+-//  availability of sched_get_priority_max() and sched_setscheduler()
+-#include <sched.h>
+ #endif
++#ifdef  HAVE_SCHED_SETSCHEDULER
++#include <sched.h>
+ #endif
+ #ifdef  _MSC_VER
+ #pragma warning(push)
+@@ -1164,11 +1162,11 @@ main (int argc, char **argv)
+   if (ucon64.dat_enabled)
+     ucon64_dat_indexer ();              // update cache (index) files if necessary
+ 
+-#if     defined _POSIX_PRIORITY_SCHEDULING || defined _WIN32
++#if     defined HAVE_SCHED_SETSCHEDULER || defined _WIN32
+   if (get_property_int (ucon64.configfile, "gd6_send_byte_delay"))
+     {
+-      // Cygwin defines _POSIX_PRIORITY_SCHEDULING, but sched_setscheduler()
+-      //  fails for SCHED_FIFO, even when running as Administrator.
++      // Cygwin has sched_setscheduler() but it fails for SCHED_FIFO, even when
++      //  running as Administrator.
+ #if     defined _WIN32 || defined __CYGWIN__
+       if (SetPriorityClass (GetCurrentProcess (), REALTIME_PRIORITY_CLASS))
+         {
+@@ -1213,7 +1211,7 @@ main (int argc, char **argv)
+         }
+ #endif // _WIN32 || __CYGWIN__
+     }
+-#endif // _POSIX_PRIORITY_SCHEDULING || _WIN32
++#endif // HAVE_SCHED_SETSCHEDULER || _WIN32
+ #ifdef  USE_PARALLEL
+   /*
+     The copier options need root privileges for parport_open(). We can't use
