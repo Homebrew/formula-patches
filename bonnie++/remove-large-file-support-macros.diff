@@ -2,7 +2,7 @@ diff --git a/bonnie++.cpp b/bonnie++.cpp
 index bad0e1d..3203c19 100644
 --- a/bonnie++.cpp
 +++ b/bonnie++.cpp
-@@ -294,11 +294,7 @@ int main(int argc, char *argv[])
+@@ -298,11 +298,7 @@ int main(int argc, char *argv[])
        {
          char *sbuf = _strdup(optarg);
          char *size = strtok(sbuf, ":");
@@ -11,10 +11,10 @@ index bad0e1d..3203c19 100644
 -#else
 -        file_size = size_from_str(size, "g");
 -#endif
-         size = strtok(NULL, "");
-         if(size)
+         char * chunk_size = strtok(NULL, ":");
+         if(chunk_size)
          {
-@@ -384,15 +380,6 @@ int main(int argc, char *argv[])
+@@ -398,15 +394,6 @@ int main(int argc, char *argv[])
      if(file_size % 1024 > 512)
        file_size = file_size + 1024 - (file_size % 1024);
    }
@@ -30,7 +30,7 @@ index bad0e1d..3203c19 100644
    globals.byte_io_size = min(file_size, globals.byte_io_size);
    globals.byte_io_size = max(0, globals.byte_io_size);
  
-@@ -465,14 +452,6 @@ int main(int argc, char *argv[])
+@@ -479,14 +466,6 @@ int main(int argc, char *argv[])
       && (directory_max_size < directory_min_size || directory_max_size < 0
       || directory_min_size < 0) )
      usage();
