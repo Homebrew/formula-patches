@@ -1,6 +1,6 @@
---- a/makefile	2015-02-02 23:24:06.000000000 +0100
-+++ b/makefile	2015-02-25 16:31:21.000000000 +0100
-@@ -1,12 +1,18 @@
+--- a/makefile	2019-11-22 14:27:34.000000000 +0000
++++ b/makefile	2020-03-08 15:13:11.000000000 +0000
+@@ -1,14 +1,17 @@
  #--------------------------------
  # jhead makefile for Unix
  #--------------------------------
@@ -10,7 +10,9 @@
 +MANDIR=$(PREFIX)/share/man/man1
  OBJ=.
  SRC=.
- CFLAGS:= $(CFLAGS) -O3 -Wall
+-CPPFLAGS:=$(shell dpkg-buildflags --get CPPFLAGS)
+-CFLAGS:=$(shell dpkg-buildflags --get CFLAGS)
+-LDFLAGS:=$(shell dpkg-buildflags --get LDFLAGS)
 
  all: jhead
 
@@ -24,7 +26,7 @@
 	rm -f $(objs) jhead
 
 -install:
--	cp jhead ${DESTDIR}/usr/local/bin/
+-	cp jhead ${DESTDIR}/usr/bin/
 +install: all
 +	install -d $(BINDIR) $(DOCDIR) $(MANDIR)
 +	install -m 0755 jhead $(BINDIR)
