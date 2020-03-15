@@ -1,0 +1,64 @@
+From a0bc659c7ff0205cfa2b2fc3429ee4d944e1bcc3 Mon Sep 17 00:00:00 2001
+From: Erik Larsson <mechie@users.sourceforge.net>
+Date: Wed, 20 Sep 2017 04:56:06 +0200
+Subject: [PATCH 4995/4995] lowntfs-3g.c: Fix compile error when struct stat
+ doesn't have st_*tim.
+
+The struct members for the time fields in struct stat vary depending on
+platform, so introduce #ifdefs using the config.h-supplied definitions
+for determining which stat time definition is appropriate.
+---
+ src/lowntfs-3g.c | 30 ++++++++++++++++++++++++++++--
+ 1 file changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/lowntfs-3g.c b/src/lowntfs-3g.c
+index 87207ed8..71eceeb4 100644
+--- a/src/lowntfs-3g.c
++++ b/src/lowntfs-3g.c
+@@ -1989,15 +1989,41 @@ static int ntfs_fuse_utimens(struct SECURITY_CONTEXT *scx, fuse_ino_t ino,
+ 			if (to_set & FUSE_SET_ATTR_ATIME_NOW)
+ 				mask |= NTFS_UPDATE_ATIME;
+ 			else
+-				if (to_set & FUSE_SET_ATTR_ATIME)
++				if (to_set & FUSE_SET_ATTR_ATIME) {
++#ifdef HAVE_STRUCT_STAT_ST_ATIMESPEC
++					ni->last_access_time
++						= timespec2ntfs(stin->st_atimespec);
++#elif defined(HAVE_STRUCT_STAT_ST_ATIM)
+ 					ni->last_access_time
+ 						= timespec2ntfs(stin->st_atim);
++#else
++					ni->last_access_time.tv_sec
++						= stin->st_atime;
++#ifdef HAVE_STRUCT_STAT_ST_ATIMENSEC
++					ni->last_access_time.tv_nsec
++						= stin->st_atimensec;
++#endif
++#endif
++				}
+ 			if (to_set & FUSE_SET_ATTR_MTIME_NOW)
+ 				mask |= NTFS_UPDATE_MTIME;
+ 			else
+-				if (to_set & FUSE_SET_ATTR_MTIME)
++				if (to_set & FUSE_SET_ATTR_MTIME) {
++#ifdef HAVE_STRUCT_STAT_ST_ATIMESPEC
++					ni->last_data_change_time
++						= timespec2ntfs(stin->st_mtimespec);
++#elif defined(HAVE_STRUCT_STAT_ST_ATIM)
+ 					ni->last_data_change_time 
+ 						= timespec2ntfs(stin->st_mtim);
++#else
++					ni->last_data_change_time.tv_sec
++						= stin->st_mtime;
++#ifdef HAVE_STRUCT_STAT_ST_ATIMENSEC
++					ni->last_data_change_time.tv_nsec
++						= stin->st_mtimensec;
++#endif
++#endif
++				}
+ 			ntfs_inode_update_times(ni, mask);
+ #if !KERNELPERMS | (POSIXACLS & !KERNELACLS)
+ 		} else
+-- 
+2.25.1
+
