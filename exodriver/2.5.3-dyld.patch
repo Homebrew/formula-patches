@@ -1,0 +1,25 @@
+From 4ce532e3db4b0bb4d238613a7bec4d130238fc21 Mon Sep 17 00:00:00 2001
+From: Rory Olsen <roris.solaris@gmail.com>
+Date: Tue, 24 Oct 2017 17:00:05 -0600
+Subject: [PATCH] Fixing build for Mac 10.13.
+
+Now using default compiler with ARCHFLAGS for .dylib linking, rather than using libtool.
+
+[Homebrew edit: backported to 2.5.3 source]
+---
+ liblabjackusb/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/liblabjackusb/Makefile b/liblabjackusb/Makefile
+index b831f7c32d4e9137117d5439001aef84b889682a..e821aec464902823bfbf98c90b4861f528411aae 100644
+--- a/liblabjackusb/Makefile
++++ b/liblabjackusb/Makefile
+@@ -21,7 +21,7 @@ ifeq ($(UNAME),Darwin)
+ 	#ARCHFLAGS = -arch i386 -arch x86_64
+ 	# Build for multiple architectures
+ 	#ARCHFLAGS = -arch i386 -arch x86_64 -arch ppc
+-	COMPILE = libtool -dynamic -o $(TARGET) -install_name $(TARGET) -current_version $(VERSION) -compatibility_version $(VERSION) labjackusb.o $(LIBFLAGS)
++	COMPILE = $(CC) -dynamiclib -o $(TARGET) -install_name $(TARGET) -current_version $(VERSION) -compatibility_version $(VERSION) labjackusb.o $(LIBFLAGS) $(ARCHFLAGS)
+ else
+ 	#Linux operating system macros
+ 	TARGET = liblabjackusb.so.$(VERSION)
