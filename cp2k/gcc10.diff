@@ -1,0 +1,13 @@
+diff -pur a/src/dbcsr/dist/dbcsr_dist_methods.F b/src/dbcsr/dist/dbcsr_dist_methods.F
+--- a/src/dbcsr/dist/dbcsr_dist_methods.F	2018-03-13 18:10:34.000000000 +0100
++++ b/src/dbcsr/dist/dbcsr_dist_methods.F	2020-06-29 11:04:13.000000000 +0200
+@@ -471,8 +471,7 @@ CONTAINS
+ 
+       dist_p => dist
+ !$    IF (.NOT. OMP_IN_PARALLEL()) THEN
+-!$OMP        PARALLEL DEFAULT(NONE) &
+-!$OMP                 SHARED(dist_p,row_sizes)
++!$OMP        PARALLEL DEFAULT(SHARED)
+ !$       CALL make_threads(dist_p, row_sizes=row_sizes)
+ !$OMP        END PARALLEL
+ !$    ELSE
