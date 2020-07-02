@@ -1,0 +1,40 @@
+From 2add6fb11b0eddf459c2e79ec86376a8adb00cfc Mon Sep 17 00:00:00 2001
+From: Ronald Oussoren <ronaldoussoren@mac.com>
+Date: Wed, 24 Jun 2020 14:22:16 +0200
+Subject: [PATCH] BPO-41101: Support "arm64" in Mac/Tools/pythonw
+
+---
+ Mac/Tools/pythonw.c                                         | 6 ++++++
+ .../next/macOS/2020-06-24-14-21-17.bpo-41101.z9hCsP.rst     | 2 ++
+ 2 files changed, 8 insertions(+)
+ create mode 100644 Misc/NEWS.d/next/macOS/2020-06-24-14-21-17.bpo-41101.z9hCsP.rst
+
+diff --git a/Mac/Tools/pythonw.c b/Mac/Tools/pythonw.c
+index 1d2db383f943cc70d896fb26488e041abe326866..21e79665442b6a5c25b94a02d1a09f445e121172 100644
+--- a/Mac/Tools/pythonw.c
++++ b/Mac/Tools/pythonw.c
+@@ -119,10 +119,16 @@ setup_spawnattr(posix_spawnattr_t* spawnattr)
+ 
+ #elif defined(__ppc__)
+     cpu_types[0] = CPU_TYPE_POWERPC;
++
+ #elif defined(__i386__)
+     cpu_types[0] = CPU_TYPE_X86;
++
++#elif defined(__arm64__)
++    cpu_types[0] = CPU_TYPE_ARM64;
++
+ #else
+ #       error "Unknown CPU"
++
+ #endif
+ 
+     if (posix_spawnattr_setbinpref_np(spawnattr, count,
+diff --git a/Misc/NEWS.d/next/macOS/2020-06-24-14-21-17.bpo-41101.z9hCsP.rst b/Misc/NEWS.d/next/macOS/2020-06-24-14-21-17.bpo-41101.z9hCsP.rst
+new file mode 100644
+index 0000000000000000000000000000000000000000..f66863db00c067d50a77dfd6916d62c46b298bea
+--- /dev/null
++++ b/Misc/NEWS.d/next/macOS/2020-06-24-14-21-17.bpo-41101.z9hCsP.rst
+@@ -0,0 +1,2 @@
++Support the new "arm64" architecture for macOS in the pythonw executable in
++framework builds.
