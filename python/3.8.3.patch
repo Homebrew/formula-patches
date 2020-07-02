@@ -1,0 +1,876 @@
+From 61b811c74419f138bcdfa96800f4b655125a5038 Mon Sep 17 00:00:00 2001
+From: Ned Deily <nad@python.org>
+Date: Mon, 18 May 2020 03:00:40 -0400
+Subject: [PATCH 1/9] bpo-34956: Fix macOS _tkinter use of Tcl/Tk in
+ /Library/Frameworks
+Comment: Patches 1/9 and 3/9 have been slightly modified in order to
+Comment: backport this patchset to Python 3.8.3.
+
+_tkinter now builds and links with non-system Tcl and Tk frameworks if they
+are installed in /Library/Frameworks as had been the case on older releases
+of macOS. If a macOS SDK is explicitly configured, by using ./configure
+--enable-universalsdk= or -isysroot, only a Library/Frameworks directory in
+the SDK itself is searched. The default behavior can still be overridden with
+configure --with-tcltk-includes and --with-tcltk-libs.
+---
+ .../2020-05-18-02-43-11.bpo-34956.35IcGF.rst  |   6 +
+ setup.py                                      | 153 +++++++++++++-----
+ 2 files changed, 116 insertions(+), 43 deletions(-)
+ create mode 100644 Misc/NEWS.d/next/macOS/2020-05-18-02-43-11.bpo-34956.35IcGF.rst
+
+diff --git a/Misc/NEWS.d/next/macOS/2020-05-18-02-43-11.bpo-34956.35IcGF.rst b/Misc/NEWS.d/next/macOS/2020-05-18-02-43-11.bpo-34956.35IcGF.rst
+new file mode 100644
+index 0000000..6ad9c1a
+--- /dev/null
++++ b/Misc/NEWS.d/next/macOS/2020-05-18-02-43-11.bpo-34956.35IcGF.rst
+@@ -0,0 +1,6 @@
++_tkinter now builds and links with non-system Tcl and Tk frameworks if they
++are installed in /Library/Frameworks as had been the case on older releases
++of macOS. If a macOS SDK is explicitly configured, by using ./configure
++--enable-universalsdk= or -isysroot, only a Library/Frameworks directory in
++the SDK itself is searched. The default behavior can still be overridden with
++configure --with-tcltk-includes and --with-tcltk-libs.
+diff --git a/setup.py b/setup.py
+index b168ed4..6f20605 100644
+--- a/setup.py
++++ b/setup.py
+@@ -126,7 +126,9 @@ def sysroot_paths(make_vars, subdirs):
+                 break
+     return dirs
+ 
++
+ MACOS_SDK_ROOT = None
++MACOS_SDK_SPECIFIED = None
+ 
+ def macosx_sdk_root():
+     """Return the directory of the current macOS SDK.
+@@ -138,8 +140,9 @@ def macosx_sdk_root():
+     (The SDK may be supplied via Xcode or via the Command Line Tools).
+     The SDK paths used by Apple-supplied tool chains depend on the
+     setting of various variables; see the xcrun man page for more info.
++    Also sets MACOS_SDK_SPECIFIED for use by macosx_sdk_specified().
+     """
+-    global MACOS_SDK_ROOT
++    global MACOS_SDK_ROOT, MACOS_SDK_SPECIFIED
+ 
+     # If already called, return cached result.
+     if MACOS_SDK_ROOT:
+@@ -149,8 +152,10 @@ def macosx_sdk_root():
+     m = re.search(r'-isysroot\s*(\S+)', cflags)
+     if m is not None:
+         MACOS_SDK_ROOT = m.group(1)
++        MACOS_SDK_SPECIFIED = MACOS_SDK_ROOT != '/'
+     else:
+         MACOS_SDK_ROOT = '/'
++        MACOS_SDK_SPECIFIED = False
+         cc = sysconfig.get_config_var('CC')
+         tmpfile = '/tmp/setup_sdk_root.%d' % os.getpid()
+         try:
+@@ -179,6 +184,28 @@ def macosx_sdk_root():
+     return MACOS_SDK_ROOT
+ 
+ 
++def macosx_sdk_specified():
++    """Returns true if an SDK was explicitly configured.
++
++    True if an SDK was selected at configure time, either by specifying
++    --enable-universalsdk=(something other than no or /) or by adding a
++    -isysroot option to CFLAGS.  In some cases, like when making
++    decisions about macOS Tk framework paths, we need to be able to
++    know whether the user explicitly asked to build with an SDK versus
++    the implicit use of an SDK when header files are no longer
++    installed on a running system by the Command Line Tools.
++    """
++    global MACOS_SDK_SPECIFIED
++
++    # If already called, return cached result.
++    if MACOS_SDK_SPECIFIED:
++        return MACOS_SDK_SPECIFIED
++
++    # Find the sdk root and set MACOS_SDK_SPECIFIED
++    macosx_sdk_root()
++    return MACOS_SDK_SPECIFIED
++
++
+ def is_macosx_sdk_path(path):
+     """
+     Returns True if 'path' can be located in an OSX SDK
+@@ -1752,31 +1779,73 @@ class PyBuildExt(build_ext):
+         return True
+ 
+     def detect_tkinter_darwin(self):
+-        # The _tkinter module, using frameworks. Since frameworks are quite
+-        # different the UNIX search logic is not sharable.
++        # Build default _tkinter on macOS using Tcl and Tk frameworks.
++        #
++        # The macOS native Tk (AKA Aqua Tk) and Tcl are most commonly
++        # built and installed as macOS framework bundles.  However,
++        # for several reasons, we cannot take full advantage of the
++        # Apple-supplied compiler chain's -framework options here.
++        # Instead, we need to find and pass to the compiler the
++        # absolute paths of the Tcl and Tk headers files we want to use
++        # and the absolute path to the directory containing the Tcl
++        # and Tk frameworks for linking.
++        #
++        # We want to handle here two common use cases on macOS:
++        # 1. Build and link with system-wide third-party or user-built
++        #    Tcl and Tk frameworks installed in /Library/Frameworks.
++        # 2. Build and link using a user-specified macOS SDK so that the
++        #    built Python can be exported to other systems.  In this case,
++        #    search only the SDK's /Library/Frameworks (normally empty)
++        #    and /System/Library/Frameworks.
++        #
++        # Any other use case should be able to be handled explicitly by
++        # using the options described above in detect_tkinter_explicitly().
++        # In particular it would be good to handle here the case where
++        # you want to build and link with a framework build of Tcl and Tk
++        # that is not in /Library/Frameworks, say, in your private
++        # $HOME/Library/Frameworks directory or elsewhere. It turns
++        # out to be difficult to make that work automtically here
++        # without bringing into play more tools and magic. That case
++        # can be hamdled using a recipe with the right arguments
++        # to detect_tkinter_explicitly().
++        #
++        # Note also that the fallback case here is to try to use the
++        # Apple-supplied Tcl and Tk frameworks in /System/Library but
++        # be forewarned that they are deprecated by Apple and typically
++        # out-of-date and buggy; their use should be avoided if at
++        # all possible by installing a newer version of Tcl and Tk in
++        # /Library/Frameworks before bwfore building Python without
++        # an explicit SDK or by configuring build arguments explicitly.
++
+         from os.path import join, exists
+-        framework_dirs = [
+-            '/Library/Frameworks',
+-            '/System/Library/Frameworks/',
+-            join(os.getenv('HOME'), '/Library/Frameworks')
+-        ]
+ 
+-        sysroot = macosx_sdk_root()
++        sysroot = macosx_sdk_root() # path to the SDK or '/'
+ 
+-        # Find the directory that contains the Tcl.framework and Tk.framework
+-        # bundles.
+-        # XXX distutils should support -F!
++        if macosx_sdk_specified():
++            # Use case #2: an SDK other than '/' was specified.
++            # Only search there.
++            framework_dirs = [
++                join(sysroot, 'Library', 'Frameworks'),
++                join(sysroot, 'System', 'Library', 'Frameworks'),
++            ]
++        else:
++            # Use case #1: no explicit SDK selected.
++            # Search the local system-wide /Library/Frameworks,
++            # not the one in the default SDK, othewise fall back to
++            # /System/Library/Frameworks whose header files may be in
++            # the default SDK or, on older systems, actually installed.
++            framework_dirs = [
++                join('/', 'Library', 'Frameworks'),
++                join(sysroot, 'System', 'Library', 'Frameworks'),
++            ]
++
++        # Find the directory that contains the Tcl.framework and
++        # Tk.framework bundles.
+         for F in framework_dirs:
+             # both Tcl.framework and Tk.framework should be present
+-
+-
+             for fw in 'Tcl', 'Tk':
+-                if is_macosx_sdk_path(F):
+-                    if not exists(join(sysroot, F[1:], fw + '.framework')):
+-                        break
+-                else:
+-                    if not exists(join(F, fw + '.framework')):
+-                        break
++                if not exists(join(F, fw + '.framework')):
++                    break
+             else:
+                 # ok, F is now directory with both frameworks. Continure
+                 # building
+@@ -1786,24 +1855,16 @@ class PyBuildExt(build_ext):
+             # will now resume.
+             return False
+ 
+-        # For 8.4a2, we must add -I options that point inside the Tcl and Tk
+-        # frameworks. In later release we should hopefully be able to pass
+-        # the -F option to gcc, which specifies a framework lookup path.
+-        #
+         include_dirs = [
+             join(F, fw + '.framework', H)
+             for fw in ('Tcl', 'Tk')
+-            for H in ('Headers', 'Versions/Current/PrivateHeaders')
++            for H in ('Headers',)
+         ]
+ 
+-        # For 8.4a2, the X11 headers are not included. Rather than include a
+-        # complicated search, this is a hard-coded path. It could bail out
+-        # if X11 libs are not found...
+-        include_dirs.append('/usr/X11R6/include')
+-        frameworks = ['-framework', 'Tcl', '-framework', 'Tk']
++        # Add the base framework directory as well
++        compile_args = ['-F', F]
+ 
+-        # All existing framework builds of Tcl/Tk don't support 64-bit
+-        # architectures.
++        # Do not build tkinter for archs that this Tk was not built with.
+         cflags = sysconfig.get_config_vars('CFLAGS')[0]
+         archs = re.findall(r'-arch\s+(\w+)', cflags)
+ 
+@@ -1811,13 +1872,9 @@ class PyBuildExt(build_ext):
+         if not os.path.exists(self.build_temp):
+             os.makedirs(self.build_temp)
+ 
+-        # Note: cannot use os.popen or subprocess here, that
+-        # requires extensions that are not available here.
+-        if is_macosx_sdk_path(F):
+-            os.system("file %s/Tk.framework/Tk | grep 'for architecture' > %s"%(os.path.join(sysroot, F[1:]), tmpfile))
+-        else:
+-            os.system("file %s/Tk.framework/Tk | grep 'for architecture' > %s"%(F, tmpfile))
+-
++        os.system(
++            "file {}/Tk.framework/Tk | grep 'for architecture' > {}".format(F, tmpfile)
++        )
+         with open(tmpfile) as fp:
+             detected_archs = []
+             for ln in fp:
+@@ -1826,16 +1883,26 @@ class PyBuildExt(build_ext):
+                     detected_archs.append(ln.split()[-1])
+         os.unlink(tmpfile)
+ 
++        arch_args = []
+         for a in detected_archs:
+-            frameworks.append('-arch')
+-            frameworks.append(a)
++            arch_args.append('-arch')
++            arch_args.append(a)
++
++        compile_args += arch_args
++        link_args = [','.join(['-Wl', '-F', F, '-framework', 'Tcl', '-framework', 'Tk']), *arch_args]
++
++        # The X11/xlib.h file bundled in the Tk sources can cause function
++        # prototype warnings from the compiler. Since we cannot easily fix
++        # that, suppress the warnings here instead.
++        if '-Wstrict-prototypes' in cflags.split():
++            compile_args.append('-Wno-strict-prototypes')
+ 
+         self.add(Extension('_tkinter', ['_tkinter.c', 'tkappinit.c'],
+                            define_macros=[('WITH_APPINIT', 1)],
+                            include_dirs=include_dirs,
+                            libraries=[],
+-                           extra_compile_args=frameworks[2:],
+-                           extra_link_args=frameworks))
++                           extra_compile_args=compile_args,
++                           extra_link_args=link_args))
+         return True
+ 
+     def detect_tkinter(self):
+-- 
+2.21.1 (Apple Git-122.3)
+
+
+From 7fff1ce75c35da2bb1ee068c2c984ecccd7a75d6 Mon Sep 17 00:00:00 2001
+From: Ronald Oussoren <ronaldoussoren@mac.com>
+Date: Wed, 24 Jun 2020 14:22:16 +0200
+Subject: [PATCH 2/9] BPO-41101: Support "arm64" in Mac/Tools/pythonw
+Comment: Patches 1/9 and 3/9 have been slightly modified in order to
+Comment: backport this patchset to Python 3.8.3.
+
+---
+ Mac/Tools/pythonw.c                                         | 6 ++++++
+ .../next/macOS/2020-06-24-14-21-17.bpo-41101.z9hCsP.rst     | 2 ++
+ 2 files changed, 8 insertions(+)
+ create mode 100644 Misc/NEWS.d/next/macOS/2020-06-24-14-21-17.bpo-41101.z9hCsP.rst
+
+diff --git a/Mac/Tools/pythonw.c b/Mac/Tools/pythonw.c
+index c8bd3ba..ae4c262 100644
+--- a/Mac/Tools/pythonw.c
++++ b/Mac/Tools/pythonw.c
+@@ -119,10 +119,16 @@ setup_spawnattr(posix_spawnattr_t* spawnattr)
+ 
+ #elif defined(__ppc__)
+     cpu_types[0] = CPU_TYPE_POWERPC;
++
+ #elif defined(__i386__)
+     cpu_types[0] = CPU_TYPE_X86;
++
++#elif defined(__arm64__)
++    cpu_types[0] = CPU_TYPE_ARM64;
++
+ #else
+ #       error "Unknown CPU"
++
+ #endif
+ 
+     if (posix_spawnattr_setbinpref_np(spawnattr, count,
+diff --git a/Misc/NEWS.d/next/macOS/2020-06-24-14-21-17.bpo-41101.z9hCsP.rst b/Misc/NEWS.d/next/macOS/2020-06-24-14-21-17.bpo-41101.z9hCsP.rst
+new file mode 100644
+index 0000000..f66863d
+--- /dev/null
++++ b/Misc/NEWS.d/next/macOS/2020-06-24-14-21-17.bpo-41101.z9hCsP.rst
+@@ -0,0 +1,2 @@
++Support the new "arm64" architecture for macOS in the pythonw executable in
++framework builds.
+-- 
+2.21.1 (Apple Git-122.3)
+
+
+From a8e38eadcb0e802ed353077a0ce619daffdf17c3 Mon Sep 17 00:00:00 2001
+From: Lawrence D'Anna <lawrence_danna@apple.com>
+Date: Mon, 29 Jun 2020 17:36:23 -0700
+Subject: [PATCH 3/9] use system libffi for Mac OS 10.15 and up
+Comment: Patches 1/9 and 3/9 have been slightly modified in order to
+Comment: backport this patchset to Python 3.8.3.
+
+This updates setup.py to default to the system libffi on Mac OS 10.15 and forward.   It also updates
+detect_ctypes to prefer finding libffi in the Xcode SDK, rather than /usr/include
+---
+ setup.py | 41 ++++++++++++++++++++++++++++++-----------
+ 1 file changed, 30 insertions(+), 11 deletions(-)
+
+diff --git a/setup.py b/setup.py
+index 6f20605..546fb48 100644
+--- a/setup.py
++++ b/setup.py
+@@ -205,6 +205,13 @@ def macosx_sdk_specified():
+     macosx_sdk_root()
+     return MACOS_SDK_SPECIFIED
+ 
++def is_macosx_at_least(vers):
++    if MACOS:
++        dep_target = sysconfig.get_config_var('MACOSX_DEPLOYMENT_TARGET')
++        if dep_target:
++            return tuple(map(int, dep_target.split('.'))) >= vers
++    return False
++
+ 
+ def is_macosx_sdk_path(path):
+     """
+@@ -2059,7 +2066,12 @@ class PyBuildExt(build_ext):
+ 
+     def detect_ctypes(self):
+         # Thomas Heller's _ctypes module
+-        self.use_system_libffi = False
++
++        if not sysconfig.get_config_var("LIBFFI_INCLUDEDIR") and is_macosx_at_least((10,15)):
++            self.use_system_libffi = True
++        else:
++            self.use_system_libffi = '--with-system-ffi' in sysconfig.get_config_var("CONFIG_ARGS")
++
+         include_dirs = []
+         extra_compile_args = []
+         extra_link_args = []
+@@ -2106,15 +2118,23 @@ class PyBuildExt(build_ext):
+                                sources=['_ctypes/_ctypes_test.c'],
+                                libraries=['m']))
+ 
+-        ffi_inc_dirs = self.inc_dirs.copy()
+-        if MACOS:
+-            if '--with-system-ffi' not in sysconfig.get_config_var("CONFIG_ARGS"):
+-                return
+-            # OS X 10.5 comes with libffi.dylib; the include files are
+-            # in /usr/include/ffi
+-            ffi_inc_dirs.append('/usr/include/ffi')
+-
+         ffi_inc = [sysconfig.get_config_var("LIBFFI_INCLUDEDIR")]
++        ffi_lib = None
++
++        ffi_inc_dirs = self.inc_dirs.copy()
++        if MACOS:
++            if not self.use_system_libffi:
++                return
++            ffi_in_sdk = os.path.join(macosx_sdk_root(), "usr/include/ffi")
++            if os.path.exists(ffi_in_sdk):
++                ffi_inc = [ffi_in_sdk]
++                ffi_lib = 'ffi'
++                sources.remove('_ctypes/malloc_closure.c')
++            else:
++                # OS X 10.5 comes with libffi.dylib; the include files are
++                # in /usr/include/ffi
++                ffi_inc_dirs.append('/usr/include/ffi')
++
+         if not ffi_inc or ffi_inc[0] == '':
+             ffi_inc = find_file('ffi.h', [], ffi_inc_dirs)
+         if ffi_inc is not None:
+@@ -2122,8 +2142,7 @@ class PyBuildExt(build_ext):
+             if not os.path.exists(ffi_h):
+                 ffi_inc = None
+                 print('Header file {} does not exist'.format(ffi_h))
+-        ffi_lib = None
+-        if ffi_inc is not None:
++        if ffi_lib is None and ffi_inc is not None:
+             for lib_name in ('ffi', 'ffi_pic'):
+                 if (self.compiler.find_library_file(self.lib_dirs, lib_name)):
+                     ffi_lib = lib_name
+-- 
+2.21.1 (Apple Git-122.3)
+
+
+From 3e5c97ce129b2da509e3c7cebd14735a733c4d9e Mon Sep 17 00:00:00 2001
+From: Lawrence D'Anna <lawrence_danna@apple.com>
+Date: Tue, 30 Jun 2020 11:11:08 -0700
+Subject: [PATCH 4/9] ctypes: use the correct ABI for variadic functions
+Comment: Patches 1/9 and 3/9 have been slightly modified in order to
+Comment: backport this patchset to Python 3.8.3.
+
+On arm64 the calling convention for variardic functions is different
+than the convention for fixed-arg functions of the same arg types.
+
+ctypes needs to use ffi_prep_cif_var to tell libffi which calling
+convention to use.
+---
+ Doc/library/ctypes.rst     |  7 +++++
+ Lib/test/test_bytes.py     |  2 ++
+ Lib/test/test_unicode.py   |  3 +++
+ Modules/_ctypes/_ctypes.c  | 32 +++++++++++++++++++++++
+ Modules/_ctypes/callproc.c | 52 +++++++++++++++++++++++++++++---------
+ Modules/_ctypes/ctypes.h   |  1 +
+ 6 files changed, 85 insertions(+), 12 deletions(-)
+
+diff --git a/Doc/library/ctypes.rst b/Doc/library/ctypes.rst
+index 2d6c6d0..caed17a 100644
+--- a/Doc/library/ctypes.rst
++++ b/Doc/library/ctypes.rst
+@@ -1579,6 +1579,13 @@ They are instances of a private class:
+       value usable as argument (integer, string, ctypes instance).  This allows
+       defining adapters that can adapt custom objects as function parameters.
+ 
++   .. attribute:: variadic
++
++      Assign a boolean to specify that the function takes a variable nubmer of
++      arguments.   This does not matter on most platforms, but for Apple arm64
++      platforms variadic functions have a different calling convention than
++      normal functions.
++
+    .. attribute:: errcheck
+ 
+       Assign a Python function or another callable to this attribute. The
+diff --git a/Lib/test/test_bytes.py b/Lib/test/test_bytes.py
+index bbd45c7..66c703f 100644
+--- a/Lib/test/test_bytes.py
++++ b/Lib/test/test_bytes.py
+@@ -963,6 +963,8 @@ class BytesTest(BaseBytesTest, unittest.TestCase):
+             c_char_p)
+ 
+         PyBytes_FromFormat = pythonapi.PyBytes_FromFormat
++        PyBytes_FromFormat.variadic = True
++        PyBytes_FromFormat.argtypes = (c_char_p,)
+         PyBytes_FromFormat.restype = py_object
+ 
+         # basic tests
+diff --git a/Lib/test/test_unicode.py b/Lib/test/test_unicode.py
+index 1d6aabd..a6f5d50 100644
+--- a/Lib/test/test_unicode.py
++++ b/Lib/test/test_unicode.py
+@@ -2454,11 +2454,14 @@ class CAPITest(unittest.TestCase):
+     def test_from_format(self):
+         support.import_module('ctypes')
+         from ctypes import (
++            c_char_p,
+             pythonapi, py_object, sizeof,
+             c_int, c_long, c_longlong, c_ssize_t,
+             c_uint, c_ulong, c_ulonglong, c_size_t, c_void_p)
+         name = "PyUnicode_FromFormat"
+         _PyUnicode_FromFormat = getattr(pythonapi, name)
++        _PyUnicode_FromFormat.argtypes = (c_char_p,)
++        _PyUnicode_FromFormat.variadic = True
+         _PyUnicode_FromFormat.restype = py_object
+ 
+         def PyUnicode_FromFormat(format, *args):
+diff --git a/Modules/_ctypes/_ctypes.c b/Modules/_ctypes/_ctypes.c
+index b10b867..65d0374 100644
+--- a/Modules/_ctypes/_ctypes.c
++++ b/Modules/_ctypes/_ctypes.c
+@@ -3320,6 +3320,35 @@ PyCFuncPtr_get_restype(PyCFuncPtrObject *self, void *Py_UNUSED(ignored))
+     }
+ }
+ 
++static int
++PyCFuncPtr_set_variadic(PyCFuncPtrObject *self, PyObject *ob, void *Py_UNUSED(ignored))
++{
++    StgDictObject *dict = PyObject_stgdict((PyObject *)self);
++    assert(dict);
++    int r = PyObject_IsTrue(ob);
++    if (r == 1) {
++        dict->flags |= FUNCFLAG_VARIADIC;
++        return 0;
++    } else if (r == 0) {
++        dict->flags &= ~FUNCFLAG_VARIADIC;
++        return 0;
++    } else {
++        return -1;
++    }
++}
++
++static PyObject *
++PyCFuncPtr_get_variadic(PyCFuncPtrObject *self, void *Py_UNUSED(ignored))
++{
++    StgDictObject *dict = PyObject_stgdict((PyObject *)self);
++    assert(dict); /* Cannot be NULL for PyCFuncPtrObject instances */
++    if (dict->flags & FUNCFLAG_VARIADIC)
++        Py_RETURN_TRUE;
++    else
++        Py_RETURN_FALSE;
++}
++
++
+ static int
+ PyCFuncPtr_set_argtypes(PyCFuncPtrObject *self, PyObject *ob, void *Py_UNUSED(ignored))
+ {
+@@ -3365,6 +3394,8 @@ static PyGetSetDef PyCFuncPtr_getsets[] = {
+     { "argtypes", (getter)PyCFuncPtr_get_argtypes,
+       (setter)PyCFuncPtr_set_argtypes,
+       "specify the argument types", NULL },
++    { "variadic", (getter)PyCFuncPtr_get_variadic, (setter)PyCFuncPtr_set_variadic,
++      "specify if function takes variable number of arguments", NULL },
+     { NULL, NULL }
+ };
+ 
+@@ -5833,6 +5864,7 @@ PyInit__ctypes(void)
+     PyModule_AddObject(m, "FUNCFLAG_USE_ERRNO", PyLong_FromLong(FUNCFLAG_USE_ERRNO));
+     PyModule_AddObject(m, "FUNCFLAG_USE_LASTERROR", PyLong_FromLong(FUNCFLAG_USE_LASTERROR));
+     PyModule_AddObject(m, "FUNCFLAG_PYTHONAPI", PyLong_FromLong(FUNCFLAG_PYTHONAPI));
++    PyModule_AddObject(m, "FUNCFLAG_VARIADIC", PyLong_FromLong(FUNCFLAG_VARIADIC));
+     PyModule_AddStringConstant(m, "__version__", "1.1.0");
+ 
+     PyModule_AddObject(m, "_memmove_addr", PyLong_FromVoidPtr(memmove));
+diff --git a/Modules/_ctypes/callproc.c b/Modules/_ctypes/callproc.c
+index 4027bdb..9b0ab9d 100644
+--- a/Modules/_ctypes/callproc.c
++++ b/Modules/_ctypes/callproc.c
+@@ -86,6 +86,10 @@
+ #define DONT_USE_SEH
+ #endif
+ 
++#if defined(__APPLE__) && __arm64__
++#define HAVE_FFI_PREP_CIF_VAR 1
++#endif
++
+ #define CTYPES_CAPSULE_NAME_PYMEM "_ctypes pymem"
+ 
+ static void pymem_destructor(PyObject *ptr)
+@@ -813,7 +817,8 @@ static int _call_function_pointer(int flags,
+                                   ffi_type **atypes,
+                                   ffi_type *restype,
+                                   void *resmem,
+-                                  int argcount)
++                                  int argcount,
++                                  int argtypecount)
+ {
+     PyThreadState *_save = NULL; /* For Py_BLOCK_THREADS and Py_UNBLOCK_THREADS */
+     PyObject *error_object = NULL;
+@@ -836,15 +841,39 @@ static int _call_function_pointer(int flags,
+     if ((flags & FUNCFLAG_CDECL) == 0)
+         cc = FFI_STDCALL;
+ #endif
+-    if (FFI_OK != ffi_prep_cif(&cif,
+-                               cc,
+-                               argcount,
+-                               restype,
+-                               atypes)) {
+-        PyErr_SetString(PyExc_RuntimeError,
+-                        "ffi_prep_cif failed");
+-        return -1;
++
++#if HAVE_FFI_PREP_CIF_VAR
++    /* Everyone SHOULD set f.variadic=True on variadic function pointers, but
++     * lots of existing code will not.  If there's at least one arg and more
++     * args are passed than are defined in the prototype, then it must be a
++     * variadic function. */
++    if ((flags & FUNCFLAG_VARIADIC) ||
++        (argtypecount != 0 && argcount > argtypecount))
++    {
++        if (FFI_OK != ffi_prep_cif_var(&cif,
++                                       cc,
++                                       argtypecount,
++                                       argcount,
++                                       restype,
++                                       atypes)) {
++            PyErr_SetString(PyExc_RuntimeError,
++                            "ffi_prep_cif_var failed");
++            return -1;
++        }
++    } else {
++#endif
++        if (FFI_OK != ffi_prep_cif(&cif,
++                                   cc,
++                                   argcount,
++                                   restype,
++                                   atypes)) {
++            PyErr_SetString(PyExc_RuntimeError,
++                            "ffi_prep_cif failed");
++            return -1;
++        }
++#if HAVE_FFI_PREP_CIF_VAR
+     }
++#endif
+ 
+     if (flags & (FUNCFLAG_USE_ERRNO | FUNCFLAG_USE_LASTERROR)) {
+         error_object = _ctypes_get_errobj(&space);
+@@ -1198,9 +1227,8 @@ PyObject *_ctypes_callproc(PPROC pProc,
+ 
+     if (-1 == _call_function_pointer(flags, pProc, avalues, atypes,
+                                      rtype, resbuf,
+-                                     Py_SAFE_DOWNCAST(argcount,
+-                                                      Py_ssize_t,
+-                                                      int)))
++                                     Py_SAFE_DOWNCAST(argcount, Py_ssize_t, int),
++                                     Py_SAFE_DOWNCAST(argtype_count, Py_ssize_t, int)))
+         goto cleanup;
+ 
+ #ifdef WORDS_BIGENDIAN
+diff --git a/Modules/_ctypes/ctypes.h b/Modules/_ctypes/ctypes.h
+index e58f852..e45975f 100644
+--- a/Modules/_ctypes/ctypes.h
++++ b/Modules/_ctypes/ctypes.h
+@@ -285,6 +285,7 @@ PyObject *_ctypes_callproc(PPROC pProc,
+ #define FUNCFLAG_PYTHONAPI 0x4
+ #define FUNCFLAG_USE_ERRNO 0x8
+ #define FUNCFLAG_USE_LASTERROR 0x10
++#define FUNCFLAG_VARIADIC 0x20
+ 
+ #define TYPEFLAG_ISPOINTER 0x100
+ #define TYPEFLAG_HASPOINTER 0x200
+-- 
+2.21.1 (Apple Git-122.3)
+
+
+From 4b23f972739beadc1e16832292035ca71c1a35ec Mon Sep 17 00:00:00 2001
+From: Lawrence D'Anna <lawrence_danna@apple.com>
+Date: Tue, 30 Jun 2020 17:13:35 -0700
+Subject: [PATCH 5/9] ctypes: probe libffi for ffi_closure_alloc and
+ ffi_prep_cif_var
+Comment: Patches 1/9 and 3/9 have been slightly modified in order to
+Comment: backport this patchset to Python 3.8.3.
+
+---
+ Modules/_ctypes/callproc.c |  4 ----
+ setup.py                   | 34 +++++++++++++++++++++++++---------
+ 2 files changed, 25 insertions(+), 13 deletions(-)
+
+diff --git a/Modules/_ctypes/callproc.c b/Modules/_ctypes/callproc.c
+index 9b0ab9d..9fdc3c0 100644
+--- a/Modules/_ctypes/callproc.c
++++ b/Modules/_ctypes/callproc.c
+@@ -86,10 +86,6 @@
+ #define DONT_USE_SEH
+ #endif
+ 
+-#if defined(__APPLE__) && __arm64__
+-#define HAVE_FFI_PREP_CIF_VAR 1
+-#endif
+-
+ #define CTYPES_CAPSULE_NAME_PYMEM "_ctypes pymem"
+ 
+ static void pymem_destructor(PyObject *ptr)
+diff --git a/setup.py b/setup.py
+index 546fb48..cc2fc82 100644
+--- a/setup.py
++++ b/setup.py
+@@ -222,6 +222,13 @@ def is_macosx_sdk_path(path):
+                 or path.startswith('/Library/') )
+ 
+ 
++def grep_headers_for(function, headers):
++    for header in headers:
++        with open(header, 'r') as f:
++            if function in f.read():
++                return True
++    return False
++
+ def find_file(filename, std_dirs, paths):
+     """Searches for the directory where a given file is located,
+     and returns a possibly-empty list of additional directories, or None
+@@ -2118,7 +2125,7 @@ class PyBuildExt(build_ext):
+                                sources=['_ctypes/_ctypes_test.c'],
+                                libraries=['m']))
+ 
+-        ffi_inc = [sysconfig.get_config_var("LIBFFI_INCLUDEDIR")]
++        ffi_inc = sysconfig.get_config_var("LIBFFI_INCLUDEDIR")
+         ffi_lib = None
+ 
+         ffi_inc_dirs = self.inc_dirs.copy()
+@@ -2127,29 +2134,38 @@ class PyBuildExt(build_ext):
+                 return
+             ffi_in_sdk = os.path.join(macosx_sdk_root(), "usr/include/ffi")
+             if os.path.exists(ffi_in_sdk):
+-                ffi_inc = [ffi_in_sdk]
++                ffi_inc = ffi_in_sdk
+                 ffi_lib = 'ffi'
+-                sources.remove('_ctypes/malloc_closure.c')
+             else:
+                 # OS X 10.5 comes with libffi.dylib; the include files are
+                 # in /usr/include/ffi
+                 ffi_inc_dirs.append('/usr/include/ffi')
+ 
+-        if not ffi_inc or ffi_inc[0] == '':
+-            ffi_inc = find_file('ffi.h', [], ffi_inc_dirs)
+-        if ffi_inc is not None:
+-            ffi_h = ffi_inc[0] + '/ffi.h'
++        if not ffi_inc:
++            found = find_file('ffi.h', [], ffi_inc_dirs)
++            if found:
++                ffi_inc = found[0]
++        if ffi_inc:
++            ffi_h = ffi_inc + '/ffi.h'
+             if not os.path.exists(ffi_h):
+                 ffi_inc = None
+                 print('Header file {} does not exist'.format(ffi_h))
+-        if ffi_lib is None and ffi_inc is not None:
++        if ffi_lib is None and ffi_inc:
+             for lib_name in ('ffi', 'ffi_pic'):
+                 if (self.compiler.find_library_file(self.lib_dirs, lib_name)):
+                     ffi_lib = lib_name
+                     break
+ 
+         if ffi_inc and ffi_lib:
+-            ext.include_dirs.extend(ffi_inc)
++            ffi_headers = glob(os.path.join(ffi_inc, '*.h'))
++            if grep_headers_for('ffi_closure_alloc', ffi_headers):
++                try:
++                    sources.remove('_ctypes/malloc_closure.c')
++                except ValueError:
++                    pass
++            if grep_headers_for('ffi_prep_cif_var', ffi_headers):
++                ext.extra_compile_args.append("-DHAVE_FFI_PREP_CIF_VAR=1")
++            ext.include_dirs.append(ffi_inc)
+             ext.libraries.append(ffi_lib)
+             self.use_system_libffi = True
+ 
+-- 
+2.21.1 (Apple Git-122.3)
+
+
+From 6717b8cb761ad60d243247c22d2136d1bb6cf6ed Mon Sep 17 00:00:00 2001
+From: "blurb-it[bot]" <43283697+blurb-it[bot]@users.noreply.github.com>
+Date: Wed, 1 Jul 2020 01:30:05 +0000
+Subject: [PATCH 6/9] =?UTF-8?q?=F0=9F=93=9C=F0=9F=A4=96=20Added=20by=20blu?=
+ =?UTF-8?q?rb=5Fit.?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Comment: Patches 1/9 and 3/9 have been slightly modified in order to
+Comment: backport this patchset to Python 3.8.3.
+
+---
+ .../Core and Builtins/2020-07-01-01-30-04.bpo-41100.hCrjJJ.rst   | 1 +
+ 1 file changed, 1 insertion(+)
+ create mode 100644 Misc/NEWS.d/next/Core and Builtins/2020-07-01-01-30-04.bpo-41100.hCrjJJ.rst
+
+diff --git a/Misc/NEWS.d/next/Core and Builtins/2020-07-01-01-30-04.bpo-41100.hCrjJJ.rst b/Misc/NEWS.d/next/Core and Builtins/2020-07-01-01-30-04.bpo-41100.hCrjJJ.rst
+new file mode 100644
+index 0000000..769eb89
+--- /dev/null
++++ b/Misc/NEWS.d/next/Core and Builtins/2020-07-01-01-30-04.bpo-41100.hCrjJJ.rst	
+@@ -0,0 +1 @@
++setup.py: probe libffi for ffi_closure_alloc and ffi_prep_cif_var
+\ No newline at end of file
+-- 
+2.21.1 (Apple Git-122.3)
+
+
+From 25b80eaea24be19a201e02629844b486b20d4acb Mon Sep 17 00:00:00 2001
+From: Lawrence D'Anna <64555057+lawrence-danna-apple@users.noreply.github.com>
+Date: Mon, 13 Jul 2020 16:21:28 -0700
+Subject: [PATCH 7/9] fix spelling in Doc/library/ctypes.rst
+Comment: Patches 1/9 and 3/9 have been slightly modified in order to
+Comment: backport this patchset to Python 3.8.3.
+
+Co-authored-by: Arch Oversight <archoversight@gmail.com>
+---
+ Doc/library/ctypes.rst | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/Doc/library/ctypes.rst b/Doc/library/ctypes.rst
+index caed17a..8a82dd5 100644
+--- a/Doc/library/ctypes.rst
++++ b/Doc/library/ctypes.rst
+@@ -1581,7 +1581,7 @@ They are instances of a private class:
+ 
+    .. attribute:: variadic
+ 
+-      Assign a boolean to specify that the function takes a variable nubmer of
++      Assign a boolean to specify that the function takes a variable number of
+       arguments.   This does not matter on most platforms, but for Apple arm64
+       platforms variadic functions have a different calling convention than
+       normal functions.
+@@ -2552,4 +2552,3 @@ Arrays and pointers
+ 
+         Returns the object to which to pointer points.  Assigning to this
+         attribute changes the pointer to point to the assigned object.
+-
+-- 
+2.21.1 (Apple Git-122.3)
+
+
+From 31a6fc56a69b85423971247c95f003387924e3d9 Mon Sep 17 00:00:00 2001
+From: Lawrence D'Anna <lawrence_danna@apple.com>
+Date: Mon, 29 Jun 2020 14:03:15 -0700
+Subject: [PATCH 8/9] allow python to build for macosx-11.0-arm64
+Comment: Patches 1/9 and 3/9 have been slightly modified in order to
+Comment: backport this patchset to Python 3.8.3.
+
+---
+ configure    | 3 +++
+ configure.ac | 3 +++
+ 2 files changed, 6 insertions(+)
+
+diff --git a/configure b/configure
+index 96dcd0d..b009927 100755
+--- a/configure
++++ b/configure
+@@ -9264,6 +9264,9 @@ fi
+     	ppc)
+     		MACOSX_DEFAULT_ARCH="ppc64"
+     		;;
++      arm64)
++    		MACOSX_DEFAULT_ARCH="arm64"
++    		;;
+     	*)
+     		as_fn_error $? "Unexpected output of 'arch' on OSX" "$LINENO" 5
+     		;;
+diff --git a/configure.ac b/configure.ac
+index 18a0446..3083e1e 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -2442,6 +2442,9 @@ case $ac_sys_system/$ac_sys_release in
+     	ppc)
+     		MACOSX_DEFAULT_ARCH="ppc64"
+     		;;
++      arm64)
++    		MACOSX_DEFAULT_ARCH="arm64"
++    		;;
+     	*)
+     		AC_MSG_ERROR([Unexpected output of 'arch' on OSX])
+     		;;
+-- 
+2.21.1 (Apple Git-122.3)
+
+
+From 0f4840d3003c82a8a67b6f0c4f71ccbdbfa6d1c6 Mon Sep 17 00:00:00 2001
+From: "blurb-it[bot]" <43283697+blurb-it[bot]@users.noreply.github.com>
+Date: Tue, 30 Jun 2020 00:02:43 +0000
+Subject: [PATCH 9/9] =?UTF-8?q?=F0=9F=93=9C=F0=9F=A4=96=20Added=20by=20blu?=
+ =?UTF-8?q?rb=5Fit.?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Comment: Patches 1/9 and 3/9 have been slightly modified in order to
+Comment: backport this patchset to Python 3.8.3.
+
+---
+ .../Core and Builtins/2020-06-30-00-02-42.bpo-41164.zbzWsP.rst   | 1 +
+ 1 file changed, 1 insertion(+)
+ create mode 100644 Misc/NEWS.d/next/Core and Builtins/2020-06-30-00-02-42.bpo-41164.zbzWsP.rst
+
+diff --git a/Misc/NEWS.d/next/Core and Builtins/2020-06-30-00-02-42.bpo-41164.zbzWsP.rst b/Misc/NEWS.d/next/Core and Builtins/2020-06-30-00-02-42.bpo-41164.zbzWsP.rst
+new file mode 100644
+index 0000000..c431766
+--- /dev/null
++++ b/Misc/NEWS.d/next/Core and Builtins/2020-06-30-00-02-42.bpo-41164.zbzWsP.rst	
+@@ -0,0 +1 @@
++Allow python to build for macosx-11.0-arm64
+\ No newline at end of file
+-- 
+2.21.1 (Apple Git-122.3)
+
