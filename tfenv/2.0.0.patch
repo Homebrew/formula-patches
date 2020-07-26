@@ -1,0 +1,452 @@
+From 080637e9368ab0b88305dbcd2b857b6dc8fdb730 Mon Sep 17 00:00:00 2001
+From: Alexander Bayandin <a.bayandin@gmail.com>
+Date: Fri, 1 May 2020 12:13:44 +0100
+Subject: [PATCH 1/5] Fix brace expansion of @ for bash 3.x
+
+---
+ bin/terraform      | 6 +++---
+ bin/tfenv          | 4 ++--
+ lib/bashlog.sh     | 6 +++---
+ libexec/tfenv-exec | 6 +++---
+ test/run.sh        | 2 +-
+ 5 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/bin/terraform b/bin/terraform
+index 08137cec6d6e5ba770619bc0d8008ecc067ff22b..a2e12a90ba14d15f5c94d3f93ebe20522632a2cb 100755
+--- a/bin/terraform
++++ b/bin/terraform
+@@ -62,8 +62,8 @@ log 'debug' "program=\"${0##*/}\"";
+ 
+ declare tfenv_path="${TFENV_ROOT}/bin/tfenv";
+ 
+-log 'debug' "Exec: \"${tfenv_path}\" exec \"${@}\"";
+-exec "${tfenv_path}" exec "${@}" \
+-  || log 'error' "Failed to exec: \"${tfenv_path}\" exec \"${@}\"";
++log 'debug' "Exec: \"${tfenv_path}\" exec \"$*\"";
++exec "${tfenv_path}" exec "$@" \
++  || log 'error' "Failed to exec: \"${tfenv_path}\" exec \"$*\"";
+ 
+ log 'error' 'This line should not be reachable. Something catastrophic has occurred';
+diff --git a/bin/tfenv b/bin/tfenv
+index ccc135d349eba2c64dce53783b5f9f8db234f2eb..ae6334ae062f90a1eff37398bb1b61d72f42e6cf 100755
+--- a/bin/tfenv
++++ b/bin/tfenv
+@@ -104,8 +104,8 @@ exit 1;
+       } | abort && exit 1;
+     fi;
+     shift 1;
+-    log 'debug' "Exec: \"${command_path}\" \"${@}\"";
+-    exec "${command_path}" "${@}";
++    log 'debug' "Exec: \"${command_path}\" \"$*\"";
++    exec "${command_path}" "$@";
+     ;;
+ esac;
+ 
+diff --git a/lib/bashlog.sh b/lib/bashlog.sh
+index 52ad6db181342f81b3d1f8eb7f4fbb1d0f007004..aa8a450a6cf4f185450119eedda9a05835fa65de 100755
+--- a/lib/bashlog.sh
++++ b/lib/bashlog.sh
+@@ -8,7 +8,7 @@ function _log_exception() {
+     BASHLOG_JSON=0;
+     BASHLOG_SYSLOG=0;
+ 
+-    log 'error' "Logging Exception: ${@}";
++    log 'error' "Logging Exception: $*";
+   );
+ };
+ export -f _log_exception;
+@@ -39,7 +39,7 @@ function log() {
+ 
+   shift 1;
+ 
+-  local line="${@}";
++  local line="$@";
+ 
+   # RFC 5424
+   #
+@@ -154,7 +154,7 @@ function log() {
+       fi;
+       ;;
+     *)
+-      log 'error' "Undefined log level trying to log: ${@}";
++      log 'error' "Undefined log level trying to log: $*";
+       ;;
+   esac
+ };
+diff --git a/libexec/tfenv-exec b/libexec/tfenv-exec
+index 4195fd2cc23aa0b387fd1baa7f34b125baa724d6..6ebcb0417d5d79c7045b981af5be46a2f93f0d2f 100755
+--- a/libexec/tfenv-exec
++++ b/libexec/tfenv-exec
+@@ -95,9 +95,9 @@ fi;
+ TF_BIN_PATH="${TFENV_ROOT}/versions/${TFENV_VERSION}/terraform";
+ export PATH="${TF_BIN_PATH}:${PATH}";
+ log 'debug' "TF_BIN_PATH added to PATH: ${TF_BIN_PATH}";
+-log 'debug' "Executing: ${TF_BIN_PATH} ${@}";
++log 'debug' "Executing: ${TF_BIN_PATH} $@";
+ 
+-exec "${TF_BIN_PATH}" "${@}" \
+-  || log 'error' "Failed to execute: ${TF_BIN_PATH} ${@}";
++exec "${TF_BIN_PATH}" "$@" \
++  || log 'error' "Failed to execute: ${TF_BIN_PATH} $*";
+ 
+ exit 0;
+diff --git a/test/run.sh b/test/run.sh
+index 3a24dd551c1bf755e3e3e1603de4dccc9b6162b5..0e1d36295247458b3fc6ead9dfa1451dedfb6d9f 100755
+--- a/test/run.sh
++++ b/test/run.sh
+@@ -51,7 +51,7 @@ export PATH="${TFENV_ROOT}/bin:${PATH}";
+ 
+ errors=();
+ if [ "${#}" -ne 0 ]; then
+-  targets="${@}";
++  targets="$@";
+ else
+   targets="$(\ls "$(dirname "${0}")" | grep 'test_')";
+ fi;
+
+From f1ee0f699f412520c92b8b108694daca95f6cf2b Mon Sep 17 00:00:00 2001
+From: Alexander Bayandin <a.bayandin@gmail.com>
+Date: Fri, 1 May 2020 12:14:22 +0100
+Subject: [PATCH 2/5] Run tests on default macOS bash (3.2)
+
+---
+ .travis.yml | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/.travis.yml b/.travis.yml
+index d3ca4bd5e3848160e070ac44a6e070cf213b4bca..a8742e2635684486065501f274dad02017443511 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -1,5 +1,3 @@
+-before_install:
+-  - 'if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; brew install bash; fi' # Bash4 Required
+ language: generic
+ matrix:
+   include:
+@@ -10,10 +8,10 @@ matrix:
+     - os: linux
+       dist: trusty
+     - os: osx
+-      osx_image: xcode11.2
++      osx_image: xcode11.3
+     - os: osx
+       osx_image: xcode10.3
+-    #- os: osx
+-    #  osx_image: xcode9.4  # brew update is excruciatingly slow on xcode9.4
++    - os: osx
++      osx_image: xcode9.4
+ script:
+   - ./test/run.sh
+
+From 0c6544b583f008382c150bb8c72a4bf69d7335d5 Mon Sep 17 00:00:00 2001
+From: Alexander Bayandin <a.bayandin@gmail.com>
+Date: Wed, 6 May 2020 23:03:54 +0100
+Subject: [PATCH 3/5] Replace usages of associative arrays for bash 3.x in
+ tests
+
+---
+ test/test_install_and_use.sh | 88 +++++++++++++++++++++---------------
+ test/test_uninstall.sh       | 32 ++++++++-----
+ 2 files changed, 71 insertions(+), 49 deletions(-)
+
+diff --git a/test/test_install_and_use.sh b/test/test_install_and_use.sh
+index 65d608d528b26076be49dc4ff751d572a8c37606..6eccf22549123a61b46dff1aaa3f1f1ba87d67ec 100755
+--- a/test/test_install_and_use.sh
++++ b/test/test_install_and_use.sh
+@@ -73,46 +73,56 @@ declare -a errors=();
+ 
+ log 'info' '### Test Suite: Install and Use'
+ 
+-declare -A string_tests=();
+-
+-string_tests['latest version']="$(tfenv list-remote | grep -e "^[0-9]\+\.[0-9]\+\.[0-9]\+$" | head -n 1),latest";
+-string_tests['latest possibly-unstable version']="$(tfenv list-remote | head -n 1),latest:";
+-string_tests['latest alpha']="$(tfenv list-remote | grep 'alpha' | head -n 1),latest:alpha";
+-string_tests['latest beta']="$(tfenv list-remote | grep 'beta' | head -n 1),latest:beta";
+-string_tests['latest rc']="$(tfenv list-remote | grep 'rc' | head -n 1),latest:rc";
+-string_tests['latest possibly-unstable version from 0.11']="$(tfenv list-remote | grep '^0\.11\.' | head -n 1),latest:^0.11.";
+-string_tests['0.11.15-oci']='0.11.15-oci,0.11.15-oci';
+-string_tests['latest version matching regex']='0.8.8,latest:^0.8';
+-string_tests['specific version']="0.7.13,0.7.13";
+-
+-declare kv k v;
+-declare -i test_num=1;
+-
+-for desc in "${!string_tests[@]}"; do
++tests__desc=(
++  'latest version'
++  'latest possibly-unstable version'
++  'latest alpha'
++  'latest beta'
++  'latest rc'
++  'latest possibly-unstable version from 0.11'
++  '0.11.15-oci'
++  'latest version matching regex'
++  'specific version'
++);
++tests__kv=(
++  "$(tfenv list-remote | grep -e "^[0-9]\+\.[0-9]\+\.[0-9]\+$" | head -n 1),latest"
++  "$(tfenv list-remote | head -n 1),latest:"
++  "$(tfenv list-remote | grep 'alpha' | head -n 1),latest:alpha"
++  "$(tfenv list-remote | grep 'beta' | head -n 1),latest:beta"
++  "$(tfenv list-remote | grep 'rc' | head -n 1),latest:rc"
++  "$(tfenv list-remote | grep '^0\.11\.' | head -n 1),latest:^0.11."
++  '0.11.15-oci,0.11.15-oci'
++  '0.8.8,latest:^0.8'
++  "0.7.13,0.7.13"
++);
++tests_count=${#tests__desc[@]}
++
++declare desc kv k v;
++
++for ((test_num=0; test_num<${tests_count}; ++test_num )) ; do
+   cleanup || log 'error' 'Cleanup failed?!';
+-  kv="${string_tests[${desc}]}";
++  desc=${tests__desc[${test_num}]}
++  kv="${tests__kv[${test_num}]}";
+   v="${kv%,*}";
+   k="${kv##*,}";
+-  log 'info' "## Param Test ${test_num}/${#string_tests[*]}: ${desc} ( ${k} / ${v} )";
++  log 'info' "## Param Test ${test_num}/${tests_count}: ${desc} ( ${k} / ${v} )";
+   test_install_and_use "${v}" "${k}" \
+-    && log info "## Param Test ${test_num}/${#string_tests[*]}: ${desc} ( ${k} / ${v} ) succeeded" \
+-    || error_and_proceed "## Param Test ${test_num}/${#string_tests[*]}: ${desc} ( ${k} / ${v} ) failed";
+-  test_num+=1;
++    && log info "## Param Test ${test_num}/${tests_count}: ${desc} ( ${k} / ${v} ) succeeded" \
++    || error_and_proceed "## Param Test ${test_num}/${tests_count}: ${desc} ( ${k} / ${v} ) failed";
+ done;
+ 
+-test_num=1;
+-for desc in "${!string_tests[@]}"; do
++for ((test_num=0; test_num<${tests_count}; ++test_num )) ; do
+   cleanup || log 'error' 'Cleanup failed?!';
+-  kv="${string_tests[${desc}]}";
++  desc=${tests__desc[${test_num}]}
++  kv="${tests__kv[${test_num}]}";
+   v="${kv%,*}";
+   k="${kv##*,}";
+-  log 'info' "## ./.terraform-version Test ${test_num}/${#string_tests[*]}: ${desc} ( ${k} / ${v} )";
++  log 'info' "## ./.terraform-version Test ${test_num}/${tests_count}: ${desc} ( ${k} / ${v} )";
+   log 'info' "Writing ${k} to ./.terraform-version";
+   echo "${k}" > ./.terraform-version;
+   test_install_and_use "${v}" \
+-    && log info "## ./.terraform-version Test ${test_num}/${#string_tests[*]}: ${desc} ( ${k} / ${v} ) succeeded" \
+-    || error_and_proceed "## ./.terraform-version Test ${test_num}/${#string_tests[*]}: ${desc} ( ${k} / ${v} ) failed";
+-  test_num+=1;
++    && log info "## ./.terraform-version Test ${test_num}/${tests_count}: ${desc} ( ${k} / ${v} ) succeeded" \
++    || error_and_proceed "## ./.terraform-version Test ${test_num}/${tests_count}: ${desc} ( ${k} / ${v} ) failed";
+ done;
+ 
+ cleanup || log 'error' 'Cleanup failed?!';
+@@ -158,20 +168,24 @@ log 'info' 'Install invalid specific version';
+ cleanup || log 'error' 'Cleanup failed?!';
+ 
+ 
+-declare -A neg_tests=();
+-neg_tests['specific version']="9.9.9";
+-neg_tests['latest:word']="latest:word";
++neg_tests__desc=(
++  'specific version'
++  'latest:word'
++);
++neg_tests__kv=(
++  '9.9.9'
++  "latest:word"
++);
++neg_tests_count=${#neg_tests__desc[@]}
+ 
+-test_num=1;
+-
+-for desc in "${!neg_tests[@]}"; do
++for ((test_num=0; test_num<${neg_tests_count}; ++test_num )) ; do
+   cleanup || log 'error' 'Cleanup failed?!';
+-  k="${neg_tests[${desc}]}";
++  desc=${neg_tests__desc[${test_num}]}
++  k="${neg_tests__kv[${test_num}]}";
+   expected_error_message="No versions matching '${k}' found in remote";
+-  log 'info' "##  Invalid Version Test ${test_num}/${#neg_tests[*]}: ${desc} ( ${k} )";
++  log 'info' "##  Invalid Version Test ${test_num}/${neg_tests_count}: ${desc} ( ${k} )";
+   [ -z "$(tfenv install "${k}" 2>&1 | grep "${expected_error_message}")" ] \
+     && error_and_proceed "Installing invalid version ${k}";
+-  test_num+=1;
+ done;
+ 
+ if [ "${#errors[@]}" -gt 0 ]; then
+diff --git a/test/test_uninstall.sh b/test/test_uninstall.sh
+index ccaad83b87176096de86cc6577a909dbf7375b1a..0de2b4eeedbeb6032b1962994ea88653783545dd 100755
+--- a/test/test_uninstall.sh
++++ b/test/test_uninstall.sh
+@@ -62,19 +62,27 @@ function test_uninstall() {
+ log 'info' '### Test Suite: Uninstall Local Versions'
+ cleanup || log 'error' 'Cleanup failed?!';
+ 
+-declare -A tests;
+-tests['0.9.1']='0.9.1';
+-tests['0.11.15-oci']='0.11.15-oci';
+-tests['latest']="$(tfenv list-remote | head -n1)";
+-tests['latest:^0.8']="$(tfenv list-remote | grep -e "^0.8" | head -n1)";
++tests__keywords=(
++  '0.9.1'
++  '0.11.15-oci'
++  'latest'
++  'latest:^0.8'
++)
++tests__versions=(
++  '0.9.1'
++  '0.11.15-oci'
++  "$(tfenv list-remote | head -n1)"
++  "$(tfenv list-remote | grep -e "^0.8" | head -n1)"
++)
++tests_count=${#tests__keywords[@]}
+ 
+-declare -i test_num=1;
+-for k in "${!tests[@]}"; do
+-  log 'info' "Test ${test_num}/${#tests[@]}: Testing uninstall of version ${tests[${k}]} via keyword ${k}";
+-  test_uninstall "${k}" "${tests[${k}]}" \
+-    && log info "Test uninstall of version ${tests[${k}]} succeeded" \
+-    || error_and_proceed "Test uninstall of version ${tests[${k}]} failed";
+-  test_num+=1;
++for ((test_num=0; test_num<${tests_count}; ++test_num )) ; do
++  keyword=${tests__keywords[${test_num}]}
++  version=${tests__versions[${test_num}]}
++  log 'info' "Test $(( ${test_num} + 1 ))/${tests_count}: Testing uninstall of version ${version} via keyword ${keyword}";
++  test_uninstall "${keyword}" "${version}" \
++    && log info "Test uninstall of version ${version} (via ${keyword}) succeeded" \
++    || error_and_proceed "Test uninstall of version ${version} (via ${keyword}) failed";
+ done;
+ 
+ if [ "${#errors[@]}" -gt 0 ]; then
+
+From 88711318582c63a0c0acc5922cab05877513b81d Mon Sep 17 00:00:00 2001
+From: Zordrak <Zordrak@users.noreply.github.com>
+Date: Tue, 26 May 2020 16:33:18 +0100
+Subject: [PATCH 4/5] test_uninstall.sh semicolons and spacing
+
+---
+ test/test_uninstall.sh | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/test/test_uninstall.sh b/test/test_uninstall.sh
+index 0de2b4eeedbeb6032b1962994ea88653783545dd..e3dde27d65f0e0e7db42d3971e55d75aeddd9cab 100755
+--- a/test/test_uninstall.sh
++++ b/test/test_uninstall.sh
+@@ -57,9 +57,9 @@ function test_uninstall() {
+   tfenv uninstall "${v}" || return 1;
+   log 'info' 'Confirming uninstall success; an error indicates success:';
+   check_active_version "${v}" && return 1 || return 0;
+-}
++};
+ 
+-log 'info' '### Test Suite: Uninstall Local Versions'
++log 'info' '### Test Suite: Uninstall Local Versions';
+ cleanup || log 'error' 'Cleanup failed?!';
+ 
+ tests__keywords=(
+@@ -67,18 +67,20 @@ tests__keywords=(
+   '0.11.15-oci'
+   'latest'
+   'latest:^0.8'
+-)
++);
++
+ tests__versions=(
+   '0.9.1'
+   '0.11.15-oci'
+   "$(tfenv list-remote | head -n1)"
+   "$(tfenv list-remote | grep -e "^0.8" | head -n1)"
+-)
+-tests_count=${#tests__keywords[@]}
++);
++
++tests_count=${#tests__keywords[@]};
+ 
+ for ((test_num=0; test_num<${tests_count}; ++test_num )) ; do
+-  keyword=${tests__keywords[${test_num}]}
+-  version=${tests__versions[${test_num}]}
++  keyword=${tests__keywords[${test_num}]};
++  version=${tests__versions[${test_num}]};
+   log 'info' "Test $(( ${test_num} + 1 ))/${tests_count}: Testing uninstall of version ${version} via keyword ${keyword}";
+   test_uninstall "${keyword}" "${version}" \
+     && log info "Test uninstall of version ${version} (via ${keyword}) succeeded" \
+
+From 3687695476f96f3f189ca1faf920b7a9954a441b Mon Sep 17 00:00:00 2001
+From: Zordrak <Zordrak@users.noreply.github.com>
+Date: Tue, 26 May 2020 16:35:01 +0100
+Subject: [PATCH 5/5] test_install_and_use.sh semicolons and spacing
+
+---
+ test/test_install_and_use.sh | 17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/test/test_install_and_use.sh b/test/test_install_and_use.sh
+index 6eccf22549123a61b46dff1aaa3f1f1ba87d67ec..c66ffab5353983c30427ed5ce9ab9a61c255e196 100755
+--- a/test/test_install_and_use.sh
++++ b/test/test_install_and_use.sh
+@@ -67,11 +67,11 @@ test_install_and_use_overridden() {
+   tfenv use "${k}" || return 1;
+   check_default_version "${v}" || return 1;
+   return 0;
+-}
++};
+ 
+ declare -a errors=();
+ 
+-log 'info' '### Test Suite: Install and Use'
++log 'info' '### Test Suite: Install and Use';
+ 
+ tests__desc=(
+   'latest version'
+@@ -84,6 +84,7 @@ tests__desc=(
+   'latest version matching regex'
+   'specific version'
+ );
++
+ tests__kv=(
+   "$(tfenv list-remote | grep -e "^[0-9]\+\.[0-9]\+\.[0-9]\+$" | head -n 1),latest"
+   "$(tfenv list-remote | head -n 1),latest:"
+@@ -95,13 +96,14 @@ tests__kv=(
+   '0.8.8,latest:^0.8'
+   "0.7.13,0.7.13"
+ );
+-tests_count=${#tests__desc[@]}
++
++tests_count=${#tests__desc[@]};
+ 
+ declare desc kv k v;
+ 
+ for ((test_num=0; test_num<${tests_count}; ++test_num )) ; do
+   cleanup || log 'error' 'Cleanup failed?!';
+-  desc=${tests__desc[${test_num}]}
++  desc=${tests__desc[${test_num}]};
+   kv="${tests__kv[${test_num}]}";
+   v="${kv%,*}";
+   k="${kv##*,}";
+@@ -113,7 +115,7 @@ done;
+ 
+ for ((test_num=0; test_num<${tests_count}; ++test_num )) ; do
+   cleanup || log 'error' 'Cleanup failed?!';
+-  desc=${tests__desc[${test_num}]}
++  desc=${tests__desc[${test_num}]};
+   kv="${tests__kv[${test_num}]}";
+   v="${kv%,*}";
+   k="${kv##*,}";
+@@ -167,16 +169,17 @@ fi;
+ log 'info' 'Install invalid specific version';
+ cleanup || log 'error' 'Cleanup failed?!';
+ 
+-
+ neg_tests__desc=(
+   'specific version'
+   'latest:word'
+ );
++
+ neg_tests__kv=(
+   '9.9.9'
+   "latest:word"
+ );
+-neg_tests_count=${#neg_tests__desc[@]}
++
++neg_tests_count=${#neg_tests__desc[@]};
+ 
+ for ((test_num=0; test_num<${neg_tests_count}; ++test_num )) ; do
+   cleanup || log 'error' 'Cleanup failed?!';
