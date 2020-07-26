@@ -1,0 +1,518 @@
+From 2f2b5a6360a73fe9ac69393ae5e4ef7396c7f10a Mon Sep 17 00:00:00 2001
+From: Dave Vasilevsky <dave@vasilevsky.ca>
+Date: Mon, 19 Mar 2012 05:49:36 -0400
+Subject: [PATCH 1/9] Mac, BSD: FNM_EXTMATCH unavailable
+
+The flag FNM_EXTMATCH for fnmatch() is a glibc extension. Make it a no-op when it's unavailable.
+---
+ squashfs-tools/action.c     | 4 ++++
+ squashfs-tools/mksquashfs.c | 4 ++++
+ squashfs-tools/unsquashfs.h | 4 ++++
+ 3 files changed, 12 insertions(+)
+
+diff --git a/squashfs-tools/action.c b/squashfs-tools/action.c
+index 4b06ccb4c01b34df80ed2e79eff3ea6709acc8c1..bb8a63d976855757c8474e8c6a8b73ec20ed5825 100644
+--- a/squashfs-tools/action.c
++++ b/squashfs-tools/action.c
+@@ -38,6 +38,10 @@
+ #include <limits.h>
+ #include <errno.h>
+ 
++#ifndef FNM_EXTMATCH /* glibc extension */
++	#define FNM_EXTMATCH 0
++#endif
++
+ #include "squashfs_fs.h"
+ #include "mksquashfs.h"
+ #include "action.h"
+diff --git a/squashfs-tools/mksquashfs.c b/squashfs-tools/mksquashfs.c
+index a45b77f1fe9a383de6eea80113e4ad093b054b86..b98a371d4ef4d93820f197f857b05b4e5ce78fda 100644
+--- a/squashfs-tools/mksquashfs.c
++++ b/squashfs-tools/mksquashfs.c
+@@ -52,6 +52,10 @@
+ #include <ctype.h>
+ #include <sys/sysinfo.h>
+ 
++#ifndef FNM_EXTMATCH /* glibc extension */
++	#define FNM_EXTMATCH 0
++#endif
++
+ #ifndef linux
+ #define __BYTE_ORDER BYTE_ORDER
+ #define __BIG_ENDIAN BIG_ENDIAN
+diff --git a/squashfs-tools/unsquashfs.h b/squashfs-tools/unsquashfs.h
+index 934618b264e495dbc686abd3e2bea049bfa44a5e..0e680ab9cfb074d55c87841b8a481d20f5620815 100644
+--- a/squashfs-tools/unsquashfs.h
++++ b/squashfs-tools/unsquashfs.h
+@@ -46,6 +46,10 @@
+ #include <sys/ioctl.h>
+ #include <sys/time.h>
+ 
++#ifndef FNM_EXTMATCH /* glibc extension */
++	#define FNM_EXTMATCH 0
++#endif
++
+ #ifndef linux
+ #define __BYTE_ORDER BYTE_ORDER
+ #define __BIG_ENDIAN BIG_ENDIAN
+
+From ccb2b3a5c69b10add791a46799b4ccd595ddaf91 Mon Sep 17 00:00:00 2001
+From: Dave Vasilevsky <dave@vasilevsky.ca>
+Date: Sun, 1 Jun 2014 18:14:05 -0400
+Subject: [PATCH 2/9] Mac: xattr functions are different
+
+OS X has no l*xattr(), instead using *xattr() with a flag argument of XATTR_NOFOLLOW. Also, getxattr() and setxattr() take an extra argument for resource forks.
+
+Just use macros for l*xattr() which adapt to the different API.
+---
+ squashfs-tools/unsquashfs_xattr.c | 5 +++++
+ squashfs-tools/xattr.c            | 7 +++++++
+ 2 files changed, 12 insertions(+)
+
+diff --git a/squashfs-tools/unsquashfs_xattr.c b/squashfs-tools/unsquashfs_xattr.c
+index 7742dfe2bf8e42ead8b7e81a239abd0ee266292e..f8cd3b6c122492023cb031d4a1d9570878c45d82 100644
+--- a/squashfs-tools/unsquashfs_xattr.c
++++ b/squashfs-tools/unsquashfs_xattr.c
+@@ -27,6 +27,11 @@
+ 
+ #include <sys/xattr.h>
+ 
++#ifdef XATTR_NOFOLLOW /* Apple's xattrs */
++	#define lsetxattr(path_, name_, val_, sz_, flags_) \
++		setxattr(path_, name_, val_, sz_, 0, flags_ | XATTR_NOFOLLOW)
++#endif
++
+ #define NOSPACE_MAX 10
+ 
+ extern int root_process;
+diff --git a/squashfs-tools/xattr.c b/squashfs-tools/xattr.c
+index 64dfd82d48415abd9caf8a9871161af48026c85c..af57ea139e75792a4bde12391008cd02dca4783c 100644
+--- a/squashfs-tools/xattr.c
++++ b/squashfs-tools/xattr.c
+@@ -36,6 +36,13 @@
+ #include <stdlib.h>
+ #include <sys/xattr.h>
+ 
++#ifdef XATTR_NOFOLLOW /* Apple's xattrs */
++	#define llistxattr(path_, buf_, sz_) \
++		listxattr(path_, buf_, sz_, XATTR_NOFOLLOW)
++	#define lgetxattr(path_, name_, val_, sz_) \
++		getxattr(path_, name_, val_, sz_, 0, XATTR_NOFOLLOW)
++#endif
++
+ #include "squashfs_fs.h"
+ #include "squashfs_swap.h"
+ #include "mksquashfs.h"
+
+From 1304ae59d1a6e6530ea5bb74377c348b35fca891 Mon Sep 17 00:00:00 2001
+From: Dave Vasilevsky <dave@vasilevsky.ca>
+Date: Mon, 19 Mar 2012 06:03:16 -0400
+Subject: [PATCH 3/9] Mac, BSD: Use sysctl() instead of sysconf()
+
+Both for finding the number of processors, and for finding the
+amount of physical memory.
+
+Header #ifdef for sysinfo.h is mysteriously missing in unsquashfs.c . Use the
+exact same code as mksquashfs.c .
+---
+ squashfs-tools/mksquashfs.c | 36 +++++++++++++++++++++++++++++++++++-
+ squashfs-tools/unsquashfs.c |  4 ++++
+ 2 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/squashfs-tools/mksquashfs.c b/squashfs-tools/mksquashfs.c
+index b98a371d4ef4d93820f197f857b05b4e5ce78fda..33e259ee98196537c46e441d4500a455adad98a5 100644
+--- a/squashfs-tools/mksquashfs.c
++++ b/squashfs-tools/mksquashfs.c
+@@ -35,7 +35,12 @@
+ #include <stddef.h>
+ #include <sys/types.h>
+ #include <sys/stat.h>
++#ifndef linux
++#include <sys/sysctl.h>
++#else
++#include <sys/sysinfo.h>
+ #include <sys/sysmacros.h>
++#endif
+ #include <fcntl.h>
+ #include <errno.h>
+ #include <dirent.h>
+@@ -50,7 +55,6 @@
+ #include <sys/wait.h>
+ #include <limits.h>
+ #include <ctype.h>
+-#include <sys/sysinfo.h>
+ 
+ #ifndef FNM_EXTMATCH /* glibc extension */
+ 	#define FNM_EXTMATCH 0
+@@ -5199,6 +5203,35 @@ int get_physical_memory()
+ 	long long page_size = sysconf(_SC_PAGESIZE);
+ 	int phys_mem;
+ 
++#ifndef linux
++	#ifdef HW_MEMSIZE
++		#define SYSCTL_PHYSMEM HW_MEMSIZE
++	#elif defined(HW_PHYSMEM64)
++		#define SYSCTL_PHYSMEM HW_PHYSMEM64
++	#else
++		#define SYSCTL_PHYSMEM HW_PHYSMEM
++	#endif
++
++	int mib[2];
++	uint64_t sysctl_physmem = 0;
++	size_t sysctl_len = sizeof(sysctl_physmem);
++
++	mib[0] = CTL_HW;
++	mib[1] = SYSCTL_PHYSMEM;
++
++	if(sysctl(mib, 2, &sysctl_physmem, &sysctl_len, NULL, 0) == 0) {
++		/* some systems use 32-bit values, work with what we're given */
++		if (sysctl_len == 4)
++			sysctl_physmem = *(uint32_t*)&sysctl_physmem;
++		phys_mem = sysctl_physmem >> 20;
++	} else {
++		ERROR_START("Failed to get amount of available "
++			"memory.");
++		ERROR_EXIT("  Defaulting to least viable amount\n");
++		phys_mem = SQUASHFS_LOWMEM;
++	}
++  #undef SYSCTL_PHYSMEM
++#else
+ 	if(num_pages == -1 || page_size == -1) {
+ 		struct sysinfo sys;
+ 		int res = sysinfo(&sys);
+@@ -5211,6 +5244,7 @@ int get_physical_memory()
+ 	}
+ 
+ 	phys_mem = num_pages * page_size >> 20;
++#endif
+ 
+ 	if(phys_mem < SQUASHFS_LOWMEM)
+ 		BAD_ERROR("Mksquashfs requires more physical memory than is "
+diff --git a/squashfs-tools/unsquashfs.c b/squashfs-tools/unsquashfs.c
+index 727f1d51504a8962f76d8daf3c908b47b2a55f37..3b7dc52a796b87ed83f2ff3008114cc31e9f084f 100644
+--- a/squashfs-tools/unsquashfs.c
++++ b/squashfs-tools/unsquashfs.c
+@@ -32,8 +32,12 @@
+ #include "stdarg.h"
+ #include "fnmatch_compat.h"
+ 
++#ifndef linux
++#include <sys/sysctl.h>
++#else
+ #include <sys/sysinfo.h>
+ #include <sys/sysmacros.h>
++#endif
+ #include <sys/types.h>
+ #include <sys/time.h>
+ #include <sys/resource.h>
+
+From a6c97bbe3c19404ad24a7a8702ab6a679489e92f Mon Sep 17 00:00:00 2001
+From: Dave Vasilevsky <dave@vasilevsky.ca>
+Date: Sun, 25 May 2014 22:46:12 -0400
+Subject: [PATCH 4/9] Mac, BSD: strdupa() is non-standard
+
+Replace with strdup() and free it manually.
+---
+ squashfs-tools/action.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/squashfs-tools/action.c b/squashfs-tools/action.c
+index bb8a63d976855757c8474e8c6a8b73ec20ed5825..3cad2ab08e6df455ccf295b2c9a789ade82ce007 100644
+--- a/squashfs-tools/action.c
++++ b/squashfs-tools/action.c
+@@ -2288,9 +2288,12 @@ static char *get_start(char *s, int n)
+ 
+ static int subpathname_fn(struct atom *atom, struct action_data *action_data)
+ {
+-	return fnmatch(atom->argv[0], get_start(strdupa(action_data->subpath),
++	char *path = strdup(action_data->subpath);
++	int is_match = fnmatch(atom->argv[0], get_start(path,
+ 		count_components(atom->argv[0])),
+ 		FNM_PATHNAME|FNM_PERIOD|FNM_EXTMATCH) == 0;
++	free(path);
++	return is_match;
+ }
+ 
+ /*
+
+From c4efd4ea6df536c46d8d5e78df012ec23ad89208 Mon Sep 17 00:00:00 2001
+From: Dave Vasilevsky <dave@vasilevsky.ca>
+Date: Sun, 25 May 2014 23:32:06 -0400
+Subject: [PATCH 5/9] Mac: Emulate sigtimedwait()
+
+Use sigwait() and alarm() for POSIX-compatible handling of SIGQUIT
+printing.
+---
+ squashfs-tools/info.c            | 25 ++++++++++---------------
+ squashfs-tools/mksquashfs.c      |  1 +
+ squashfs-tools/unsquashfs.c      |  1 +
+ squashfs-tools/unsquashfs_info.c | 25 ++++++++++---------------
+ 4 files changed, 22 insertions(+), 30 deletions(-)
+
+diff --git a/squashfs-tools/info.c b/squashfs-tools/info.c
+index fe23d7898960b4393b928841f27de3f784586e22..5c2f835abf899be6e19ed0354859d93cc5e11ef7 100644
+--- a/squashfs-tools/info.c
++++ b/squashfs-tools/info.c
+@@ -144,31 +144,22 @@ void dump_state()
+ void *info_thrd(void *arg)
+ {
+ 	sigset_t sigmask;
+-	struct timespec timespec = { .tv_sec = 1, .tv_nsec = 0 };
+-	int sig, waiting = 0;
++	int sig, err, waiting = 0;
+ 
+ 	sigemptyset(&sigmask);
+ 	sigaddset(&sigmask, SIGQUIT);
+ 	sigaddset(&sigmask, SIGHUP);
++	sigaddset(&sigmask, SIGALRM);
+ 
+ 	while(1) {
+-		if(waiting)
+-			sig = sigtimedwait(&sigmask, NULL, &timespec);
+-		else
+-			sig = sigwaitinfo(&sigmask, NULL);
++		err = sigwait(&sigmask, &sig);
+ 
+-		if(sig == -1) {
++		if(err == -1) {
+ 			switch(errno) {
+-			case EAGAIN:
+-				/* interval timed out */
+-				waiting = 0;
+-				/* FALLTHROUGH */
+ 			case EINTR:
+-				/* if waiting, the wait will be longer, but
+-				   that's OK */
+ 				continue;
+ 			default:
+-				BAD_ERROR("sigtimedwait/sigwaitinfo failed "
++				BAD_ERROR("sigwait failed "
+ 					"because %s\n", strerror(errno));
+ 			}
+ 		}
+@@ -179,8 +170,12 @@ void *info_thrd(void *arg)
+ 			/* set one second interval period, if ^\ received
+ 			   within then, dump queue and cache status */
+ 			waiting = 1;
+-		} else
++			alarm(1);
++		} else if (sig == SIGQUIT) {
+ 			dump_state();
++		} else if (sig == SIGALRM) {
++			waiting = 0;
++		}
+ 	}
+ }
+ 
+diff --git a/squashfs-tools/mksquashfs.c b/squashfs-tools/mksquashfs.c
+index 33e259ee98196537c46e441d4500a455adad98a5..360744824aab555e308bfb5dcee1c95afdf46b37 100644
+--- a/squashfs-tools/mksquashfs.c
++++ b/squashfs-tools/mksquashfs.c
+@@ -4356,6 +4356,7 @@ void initialise_threads(int readq, int fragq, int bwriteq, int fwriteq,
+ 	sigemptyset(&sigmask);
+ 	sigaddset(&sigmask, SIGQUIT);
+ 	sigaddset(&sigmask, SIGHUP);
++	sigaddset(&sigmask, SIGALRM);
+ 	if(pthread_sigmask(SIG_BLOCK, &sigmask, NULL) != 0)
+ 		BAD_ERROR("Failed to set signal mask in intialise_threads\n");
+ 
+diff --git a/squashfs-tools/unsquashfs.c b/squashfs-tools/unsquashfs.c
+index 3b7dc52a796b87ed83f2ff3008114cc31e9f084f..92587ce7994f4922b9e907baf84226c9efce6eb5 100644
+--- a/squashfs-tools/unsquashfs.c
++++ b/squashfs-tools/unsquashfs.c
+@@ -2239,6 +2239,7 @@ void initialise_threads(int fragment_buffer_size, int data_buffer_size)
+ 	sigemptyset(&sigmask);
+ 	sigaddset(&sigmask, SIGQUIT);
+ 	sigaddset(&sigmask, SIGHUP);
++	sigaddset(&sigmask, SIGALRM);
+ 	if(pthread_sigmask(SIG_BLOCK, &sigmask, NULL) != 0)
+ 		EXIT_UNSQUASH("Failed to set signal mask in initialise_threads"
+ 			"\n");
+diff --git a/squashfs-tools/unsquashfs_info.c b/squashfs-tools/unsquashfs_info.c
+index c8e2b9b206cba7116f0bbbf333ae9024e3029464..7d4f7aff60c0778863cdc45db140222161efdf2e 100644
+--- a/squashfs-tools/unsquashfs_info.c
++++ b/squashfs-tools/unsquashfs_info.c
+@@ -97,31 +97,22 @@ void dump_state()
+ void *info_thrd(void *arg)
+ {
+ 	sigset_t sigmask;
+-	struct timespec timespec = { .tv_sec = 1, .tv_nsec = 0 };
+-	int sig, waiting = 0;
++	int sig, err, waiting = 0;
+ 
+ 	sigemptyset(&sigmask);
+ 	sigaddset(&sigmask, SIGQUIT);
+ 	sigaddset(&sigmask, SIGHUP);
++	sigaddset(&sigmask, SIGALRM);
+ 
+ 	while(1) {
+-		if(waiting)
+-			sig = sigtimedwait(&sigmask, NULL, &timespec);
+-		else
+-			sig = sigwaitinfo(&sigmask, NULL);
++		err = sigwait(&sigmask, &sig);
+ 
+-		if(sig == -1) {
++		if(err == -1) {
+ 			switch(errno) {
+-			case EAGAIN:
+-				/* interval timed out */
+-				waiting = 0;
+-				/* FALLTHROUGH */
+ 			case EINTR:
+-				/* if waiting, the wait will be longer, but
+-				   that's OK */
+ 				continue;
+ 			default:
+-				BAD_ERROR("sigtimedwait/sigwaitinfo failed "
++				BAD_ERROR("sigwait failed "
+ 					"because %s\n", strerror(errno));
+ 			}
+ 		}
+@@ -133,8 +124,12 @@ void *info_thrd(void *arg)
+ 			/* set one second interval period, if ^\ received
+ 			   within then, dump queue and cache status */
+ 			waiting = 1;
+-		} else
++			alarm(1);
++		} else if (sig == SIGQUIT) {
+ 			dump_state();
++		} else if (sig == SIGALRM) {
++			waiting = 0;
++		}
+ 	}
+ }
+ 
+
+From 9b22798d0140cd3c7546d840c85b0126c06f6b90 Mon Sep 17 00:00:00 2001
+From: Dave Vasilevsky <dave@vasilevsky.ca>
+Date: Sun, 1 Jun 2014 17:55:32 -0400
+Subject: [PATCH 6/9] Mac, BSD: Ensure endianness is known
+
+- Add endian macros to xattr.c
+- Move stdlib.h before squashfs_swap.h in read_xattrs.c
+---
+ squashfs-tools/read_xattrs.c | 4 ++--
+ squashfs-tools/xattr.c       | 8 ++++++++
+ 2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/squashfs-tools/read_xattrs.c b/squashfs-tools/read_xattrs.c
+index 4debedfc5664d299e11b0dc538908e8e582be396..3257c30549567293312e92c03a14a388f0c1e50a 100644
+--- a/squashfs-tools/read_xattrs.c
++++ b/squashfs-tools/read_xattrs.c
+@@ -39,13 +39,13 @@
+ #include <endian.h>
+ #endif
+ 
++#include <stdlib.h>
++
+ #include "squashfs_fs.h"
+ #include "squashfs_swap.h"
+ #include "xattr.h"
+ #include "error.h"
+ 
+-#include <stdlib.h>
+-
+ extern int read_fs_bytes(int, long long, int, void *);
+ extern int read_block(int, long long, long long *, int, void *);
+ 
+diff --git a/squashfs-tools/xattr.c b/squashfs-tools/xattr.c
+index af57ea139e75792a4bde12391008cd02dca4783c..d82d186bc8fb07a9544fc64993b0fe694f6c14f5 100644
+--- a/squashfs-tools/xattr.c
++++ b/squashfs-tools/xattr.c
+@@ -22,6 +22,14 @@
+  * xattr.c
+  */
+ 
++#ifndef linux
++#define __BYTE_ORDER BYTE_ORDER
++#define __BIG_ENDIAN BIG_ENDIAN
++#define __LITTLE_ENDIAN LITTLE_ENDIAN
++#else
++#include <endian.h>
++#endif
++
+ #define TRUE 1
+ #define FALSE 0
+ 
+
+From cf37d45cc8ae4e5de2c74eafbedead4db2e3084a Mon Sep 17 00:00:00 2001
+From: Dave Vasilevsky <dave@vasilevsky.ca>
+Date: Sun, 1 Jun 2014 22:47:29 -0400
+Subject: [PATCH 7/9] FreeBSD: Add missing header
+
+We need <sys/stat.h> for S_ISDIR and friends.
+---
+ squashfs-tools/pseudo.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/squashfs-tools/pseudo.c b/squashfs-tools/pseudo.c
+index 48e6b27f0d6f95bac42d477f13519c2f3d0aa688..f8fd52917effe4a494ad3f7bea56237cc804cc96 100644
+--- a/squashfs-tools/pseudo.c
++++ b/squashfs-tools/pseudo.c
+@@ -30,6 +30,7 @@
+ #include <errno.h>
+ #include <string.h>
+ #include <stdlib.h>
++#include <sys/stat.h>
+ #include <sys/types.h>
+ #include <sys/wait.h>
+ #include <sys/stat.h>
+
+From dbfda6585e3f128fbb7b4f1e2c8332f31404000e Mon Sep 17 00:00:00 2001
+From: Dave Vasilevsky <dave@vasilevsky.ca>
+Date: Mon, 2 Jun 2014 06:34:36 -0400
+Subject: [PATCH 8/9] OpenBSD: Add missing pthread.h include
+
+---
+ squashfs-tools/mksquashfs.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/squashfs-tools/mksquashfs.h b/squashfs-tools/mksquashfs.h
+index 1beefef70495547796b147217959263f1c2fb082..88d0b5c0296c56f41b6604d19ffc7df3586f98a1 100644
+--- a/squashfs-tools/mksquashfs.h
++++ b/squashfs-tools/mksquashfs.h
+@@ -24,6 +24,7 @@
+  * mksquashfs.h
+  *
+  */
++#include <pthread.h>
+ 
+ struct dir_info {
+ 	char			*pathname;
+
+From 7d31beec53e6245d3405d6ef2b96e9811ae07044 Mon Sep 17 00:00:00 2001
+From: Blake Riley <blake.riley@gmail.com>
+Date: Wed, 4 Sep 2019 21:31:11 +1000
+Subject: [PATCH 9/9] Mac: Use lutimes() instead of utimensat()
+
+`utimensat()` only appeared in macOS in version 10.13.
+In this situation, it can be reasonably replaced by the older `lutimes()`.
+This allows compilation on macOS < 10.13.
+---
+ squashfs-tools/unsquashfs.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/squashfs-tools/unsquashfs.c b/squashfs-tools/unsquashfs.c
+index 92587ce7994f4922b9e907baf84226c9efce6eb5..c1a61836b85c69d958386d0699d702bbcc5aef59 100644
+--- a/squashfs-tools/unsquashfs.c
++++ b/squashfs-tools/unsquashfs.c
+@@ -1084,7 +1084,7 @@ int create_inode(char *pathname, struct inode *i)
+ 			break;
+ 		case SQUASHFS_SYMLINK_TYPE:
+ 		case SQUASHFS_LSYMLINK_TYPE: {
+-			struct timespec times[2] = {
++			struct timeval times[2] = {
+ 				{ i->time, 0 },
+ 				{ i->time, 0 }
+ 			};
+@@ -1103,8 +1103,7 @@ int create_inode(char *pathname, struct inode *i)
+ 				goto failed;
+ 			}
+ 
+-			res = utimensat(AT_FDCWD, pathname, times,
+-					AT_SYMLINK_NOFOLLOW);
++			res = lutimes(pathname, times);
+ 			if(res == -1) {
+ 				EXIT_UNSQUASH_STRICT("create_inode: failed to set time on "
+ 					"%s, because %s\n", pathname,
