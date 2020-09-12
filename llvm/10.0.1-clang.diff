@@ -1,0 +1,58 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index dc1413f4b597209a250998759711af776f8165df..ac328e1e0cdf25ffaa999482e4542db651cea46d 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -110,6 +110,10 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
+   option(CLANG_ENABLE_BOOTSTRAP "Generate the clang bootstrap target" OFF)
+   option(LLVM_ENABLE_LIBXML2 "Use libxml2 if available." ON)
+
++  if(LLVM_ENABLE_ZLIB)
++    find_package(ZLIB)
++  endif()
++
+   include(AddLLVM)
+   include(TableGen)
+   include(HandleLLVMOptions)
+diff --git a/test/CMakeLists.txt b/test/CMakeLists.txt
+index 7fdc7d0be79f334b4328597f00c8ea797d5a40ee..2c6487e8c26082d2c6aec9e4958e5a35c22fdc0a 100644
+--- a/test/CMakeLists.txt
++++ b/test/CMakeLists.txt
+@@ -9,15 +9,6 @@ endif ()
+
+ string(REPLACE ${CMAKE_CFG_INTDIR} ${LLVM_BUILD_MODE} CLANG_TOOLS_DIR ${LLVM_RUNTIME_OUTPUT_INTDIR})
+
+-if(CLANG_BUILT_STANDALONE)
+-  # Set HAVE_LIBZ according to recorded LLVM_ENABLE_ZLIB value. This
+-  # value is forced to 0 if zlib was not found, so it is fine to use it
+-  # instead of HAVE_LIBZ (not recorded).
+-  if(LLVM_ENABLE_ZLIB)
+-    set(HAVE_LIBZ 1)
+-  endif()
+-endif()
+-
+ llvm_canonicalize_cmake_booleans(
+   CLANG_BUILD_EXAMPLES
+   CLANG_ENABLE_ARCMT
+@@ -25,7 +16,7 @@ llvm_canonicalize_cmake_booleans(
+   CLANG_SPAWN_CC1
+   ENABLE_BACKTRACES
+   ENABLE_EXPERIMENTAL_NEW_PASS_MANAGER
+-  HAVE_LIBZ
++  LLVM_ENABLE_ZLIB
+   LLVM_ENABLE_PER_TARGET_RUNTIME_DIR
+   LLVM_ENABLE_PLUGINS
+   LLVM_ENABLE_THREADS)
+diff --git a/test/lit.site.cfg.py.in b/test/lit.site.cfg.py.in
+index 520afab6af8296f933934cbe77074b5daf125d90..e9b35ac01771123dba1bcc096f5332b673293d9a 100644
+--- a/test/lit.site.cfg.py.in
++++ b/test/lit.site.cfg.py.in
+@@ -16,7 +16,7 @@ config.host_triple = "@LLVM_HOST_TRIPLE@"
+ config.target_triple = "@TARGET_TRIPLE@"
+ config.host_cxx = "@CMAKE_CXX_COMPILER@"
+ config.llvm_use_sanitizer = "@LLVM_USE_SANITIZER@"
+-config.have_zlib = @HAVE_LIBZ@
++config.have_zlib = @LLVM_ENABLE_ZLIB@
+ config.clang_arcmt = @CLANG_ENABLE_ARCMT@
+ config.clang_default_cxx_stdlib = "@CLANG_DEFAULT_CXX_STDLIB@"
+ config.clang_staticanalyzer = @CLANG_ENABLE_STATIC_ANALYZER@
+
