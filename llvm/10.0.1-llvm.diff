@@ -1,0 +1,408 @@
+diff --git a/cmake/config-ix.cmake b/cmake/config-ix.cmake
+index f758366bc79d4a483bf601bedbe7b876f65843a6..0de9d4cfb8e71a4606a097189f0cabf531f784ed 100644
+--- a/cmake/config-ix.cmake
++++ b/cmake/config-ix.cmake
+@@ -9,6 +9,7 @@ include(CheckSymbolExists)
+ include(CheckFunctionExists)
+ include(CheckStructHasMember)
+ include(CheckCCompilerFlag)
++include(CMakePushCheckState)
+
+ include(CheckCompilerVersion)
+ include(HandleLLVMStdlib)
+@@ -56,7 +57,6 @@ check_include_file(sys/types.h HAVE_SYS_TYPES_H)
+ check_include_file(termios.h HAVE_TERMIOS_H)
+ check_include_file(unistd.h HAVE_UNISTD_H)
+ check_include_file(valgrind/valgrind.h HAVE_VALGRIND_VALGRIND_H)
+-check_include_file(zlib.h HAVE_ZLIB_H)
+ check_include_file(fenv.h HAVE_FENV_H)
+ check_symbol_exists(FE_ALL_EXCEPT "fenv.h" HAVE_DECL_FE_ALL_EXCEPT)
+ check_symbol_exists(FE_INEXACT "fenv.h" HAVE_DECL_FE_INEXACT)
+@@ -115,22 +115,30 @@ if(HAVE_LIBPTHREAD)
+   set(LLVM_PTHREAD_LIB ${CMAKE_THREAD_LIBS_INIT})
+ endif()
+
++if(LLVM_ENABLE_ZLIB)
++  if(LLVM_ENABLE_ZLIB STREQUAL FORCE_ON)
++    find_package(ZLIB REQUIRED)
++  elseif(NOT LLVM_USE_SANITIZER MATCHES "Memory.*")
++    find_package(ZLIB)
++  endif()
++  if(ZLIB_FOUND)
++    # Check if zlib we found is usable; for example, we may have found a 32-bit
++    # library on a 64-bit system which would result in a link-time failure.
++    cmake_push_check_state()
++    set(CMAKE_REQUIRED_INCLUDES ${ZLIB_INCLUDE_DIRS})
++    set(CMAKE_REQUIRED_LIBRARIES ${ZLIB_LIBRARY})
++    check_symbol_exists(compress2 zlib.h HAVE_ZLIB)
++    cmake_pop_check_state()
++    if(LLVM_ENABLE_ZLIB STREQUAL FORCE_ON AND NOT HAVE_ZLIB)
++      message(FATAL_ERROR "Failed to configure zlib")
++    endif()
++  endif()
++  set(LLVM_ENABLE_ZLIB "${HAVE_ZLIB}")
++endif()
++
+ # Don't look for these libraries if we're using MSan, since uninstrumented third
+ # party code may call MSan interceptors like strlen, leading to false positives.
+ if(NOT LLVM_USE_SANITIZER MATCHES "Memory.*")
+-  set(HAVE_LIBZ 0)
+-  if(LLVM_ENABLE_ZLIB)
+-    foreach(library z zlib_static zlib)
+-      string(TOUPPER ${library} library_suffix)
+-      check_library_exists(${library} compress2 "" HAVE_LIBZ_${library_suffix})
+-      if(HAVE_LIBZ_${library_suffix})
+-        set(HAVE_LIBZ 1)
+-        set(ZLIB_LIBRARIES "${library}")
+-        break()
+-      endif()
+-    endforeach()
+-  endif()
+-
+   # Don't look for these libraries on Windows.
+   if (NOT PURE_WINDOWS)
+     # Skip libedit if using ASan as it contains memory leaks.
+@@ -139,19 +147,16 @@ if(NOT LLVM_USE_SANITIZER MATCHES "Memory.*")
+     else()
+       set(HAVE_LIBEDIT 0)
+     endif()
+-    if(LLVM_ENABLE_TERMINFO)
+-      set(HAVE_TERMINFO 0)
+-      foreach(library terminfo tinfo curses ncurses ncursesw)
+-        string(TOUPPER ${library} library_suffix)
+-        check_library_exists(${library} setupterm "" HAVE_TERMINFO_${library_suffix})
+-        if(HAVE_TERMINFO_${library_suffix})
+-          set(HAVE_TERMINFO 1)
+-          set(TERMINFO_LIBS "${library}")
+-          break()
+-        endif()
+-      endforeach()
++    if(LLVM_ENABLE_TERMINFO STREQUAL FORCE_ON)
++      set(MAYBE_REQUIRED REQUIRED)
++    else()
++      set(MAYBE_REQUIRED)
++    endif()
++    find_library(TERMINFO_LIB NAMES terminfo tinfo curses ncurses ncursesw ${MAYBE_REQUIRED})
++    if(TERMINFO_LIB)
++      set(LLVM_ENABLE_TERMINFO 1)
+     else()
+-      set(HAVE_TERMINFO 0)
++      set(LLVM_ENABLE_TERMINFO 0)
+     endif()
+
+     find_library(ICONV_LIBRARY_PATH NAMES iconv libiconv libiconv-2 c)
+@@ -515,13 +520,6 @@ else( LLVM_ENABLE_THREADS )
+   message(STATUS "Threads disabled.")
+ endif()
+
+-if (LLVM_ENABLE_ZLIB )
+-  # Check if zlib is available in the system.
+-  if ( NOT HAVE_ZLIB_H OR NOT HAVE_LIBZ )
+-    set(LLVM_ENABLE_ZLIB 0)
+-  endif()
+-endif()
+-
+ if (LLVM_ENABLE_DOXYGEN)
+   message(STATUS "Doxygen enabled.")
+   find_package(Doxygen REQUIRED)
+diff --git a/cmake/modules/LLVMConfig.cmake.in b/cmake/modules/LLVMConfig.cmake.in
+index 87684ecba0f50827b3d254f930607d3c8fed81bc..c7d8ee1d492bca24195be993fa77b636bdd1e0a7 100644
+--- a/cmake/modules/LLVMConfig.cmake.in
++++ b/cmake/modules/LLVMConfig.cmake.in
+@@ -50,6 +50,9 @@ set(LLVM_ENABLE_THREADS @LLVM_ENABLE_THREADS@)
+ set(LLVM_ENABLE_UNWIND_TABLES @LLVM_ENABLE_UNWIND_TABLES@)
+
+ set(LLVM_ENABLE_ZLIB @LLVM_ENABLE_ZLIB@)
++if(LLVM_ENABLE_ZLIB)
++  find_package(ZLIB)
++endif()
+
+ set(LLVM_LIBXML2_ENABLED @LLVM_LIBXML2_ENABLED@)
+
+diff --git a/include/llvm/Config/config.h.cmake b/include/llvm/Config/config.h.cmake
+index 1a38bc15ab9d6696833149803c25948b5c6307d4..40712a67000ef5bd83ad2a447f3eb259e327ae41 100644
+--- a/include/llvm/Config/config.h.cmake
++++ b/include/llvm/Config/config.h.cmake
+@@ -109,9 +109,6 @@
+ /* Define to 1 if you have the `pthread_setname_np' function. */
+ #cmakedefine HAVE_PTHREAD_SETNAME_NP ${HAVE_PTHREAD_SETNAME_NP}
+
+-/* Define to 1 if you have the `z' library (-lz). */
+-#cmakedefine HAVE_LIBZ ${HAVE_LIBZ}
+-
+ /* Define to 1 if you have the <link.h> header file. */
+ #cmakedefine HAVE_LINK_H ${HAVE_LINK_H}
+
+@@ -212,7 +209,7 @@
+ #cmakedefine HAVE_SYS_TYPES_H ${HAVE_SYS_TYPES_H}
+
+ /* Define if the setupterm() function is supported this platform. */
+-#cmakedefine HAVE_TERMINFO ${HAVE_TERMINFO}
++#cmakedefine LLVM_ENABLE_TERMINFO ${LLVM_ENABLE_TERMINFO}
+
+ /* Define if the xar_open() function is supported this platform. */
+ #cmakedefine HAVE_LIBXAR ${HAVE_LIBXAR}
+@@ -226,9 +223,6 @@
+ /* Define to 1 if you have the <valgrind/valgrind.h> header file. */
+ #cmakedefine HAVE_VALGRIND_VALGRIND_H ${HAVE_VALGRIND_VALGRIND_H}
+
+-/* Define to 1 if you have the <zlib.h> header file. */
+-#cmakedefine HAVE_ZLIB_H ${HAVE_ZLIB_H}
+-
+ /* Have host's _alloca */
+ #cmakedefine HAVE__ALLOCA ${HAVE__ALLOCA}
+
+diff --git a/lib/Support/CMakeLists.txt b/lib/Support/CMakeLists.txt
+index ddc4d2324a057877292e4a5df0eaefd39e49aea9..7332a1a262d224d76a66967e514a390652fd035f 100644
+--- a/lib/Support/CMakeLists.txt
++++ b/lib/Support/CMakeLists.txt
+@@ -1,7 +1,16 @@
+-set(system_libs)
+-if ( LLVM_ENABLE_ZLIB AND HAVE_LIBZ )
+-  set(system_libs ${system_libs} ${ZLIB_LIBRARIES})
++if(LLVM_ENABLE_ZLIB)
++  set(imported_libs ZLIB::ZLIB)
+ endif()
++
++function(get_system_libname libpath libname)
++  get_filename_component(libpath ${libpath} NAME)
++  string(REPLACE ";" "|" PREFIXES "${CMAKE_FIND_LIBRARY_PREFIXES}")
++  string(REPLACE ";" "|" SUFFIXES "${CMAKE_FIND_LIBRARY_SUFFIXES}")
++  STRING(REGEX REPLACE "^(${PREFIXES})" "" libpath ${libpath})
++  STRING(REGEX REPLACE "(${SUFFIXES})$" "" libpath ${libpath})
++  set(${libname} "${libpath}" PARENT_SCOPE)
++endfunction()
++
+ if( MSVC OR MINGW )
+   # libuuid required for FOLDERID_Profile usage in lib/Support/Windows/Path.inc.
+   # advapi32 required for CryptAcquireContextW in lib/Support/Windows/Path.inc.
+@@ -21,10 +30,8 @@ elseif( CMAKE_HOST_UNIX )
+     STRING(REGEX REPLACE "^lib" "" Backtrace_LIBFILE ${Backtrace_LIBFILE})
+     set(system_libs ${system_libs} ${Backtrace_LIBFILE})
+   endif()
+-  if(LLVM_ENABLE_TERMINFO)
+-    if(HAVE_TERMINFO)
+-      set(system_libs ${system_libs} ${TERMINFO_LIBS})
+-    endif()
++  if( LLVM_ENABLE_TERMINFO )
++    set(imported_libs ${imported_libs} "${TERMINFO_LIB}")
+   endif()
+   if( LLVM_ENABLE_THREADS AND HAVE_LIBATOMIC )
+     set(system_libs ${system_libs} atomic)
+@@ -186,10 +193,30 @@ add_llvm_component_library(LLVMSupport
+   ${LLVM_MAIN_INCLUDE_DIR}/llvm/ADT
+   ${LLVM_MAIN_INCLUDE_DIR}/llvm/Support
+   ${Backtrace_INCLUDE_DIRS}
+-  LINK_LIBS ${system_libs} ${delayload_flags} ${Z3_LINK_FILES}
++  LINK_LIBS ${system_libs} ${imported_libs} ${delayload_flags} ${Z3_LINK_FILES}
+   )
+
+-set_property(TARGET LLVMSupport PROPERTY LLVM_SYSTEM_LIBS "${system_libs}")
++set(llvm_system_libs ${system_libs})
++
++if(LLVM_ENABLE_ZLIB)
++  # CMAKE_BUILD_TYPE is only meaningful to single-configuration generators.
++  if(CMAKE_BUILD_TYPE)
++    string(TOUPPER ${CMAKE_BUILD_TYPE} build_type)
++    get_property(zlib_library TARGET ZLIB::ZLIB PROPERTY LOCATION_${build_type})
++  endif()
++  if(NOT zlib_library)
++    get_property(zlib_library TARGET ZLIB::ZLIB PROPERTY LOCATION)
++  endif()
++  get_system_libname(${zlib_library} zlib_library)
++  set(llvm_system_libs ${llvm_system_libs} "${zlib_library}")
++endif()
++
++if(LLVM_ENABLE_TERMINFO)
++  get_system_libname(${TERMINFO_LIB} terminfo_library)
++  set(llvm_system_libs ${llvm_system_libs} "${terminfo_library}")
++endif()
++
++set_property(TARGET LLVMSupport PROPERTY LLVM_SYSTEM_LIBS "${llvm_system_libs}")
+
+ if(LLVM_WITH_Z3)
+   target_include_directories(LLVMSupport SYSTEM
+diff --git a/lib/Support/CRC.cpp b/lib/Support/CRC.cpp
+index 7ff09debe3b7c8649614b7838ab31bc3c71eed0d..2bc668beed3223129beb56a8b8f9f3a741859922 100644
+--- a/lib/Support/CRC.cpp
++++ b/lib/Support/CRC.cpp
+@@ -25,7 +25,7 @@
+
+ using namespace llvm;
+
+-#if LLVM_ENABLE_ZLIB == 0 || !HAVE_ZLIB_H
++#if !LLVM_ENABLE_ZLIB
+
+ static const uint32_t CRCTable[256] = {
+     0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f,
+diff --git a/lib/Support/Compression.cpp b/lib/Support/Compression.cpp
+index 97d5ffaadf8273dd42955fb570282253c1027e3f..4165a2740cd0306da65bdcda309307787b71e500 100644
+--- a/lib/Support/Compression.cpp
++++ b/lib/Support/Compression.cpp
+@@ -17,13 +17,13 @@
+ #include "llvm/Support/Compiler.h"
+ #include "llvm/Support/Error.h"
+ #include "llvm/Support/ErrorHandling.h"
+-#if LLVM_ENABLE_ZLIB == 1 && HAVE_ZLIB_H
++#if LLVM_ENABLE_ZLIB
+ #include <zlib.h>
+ #endif
+
+ using namespace llvm;
+
+-#if LLVM_ENABLE_ZLIB == 1 && HAVE_LIBZ
++#if LLVM_ENABLE_ZLIB
+ static Error createError(StringRef Err) {
+   return make_error<StringError>(Err, inconvertibleErrorCode());
+ }
+diff --git a/lib/Support/Unix/Process.inc b/lib/Support/Unix/Process.inc
+index dfe81d7e28337a1579ec74800db177d95e8b6be7..c380f6de75e252abd12027de69a3fd39c3cae51a 100644
+--- a/lib/Support/Unix/Process.inc
++++ b/lib/Support/Unix/Process.inc
+@@ -315,7 +315,7 @@ unsigned Process::StandardErrColumns() {
+   return getColumns(2);
+ }
+
+-#ifdef HAVE_TERMINFO
++#ifdef LLVM_ENABLE_TERMINFO
+ // We manually declare these extern functions because finding the correct
+ // headers from various terminfo, curses, or other sources is harder than
+ // writing their specs down.
+@@ -325,12 +325,12 @@ extern "C" int del_curterm(struct term *termp);
+ extern "C" int tigetnum(char *capname);
+ #endif
+
+-#ifdef HAVE_TERMINFO
++#ifdef LLVM_ENABLE_TERMINFO
+ static ManagedStatic<std::mutex> TermColorMutex;
+ #endif
+
+ static bool terminalHasColors(int fd) {
+-#ifdef HAVE_TERMINFO
++#ifdef LLVM_ENABLE_TERMINFO
+   // First, acquire a global lock because these C routines are thread hostile.
+   std::lock_guard<std::mutex> G(*TermColorMutex);
+
+diff --git a/test/CMakeLists.txt b/test/CMakeLists.txt
+index 38eed78f8aea0b88428615f650812765e92c6dae..e15dbb11e754720882a691b4fd0997281d42fc3f 100644
+--- a/test/CMakeLists.txt
++++ b/test/CMakeLists.txt
+@@ -1,12 +1,12 @@
+ llvm_canonicalize_cmake_booleans(
+   BUILD_SHARED_LIBS
+   HAVE_LIBXAR
+-  HAVE_LIBZ
+   HAVE_OCAMLOPT
+   HAVE_OCAML_OUNIT
+   LLVM_ENABLE_DIA_SDK
+   LLVM_ENABLE_FFI
+   LLVM_ENABLE_THREADS
++  LLVM_ENABLE_ZLIB
+   LLVM_INCLUDE_GO_TESTS
+   LLVM_LIBXML2_ENABLED
+   LLVM_LINK_LLVM_DYLIB
+diff --git a/test/lit.site.cfg.py.in b/test/lit.site.cfg.py.in
+index 6f4d5f790828132112afdd4948ff31450da37698..b872a8a0a6edebd2578a325a710c917750afcc1d 100644
+--- a/test/lit.site.cfg.py.in
++++ b/test/lit.site.cfg.py.in
+@@ -33,7 +33,7 @@ config.host_cxx = "@HOST_CXX@"
+ config.host_ldflags = '@HOST_LDFLAGS@'
+ config.llvm_use_intel_jitevents = @LLVM_USE_INTEL_JITEVENTS@
+ config.llvm_use_sanitizer = "@LLVM_USE_SANITIZER@"
+-config.have_zlib = @HAVE_LIBZ@
++config.have_zlib = @LLVM_ENABLE_ZLIB@
+ config.have_libxar = @HAVE_LIBXAR@
+ config.have_dia_sdk = @LLVM_ENABLE_DIA_SDK@
+ config.enable_ffi = @LLVM_ENABLE_FFI@
+diff --git a/unittests/Support/CompressionTest.cpp b/unittests/Support/CompressionTest.cpp
+index cc7be431b62bc392508fd342c7db0dbbde995823..51723898e950d0bd2389467eda224b2c57fcd14e 100644
+--- a/unittests/Support/CompressionTest.cpp
++++ b/unittests/Support/CompressionTest.cpp
+@@ -21,7 +21,7 @@ using namespace llvm;
+
+ namespace {
+
+-#if LLVM_ENABLE_ZLIB == 1 && HAVE_LIBZ
++#if LLVM_ENABLE_ZLIB
+
+ void TestZlibCompression(StringRef Input, int Level) {
+   SmallString<32> Compressed;
+diff --git a/utils/gn/secondary/clang/test/BUILD.gn b/utils/gn/secondary/clang/test/BUILD.gn
+index 5cdbab8da281b9a22ce43c96233ea3b11947d9e4..a16f8ea4b074241fc4d01b0c1de1ecddcc512c60 100644
+--- a/utils/gn/secondary/clang/test/BUILD.gn
++++ b/utils/gn/secondary/clang/test/BUILD.gn
+@@ -74,9 +74,9 @@ write_lit_config("lit_site_cfg") {
+   }
+
+   if (llvm_enable_zlib) {
+-    extra_values += [ "HAVE_LIBZ=1" ]
++    extra_values += [ "LLVM_ENABLE_ZLIB=1" ]
+   } else {
+-    extra_values += [ "HAVE_LIBZ=0" ]  # Must be 0.
++    extra_values += [ "LLVM_ENABLE_ZLIB=0" ]  # Must be 0.
+   }
+
+   if (host_cpu == "x64") {
+diff --git a/utils/gn/secondary/compiler-rt/test/BUILD.gn b/utils/gn/secondary/compiler-rt/test/BUILD.gn
+index c03399193babac3d46b65400618a4e50fb9e9c0f..b0c690193a2e6ff392af95f47a3d90463889b83c 100644
+--- a/utils/gn/secondary/compiler-rt/test/BUILD.gn
++++ b/utils/gn/secondary/compiler-rt/test/BUILD.gn
+@@ -85,8 +85,8 @@ write_cmake_config("lit_common_configured") {
+   }
+
+   if (llvm_enable_zlib) {
+-    values += [ "HAVE_LIBZ=1" ]
++    values += [ "LLVM_ENABLE_ZLIB=1" ]
+   } else {
+-    values += [ "HAVE_LIBZ=0" ]
++    values += [ "LLVM_ENABLE_ZLIB=0" ]
+   }
+ }
+diff --git a/utils/gn/secondary/lld/test/BUILD.gn b/utils/gn/secondary/lld/test/BUILD.gn
+index 0f8e2c13874d0e9602ecc3244020fbcefae4ca01..4479205a0233e77b9b3686449b5990f8b7aa89fe 100644
+--- a/utils/gn/secondary/lld/test/BUILD.gn
++++ b/utils/gn/secondary/lld/test/BUILD.gn
+@@ -49,9 +49,9 @@ write_lit_cfg("lit_site_cfg") {
+   }
+
+   if (llvm_enable_zlib) {
+-    extra_values += [ "HAVE_LIBZ=1" ]
++    extra_values += [ "LLVM_ENABLE_ZLIB=1" ]
+   } else {
+-    extra_values += [ "HAVE_LIBZ=0" ]  # Must be 0.
++    extra_values += [ "LLVM_ENABLE_ZLIB=0" ]  # Must be 0.
+   }
+
+   if (current_cpu == "x64" || current_cpu == "arm64" ||
+diff --git a/utils/gn/secondary/llvm/include/llvm/Config/BUILD.gn b/utils/gn/secondary/llvm/include/llvm/Config/BUILD.gn
+index 96be1e98fe9b04d4192175008ddb45793e5ae265..7a8b9e5049dc7e3366cd1aa44419fa45a3163447 100644
+--- a/utils/gn/secondary/llvm/include/llvm/Config/BUILD.gn
++++ b/utils/gn/secondary/llvm/include/llvm/Config/BUILD.gn
+@@ -294,9 +294,9 @@ write_cmake_config("config") {
+   }
+
+   if (llvm_enable_terminfo) {
+-    values += [ "HAVE_TERMINFO=1" ]
++    values += [ "LLVM_ENABLE_TERMINFO=1" ]
+   } else {
+-    values += [ "HAVE_TERMINFO=" ]
++    values += [ "LLVM_ENABLE_TERMINFO=" ]
+   }
+
+   if (llvm_enable_dia_sdk) {
+diff --git a/utils/gn/secondary/llvm/test/BUILD.gn b/utils/gn/secondary/llvm/test/BUILD.gn
+index 5ac7a72437e0fd6a4dd55ec318875b9208b662dd..b9d649a0d15ec18a4e3d82ab413f99729a1f93d5 100644
+--- a/utils/gn/secondary/llvm/test/BUILD.gn
++++ b/utils/gn/secondary/llvm/test/BUILD.gn
+@@ -166,9 +166,9 @@ write_lit_config("lit_site_cfg") {
+   }
+
+   if (llvm_enable_zlib) {
+-    extra_values += [ "HAVE_LIBZ=1" ]
++    extra_values += [ "LLVM_ENABLE_ZLIB=1" ]
+   } else {
+-    extra_values += [ "HAVE_LIBZ=0" ]  # Must be 0.
++    extra_values += [ "LLVM_ENABLE_ZLIB=0" ]  # Must be 0.
+   }
+ }
+

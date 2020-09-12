@@ -1,0 +1,63 @@
+diff --git a/cmake/modules/LLDBStandalone.cmake b/cmake/modules/LLDBStandalone.cmake
+index 752113bcc6c414b06c841b094afab95992a12631..94781c35837445c1be5ec5022ec2b40d3f4fe58f 100644
+--- a/cmake/modules/LLDBStandalone.cmake
++++ b/cmake/modules/LLDBStandalone.cmake
+@@ -73,6 +73,7 @@ endif()
+ # We append the directory in which LLVMConfig.cmake lives. We expect LLVM's
+ # CMake modules to be in that directory as well.
+ list(APPEND CMAKE_MODULE_PATH "${LLVM_DIR}")
++
+ include(AddLLVM)
+ include(TableGen)
+ include(HandleLLVMOptions)
+diff --git a/source/Core/CMakeLists.txt b/source/Core/CMakeLists.txt
+index a03fe6f4800fbd488524300278281da09f4ac28d..37f48bfeda953b259aeee55f9829587226fba6ad 100644
+--- a/source/Core/CMakeLists.txt
++++ b/source/Core/CMakeLists.txt
+@@ -11,8 +11,8 @@ set(LLDB_LIBEDIT_LIBS)
+
+ if (LLDB_ENABLE_CURSES)
+   list(APPEND LLDB_CURSES_LIBS ${CURSES_LIBRARIES} ${PANEL_LIBRARIES})
+-  if(LLVM_ENABLE_TERMINFO AND HAVE_TERMINFO)
+-    list(APPEND LLDB_CURSES_LIBS ${TERMINFO_LIBS})
++  if(LLVM_ENABLE_TERMINFO)
++    list(APPEND LLDB_CURSES_LIBS ${TERMINFO_LIB})
+   endif()
+   if (LLVM_BUILD_STATIC)
+     list(APPEND LLDB_CURSES_LIBS gpm)
+diff --git a/source/Plugins/Process/gdb-remote/GDBRemoteCommunication.cpp b/source/Plugins/Process/gdb-remote/GDBRemoteCommunication.cpp
+index 0a98f6a15d755ddb5497fc636831b97e4c81a200..7cea013eea7fa16497017f5266fc4534051f2b86 100644
+--- a/source/Plugins/Process/gdb-remote/GDBRemoteCommunication.cpp
++++ b/source/Plugins/Process/gdb-remote/GDBRemoteCommunication.cpp
+@@ -50,7 +50,7 @@
+ #include <compression.h>
+ #endif
+
+-#if defined(HAVE_LIBZ)
++#if LLVM_ENABLE_ZLIB
+ #include <zlib.h>
+ #endif
+
+@@ -582,7 +582,7 @@ bool GDBRemoteCommunication::DecompressPacket() {
+   }
+ #endif
+
+-#if defined(HAVE_LIBZ)
++#if LLVM_ENABLE_ZLIB
+   if (decompressed_bytes == 0 && decompressed_bufsize != ULONG_MAX &&
+       decompressed_buffer != nullptr &&
+       m_compression_type == CompressionType::ZlibDeflate) {
+diff --git a/source/Plugins/Process/gdb-remote/GDBRemoteCommunicationClient.cpp b/source/Plugins/Process/gdb-remote/GDBRemoteCommunicationClient.cpp
+index 4dafa1d494d814fe33ada149883f46067a8b5819..b2f1ee527e8b1f58331f86ce64cc905b42c5fe03 100644
+--- a/source/Plugins/Process/gdb-remote/GDBRemoteCommunicationClient.cpp
++++ b/source/Plugins/Process/gdb-remote/GDBRemoteCommunicationClient.cpp
+@@ -1045,7 +1045,7 @@ void GDBRemoteCommunicationClient::MaybeEnableCompression(
+   }
+ #endif
+
+-#if defined(HAVE_LIBZ)
++#if LLVM_ENABLE_ZLIB
+   if (avail_type == CompressionType::None) {
+     for (auto compression : supported_compressions) {
+       if (compression == "zlib-deflate") {
+

@@ -1,0 +1,52 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 641f71c114aeea55cc535ba43b430de11614cb3b..3d293a579b5e4958e5f0878b86d3e0bd95f0cc19 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -51,6 +51,10 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+   set(LLVM_RUNTIME_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/${CMAKE_CFG_INTDIR}/bin)
+   find_program(LLVM_TABLEGEN_EXE "llvm-tblgen" ${LLVM_TOOLS_BINARY_DIR} NO_DEFAULT_PATH)
+
++  if(LLVM_ENABLE_ZLIB)
++    find_package(ZLIB)
++  endif()
++
+   include(AddLLVM)
+   include(TableGen)
+   include(HandleLLVMOptions)
+diff --git a/test/CMakeLists.txt b/test/CMakeLists.txt
+index 8be42c46dd8ad46d25bc88ed599764fbd271389d..dc8cedf2ea095e0b02a7361a9c9a344791fe884f 100644
+--- a/test/CMakeLists.txt
++++ b/test/CMakeLists.txt
+@@ -4,17 +4,8 @@ set(LLVM_BUILD_MODE "%(build_mode)s")
+ set(LLVM_TOOLS_DIR "${LLVM_TOOLS_BINARY_DIR}/%(build_config)s")
+ set(LLVM_LIBS_DIR "${LLVM_BINARY_DIR}/lib${LLVM_LIBDIR_SUFFIX}/%(build_config)s")
+
+-if(LLD_BUILT_STANDALONE)
+-  # Set HAVE_LIBZ according to recorded LLVM_ENABLE_ZLIB value. This
+-  # value is forced to 0 if zlib was not found, so it is fine to use it
+-  # instead of HAVE_LIBZ (not recorded).
+-  if(LLVM_ENABLE_ZLIB)
+-    set(HAVE_LIBZ 1)
+-  endif()
+-endif()
+-
+ llvm_canonicalize_cmake_booleans(
+-  HAVE_LIBZ
++  LLVM_ENABLE_ZLIB
+   LLVM_LIBXML2_ENABLED
+   )
+
+diff --git a/test/lit.site.cfg.py.in b/test/lit.site.cfg.py.in
+index 02840f8d6a30361234cf76df06c1de6f72410b43..531fce15839d527db1aa706cd69c5d2871a037b4 100644
+--- a/test/lit.site.cfg.py.in
++++ b/test/lit.site.cfg.py.in
+@@ -14,7 +14,7 @@ config.lld_libs_dir = "@LLVM_LIBRARY_OUTPUT_INTDIR@"
+ config.lld_tools_dir = "@LLVM_RUNTIME_OUTPUT_INTDIR@"
+ config.target_triple = "@TARGET_TRIPLE@"
+ config.python_executable = "@PYTHON_EXECUTABLE@"
+-config.have_zlib = @HAVE_LIBZ@
++config.have_zlib = @LLVM_ENABLE_ZLIB@
+ config.sizeof_void_p = @CMAKE_SIZEOF_VOID_P@
+
+ # Support substitution of the tools and libs dirs with user parameters. This is
+
