@@ -1,0 +1,468 @@
+diff -pur a/host/cmake/Modules/UHDBoost.cmake b/host/cmake/Modules/UHDBoost.cmake
+--- a/host/cmake/Modules/UHDBoost.cmake	2020-01-01 05:21:49.000000000 +0100
++++ b/host/cmake/Modules/UHDBoost.cmake	2020-10-12 13:36:15.000000000 +0200
+@@ -259,6 +259,9 @@ else()
+     # disable Boost's use of std::experimental::string_view
+     # works for Boost 1.67.0 and newer & doesn't hurt older
+     add_definitions(-DBOOST_ASIO_DISABLE_STD_EXPERIMENTAL_STRING_VIEW)
++    # UHD 3.15 still uses global placeholders (_1, _2, ...) from Boost which
++    # need to be enabled explicitly for some Boost versions
++    add_definitions(-DBOOST_BIND_GLOBAL_PLACEHOLDERS)
+ 
+     # Boost 1.70.0's find cmake scripts don't always set the expected
+     # return variables. Replicate the commit that fixes that issue here:
+diff -pur a/host/examples/network_relay.cpp b/host/examples/network_relay.cpp
+--- a/host/examples/network_relay.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/examples/network_relay.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -8,6 +8,7 @@
+ #include <uhd/utils/safe_main.hpp>
+ #include <uhd/utils/thread.hpp>
+ #include <boost/asio.hpp>
++#include <boost/bind.hpp>
+ #include <boost/format.hpp>
+ #include <boost/program_options.hpp>
+ #include <boost/thread/condition_variable.hpp>
+diff -pur a/host/examples/rfnoc_rx_to_file.cpp b/host/examples/rfnoc_rx_to_file.cpp
+--- a/host/examples/rfnoc_rx_to_file.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/examples/rfnoc_rx_to_file.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -23,6 +23,7 @@
+ #include <uhd/types/tune_request.hpp>
+ #include <uhd/utils/safe_main.hpp>
+ #include <uhd/utils/thread.hpp>
++#include <boost/bind.hpp>
+ #include <boost/format.hpp>
+ #include <boost/program_options.hpp>
+ #include <chrono>
+diff -pur a/host/examples/test_clock_synch.cpp b/host/examples/test_clock_synch.cpp
+--- a/host/examples/test_clock_synch.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/examples/test_clock_synch.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -12,6 +12,7 @@
+ #include <uhd/usrp_clock/multi_usrp_clock.hpp>
+ #include <uhd/utils/safe_main.hpp>
+ #include <uhd/utils/thread.hpp>
++#include <boost/bind.hpp>
+ #include <boost/format.hpp>
+ #include <boost/program_options.hpp>
+ #include <chrono>
+diff -pur a/host/examples/txrx_loopback_to_file.cpp b/host/examples/txrx_loopback_to_file.cpp
+--- a/host/examples/txrx_loopback_to_file.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/examples/txrx_loopback_to_file.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -13,6 +13,7 @@
+ #include <uhd/utils/static.hpp>
+ #include <uhd/utils/thread.hpp>
+ #include <boost/algorithm/string.hpp>
++#include <boost/bind.hpp>
+ #include <boost/filesystem.hpp>
+ #include <boost/format.hpp>
+ #include <boost/math/special_functions/round.hpp>
+diff -pur a/host/lib/rfnoc/dma_fifo_block_ctrl_impl.cpp b/host/lib/rfnoc/dma_fifo_block_ctrl_impl.cpp
+--- a/host/lib/rfnoc/dma_fifo_block_ctrl_impl.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/rfnoc/dma_fifo_block_ctrl_impl.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -11,6 +11,7 @@
+ #include <uhd/utils/log.hpp>
+ #include <uhdlib/rfnoc/wb_iface_adapter.hpp>
+ #include <uhdlib/usrp/cores/dma_fifo_core_3000.hpp>
++#include <boost/bind.hpp>
+ #include <boost/format.hpp>
+ #include <boost/make_shared.hpp>
+ #include <boost/thread/mutex.hpp>
+diff -pur a/host/lib/rfnoc/legacy_compat.cpp b/host/lib/rfnoc/legacy_compat.cpp
+--- a/host/lib/rfnoc/legacy_compat.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/rfnoc/legacy_compat.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -19,6 +19,7 @@
+ #include <uhd/usrp/subdev_spec.hpp>
+ #include <uhd/utils/log.hpp>
+ #include <uhdlib/rfnoc/legacy_compat.hpp>
++#include <boost/bind.hpp>
+ #include <boost/make_shared.hpp>
+ #include <set>
+ 
+diff -pur a/host/lib/transport/xport_benchmarker.cpp b/host/lib/transport/xport_benchmarker.cpp
+--- a/host/lib/transport/xport_benchmarker.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/transport/xport_benchmarker.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -6,6 +6,7 @@
+ //
+ 
+ #include "xport_benchmarker.hpp"
++#include <boost/bind.hpp>
+ #include <chrono>
+ #include <thread>
+ 
+diff -pur a/host/lib/usrp/b100/b100_impl.cpp b/host/lib/usrp/b100/b100_impl.cpp
+--- a/host/lib/usrp/b100/b100_impl.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/b100/b100_impl.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -15,6 +15,7 @@
+ #include <uhd/utils/paths.hpp>
+ #include <uhd/utils/safe_call.hpp>
+ #include <uhdlib/usrp/common/apply_corrections.hpp>
++#include <boost/bind.hpp>
+ #include <boost/format.hpp>
+ #include <cstdio>
+ #include <iostream>
+Only in b/host/lib/usrp/b100: b100_impl.cpp.orig
+diff -pur a/host/lib/usrp/b200/b200_iface.cpp b/host/lib/usrp/b200/b200_iface.cpp
+--- a/host/lib/usrp/b200/b200_iface.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/b200/b200_iface.cpp	2020-10-12 13:37:03.000000000 +0200
+@@ -12,6 +12,7 @@
+ #include <uhd/exception.hpp>
+ #include <uhdlib/utils/ihex.hpp>
+ 
++#include <boost/bind.hpp>
+ #include <boost/functional/hash.hpp>
+ #include <boost/lexical_cast.hpp>
+ #include <boost/format.hpp>
+diff -pur a/host/lib/usrp/b200/b200_impl.cpp b/host/lib/usrp/b200/b200_impl.cpp
+--- a/host/lib/usrp/b200/b200_impl.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/b200/b200_impl.cpp	2020-10-12 13:37:22.000000000 +0200
+@@ -16,6 +16,7 @@
+ #include <uhd/utils/paths.hpp>
+ #include <uhd/utils/safe_call.hpp>
+ #include <uhd/usrp/dboard_eeprom.hpp>
++#include <boost/bind.hpp>
+ #include <boost/format.hpp>
+ #include <boost/filesystem.hpp>
+ #include <boost/lexical_cast.hpp>
+diff -pur a/host/lib/usrp/cores/rx_dsp_core_3000.cpp b/host/lib/usrp/cores/rx_dsp_core_3000.cpp
+--- a/host/lib/usrp/cores/rx_dsp_core_3000.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/cores/rx_dsp_core_3000.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -13,6 +13,7 @@
+ #include <uhdlib/usrp/cores/dsp_core_utils.hpp>
+ #include <uhdlib/usrp/cores/rx_dsp_core_3000.hpp>
+ #include <boost/assign/list_of.hpp>
++#include <boost/bind.hpp>
+ #include <boost/math/special_functions/round.hpp>
+ #include <boost/thread/thread.hpp> //thread sleep
+ #include <algorithm>
+diff -pur a/host/lib/usrp/cores/tx_dsp_core_3000.cpp b/host/lib/usrp/cores/tx_dsp_core_3000.cpp
+--- a/host/lib/usrp/cores/tx_dsp_core_3000.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/cores/tx_dsp_core_3000.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -12,6 +12,7 @@
+ #include <uhdlib/usrp/cores/dsp_core_utils.hpp>
+ #include <uhdlib/usrp/cores/tx_dsp_core_3000.hpp>
+ #include <boost/assign/list_of.hpp>
++#include <boost/bind.hpp>
+ #include <boost/math/special_functions/round.hpp>
+ #include <boost/thread/thread.hpp> //sleep
+ #include <algorithm>
+diff -pur a/host/lib/usrp/dboard/db_cbx.cpp b/host/lib/usrp/dboard/db_cbx.cpp
+--- a/host/lib/usrp/dboard/db_cbx.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/dboard/db_cbx.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -7,6 +7,7 @@
+ 
+ #include "db_sbx_common.hpp"
+ #include <boost/algorithm/string.hpp>
++#include <boost/bind.hpp>
+ #include <boost/math/special_functions/round.hpp>
+ 
+ using namespace uhd;
+diff -pur a/host/lib/usrp/dboard/db_dbsrx.cpp b/host/lib/usrp/dboard/db_dbsrx.cpp
+--- a/host/lib/usrp/dboard/db_dbsrx.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/dboard/db_dbsrx.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -21,6 +21,7 @@
+ #include <uhd/usrp/dboard_base.hpp>
+ #include <uhd/usrp/dboard_manager.hpp>
+ #include <boost/assign/list_of.hpp>
++#include <boost/bind.hpp>
+ #include <boost/format.hpp>
+ #include <boost/math/special_functions/round.hpp>
+ #include <utility>
+diff -pur a/host/lib/usrp/dboard/db_dbsrx2.cpp b/host/lib/usrp/dboard/db_dbsrx2.cpp
+--- a/host/lib/usrp/dboard/db_dbsrx2.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/dboard/db_dbsrx2.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -18,6 +18,7 @@
+ #include <uhd/usrp/dboard_base.hpp>
+ #include <uhd/usrp/dboard_manager.hpp>
+ #include <boost/assign/list_of.hpp>
++#include <boost/bind.hpp>
+ #include <boost/format.hpp>
+ #include <boost/thread.hpp>
+ #include <boost/math/special_functions/round.hpp>
+diff -pur a/host/lib/usrp/dboard/db_sbx_common.cpp b/host/lib/usrp/dboard/db_sbx_common.cpp
+--- a/host/lib/usrp/dboard/db_sbx_common.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/dboard/db_sbx_common.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -6,6 +6,7 @@
+ //
+ 
+ #include "db_sbx_common.hpp"
++#include <boost/bind.hpp>
+ 
+ using namespace uhd;
+ using namespace uhd::usrp;
+diff -pur a/host/lib/usrp/dboard/db_sbx_version3.cpp b/host/lib/usrp/dboard/db_sbx_version3.cpp
+--- a/host/lib/usrp/dboard/db_sbx_version3.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/dboard/db_sbx_version3.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -9,6 +9,7 @@
+ #include "db_sbx_common.hpp"
+ #include <uhd/types/tune_request.hpp>
+ #include <boost/algorithm/string.hpp>
++#include <boost/bind.hpp>
+ 
+ using namespace uhd;
+ using namespace uhd::usrp;
+diff -pur a/host/lib/usrp/dboard/db_sbx_version4.cpp b/host/lib/usrp/dboard/db_sbx_version4.cpp
+--- a/host/lib/usrp/dboard/db_sbx_version4.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/dboard/db_sbx_version4.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -9,6 +9,7 @@
+ #include "db_sbx_common.hpp"
+ #include <uhd/types/tune_request.hpp>
+ #include <boost/algorithm/string.hpp>
++#include <boost/bind.hpp>
+ 
+ using namespace uhd;
+ using namespace uhd::usrp;
+diff -pur a/host/lib/usrp/dboard/db_tvrx.cpp b/host/lib/usrp/dboard/db_tvrx.cpp
+--- a/host/lib/usrp/dboard/db_tvrx.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/dboard/db_tvrx.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -28,6 +28,7 @@
+ #include <uhd/usrp/dboard_base.hpp>
+ #include <uhd/usrp/dboard_manager.hpp>
+ #include <boost/assign/list_of.hpp>
++#include <boost/bind.hpp>
+ #include <boost/format.hpp>
+ #include <boost/thread.hpp>
+ #include <boost/array.hpp>
+diff -pur a/host/lib/usrp/dboard/db_tvrx2.cpp b/host/lib/usrp/dboard/db_tvrx2.cpp
+--- a/host/lib/usrp/dboard/db_tvrx2.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/dboard/db_tvrx2.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -55,6 +55,7 @@
+ #include <uhd/usrp/dboard_manager.hpp>
+ #include <boost/assign/list_of.hpp>
+ #include <boost/format.hpp>
++#include <boost/bind.hpp>
+ #include <boost/array.hpp>
+ #include <boost/math/special_functions/round.hpp>
+ #include <utility>
+diff -pur a/host/lib/usrp/dboard/db_twinrx.cpp b/host/lib/usrp/dboard/db_twinrx.cpp
+--- a/host/lib/usrp/dboard/db_twinrx.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/dboard/db_twinrx.cpp	2020-10-12 13:39:11.000000000 +0200
+@@ -19,6 +19,7 @@
+ #include <uhd/utils/log.hpp>
+ #include <uhd/utils/static.hpp>
+ #include "dboard_ctor_args.hpp"
++#include <boost/bind.hpp>
+ #include <boost/make_shared.hpp>
+ #include <boost/thread.hpp>
+ #include <boost/thread/mutex.hpp>
+diff -pur a/host/lib/usrp/dboard/db_ubx.cpp b/host/lib/usrp/dboard/db_ubx.cpp
+--- a/host/lib/usrp/dboard/db_ubx.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/dboard/db_ubx.cpp	2020-10-12 13:39:29.000000000 +0200
+@@ -21,6 +21,7 @@
+ #include <uhdlib/usrp/common/max287x.hpp>
+ 
+ #include <boost/shared_ptr.hpp>
++#include <boost/bind.hpp>
+ #include <boost/math/special_functions/round.hpp>
+ #include <boost/algorithm/string.hpp>
+ #include <boost/thread/mutex.hpp>
+diff -pur a/host/lib/usrp/dboard/db_wbx_common.cpp b/host/lib/usrp/dboard/db_wbx_common.cpp
+--- a/host/lib/usrp/dboard/db_wbx_common.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/dboard/db_wbx_common.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -12,6 +12,7 @@
+ #include <uhd/utils/assert_has.hpp>
+ #include <uhd/utils/algorithm.hpp>
+ #include <uhd/utils/log.hpp>
++#include <boost/bind.hpp>
+ 
+ using namespace uhd;
+ using namespace uhd::usrp;
+diff -pur a/host/lib/usrp/dboard/db_wbx_simple.cpp b/host/lib/usrp/dboard/db_wbx_simple.cpp
+--- a/host/lib/usrp/dboard/db_wbx_simple.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/dboard/db_wbx_simple.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -17,6 +17,7 @@
+ #include <uhd/utils/assert_has.hpp>
+ #include <uhd/usrp/dboard_manager.hpp>
+ #include <boost/assign/list_of.hpp>
++#include <boost/bind.hpp>
+ 
+ using namespace uhd;
+ using namespace uhd::usrp;
+diff -pur a/host/lib/usrp/dboard/db_wbx_version2.cpp b/host/lib/usrp/dboard/db_wbx_version2.cpp
+--- a/host/lib/usrp/dboard/db_wbx_version2.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/dboard/db_wbx_version2.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -16,6 +16,7 @@
+ 
+ #include <uhd/usrp/dboard_base.hpp>
+ #include <boost/assign/list_of.hpp>
++#include <boost/bind.hpp>
+ #include <boost/format.hpp>
+ #include <boost/math/special_functions/round.hpp>
+ #include <boost/algorithm/string.hpp>
+diff -pur a/host/lib/usrp/dboard/db_wbx_version3.cpp b/host/lib/usrp/dboard/db_wbx_version3.cpp
+--- a/host/lib/usrp/dboard/db_wbx_version3.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/dboard/db_wbx_version3.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -15,6 +15,7 @@
+ 
+ #include <uhd/usrp/dboard_base.hpp>
+ #include <boost/assign/list_of.hpp>
++#include <boost/bind.hpp>
+ #include <boost/format.hpp>
+ #include <boost/math/special_functions/round.hpp>
+ #include <boost/algorithm/string.hpp>
+diff -pur a/host/lib/usrp/dboard/db_wbx_version4.cpp b/host/lib/usrp/dboard/db_wbx_version4.cpp
+--- a/host/lib/usrp/dboard/db_wbx_version4.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/dboard/db_wbx_version4.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -15,6 +15,7 @@
+ 
+ #include <uhd/usrp/dboard_base.hpp>
+ #include <boost/assign/list_of.hpp>
++#include <boost/bind.hpp>
+ #include <boost/format.hpp>
+ #include <boost/math/special_functions/round.hpp>
+ #include <boost/algorithm/string.hpp>
+diff -pur a/host/lib/usrp/dboard/db_xcvr2450.cpp b/host/lib/usrp/dboard/db_xcvr2450.cpp
+--- a/host/lib/usrp/dboard/db_xcvr2450.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/dboard/db_xcvr2450.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -49,6 +49,7 @@
+ #include <uhd/usrp/dboard_base.hpp>
+ #include <uhd/usrp/dboard_manager.hpp>
+ #include <boost/assign/list_of.hpp>
++#include <boost/bind.hpp>
+ #include <boost/format.hpp>
+ #include <boost/math/special_functions/round.hpp>
+ #include <utility>
+diff -pur a/host/lib/usrp/dboard/eiscat/eiscat_radio_ctrl_impl.cpp b/host/lib/usrp/dboard/eiscat/eiscat_radio_ctrl_impl.cpp
+--- a/host/lib/usrp/dboard/eiscat/eiscat_radio_ctrl_impl.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/dboard/eiscat/eiscat_radio_ctrl_impl.cpp	2020-10-12 13:38:50.000000000 +0200
+@@ -11,6 +11,7 @@
+ #include <uhd/rfnoc/node_ctrl_base.hpp>
+ #include <uhd/types/ranges.hpp>
+ #include <boost/algorithm/string.hpp>
++#include <boost/bind.hpp>
+ #include <boost/make_shared.hpp>
+ #include <boost/date_time/posix_time/posix_time_io.hpp>
+ #include <boost/format.hpp>
+diff -pur a/host/lib/usrp/multi_usrp.cpp b/host/lib/usrp/multi_usrp.cpp
+--- a/host/lib/usrp/multi_usrp.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/multi_usrp.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -21,6 +21,7 @@
+ #include <uhdlib/usrp/gpio_defs.hpp>
+ #include <uhdlib/rfnoc/legacy_compat.hpp>
+ #include <boost/assign/list_of.hpp>
++#include <boost/bind.hpp>
+ #include <boost/format.hpp>
+ #include <boost/algorithm/string.hpp>
+ #include <algorithm>
+Only in b/host/lib/usrp: multi_usrp.cpp.orig
+diff -pur a/host/lib/usrp/n230/n230_resource_manager.cpp b/host/lib/usrp/n230/n230_resource_manager.cpp
+--- a/host/lib/usrp/n230/n230_resource_manager.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/n230/n230_resource_manager.cpp	2020-10-12 13:39:51.000000000 +0200
+@@ -14,6 +14,7 @@
+ #include <uhd/utils/log.hpp>
+ #include <uhd/utils/platform.hpp>
+ #include <uhd/utils/paths.hpp>
++#include <boost/bind.hpp>
+ #include <boost/format.hpp>
+ #include <boost/functional/hash.hpp>
+ #include <boost/make_shared.hpp>
+diff -pur a/host/lib/usrp/n230/n230_uart.cpp b/host/lib/usrp/n230/n230_uart.cpp
+--- a/host/lib/usrp/n230/n230_uart.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/n230/n230_uart.cpp	2020-10-12 13:40:08.000000000 +0200
+@@ -13,6 +13,7 @@
+ #include <uhd/utils/log.hpp>
+ #include <uhd/types/time_spec.hpp>
+ #include <uhd/exception.hpp>
++#include <boost/bind.hpp>
+ 
+ using namespace uhd;
+ using namespace uhd::transport;
+diff -pur a/host/lib/usrp/usrp1/soft_time_ctrl.cpp b/host/lib/usrp/usrp1/soft_time_ctrl.cpp
+--- a/host/lib/usrp/usrp1/soft_time_ctrl.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/usrp1/soft_time_ctrl.cpp	2020-10-12 13:40:28.000000000 +0200
+@@ -10,6 +10,7 @@
+ #include <uhd/utils/tasks.hpp>
+ #include <boost/make_shared.hpp>
+ #include <boost/thread/condition_variable.hpp>
++#include <boost/bind.hpp>
+ #include <boost/date_time/posix_time/posix_time.hpp>
+ #include <iostream>
+ 
+diff -pur a/host/lib/usrp/usrp1/usrp1_impl.cpp b/host/lib/usrp/usrp1/usrp1_impl.cpp
+--- a/host/lib/usrp/usrp1/usrp1_impl.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/usrp1/usrp1_impl.cpp	2020-10-12 13:40:39.000000000 +0200
+@@ -14,6 +14,7 @@
+ #include <uhd/exception.hpp>
+ #include <uhd/utils/static.hpp>
+ #include <uhd/utils/paths.hpp>
++#include <boost/bind.hpp>
+ #include <boost/format.hpp>
+ #include <boost/filesystem.hpp>
+ #include <boost/lexical_cast.hpp>
+diff -pur a/host/lib/usrp/x300/x300_radio_ctrl_impl.cpp b/host/lib/usrp/x300/x300_radio_ctrl_impl.cpp
+--- a/host/lib/usrp/x300/x300_radio_ctrl_impl.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp/x300/x300_radio_ctrl_impl.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -17,6 +17,7 @@
+ #include <uhdlib/usrp/common/apply_corrections.hpp>
+ #include <uhdlib/usrp/cores/gpio_atr_3000.hpp>
+ #include <boost/algorithm/string.hpp>
++#include <boost/bind.hpp>
+ #include <boost/date_time/posix_time/posix_time_io.hpp>
+ #include <boost/make_shared.hpp>
+ #include <chrono>
+Only in b/host/lib/usrp/x300: x300_radio_ctrl_impl.cpp.orig
+diff -pur a/host/lib/usrp_clock/octoclock/octoclock_impl.cpp b/host/lib/usrp_clock/octoclock/octoclock_impl.cpp
+--- a/host/lib/usrp_clock/octoclock/octoclock_impl.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/usrp_clock/octoclock/octoclock_impl.cpp	2020-10-12 13:38:18.000000000 +0200
+@@ -7,6 +7,7 @@
+ 
+ #include <iostream>
+ 
++#include <boost/bind.hpp>
+ #include <boost/asio.hpp>
+ #include <boost/assign.hpp>
+ #include <stdint.h>
+diff -pur a/host/lib/utils/ihex.cpp b/host/lib/utils/ihex.cpp
+--- a/host/lib/utils/ihex.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/utils/ihex.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -7,6 +7,7 @@
+ 
+ #include <uhd/exception.hpp>
+ #include <uhdlib/utils/ihex.hpp>
++#include <boost/bind.hpp>
+ #include <boost/format.hpp>
+ #include <boost/make_shared.hpp>
+ #include <sstream>
+Only in b/host/lib/utils: ihex.cpp.orig
+diff -pur a/host/lib/utils/tasks.cpp b/host/lib/utils/tasks.cpp
+--- a/host/lib/utils/tasks.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/lib/utils/tasks.cpp	2020-10-12 13:37:51.000000000 +0200
+@@ -10,6 +10,7 @@
+ #include <uhd/utils/thread.hpp>
+ #include <uhd/utils/log.hpp>
+ #include <uhd/exception.hpp>
++#include <boost/bind.hpp>
+ #include <boost/thread/thread.hpp>
+ #include <boost/thread/barrier.hpp>
+ #include <exception>
+diff -pur a/host/utils/uhd_cal_rx_iq_balance.cpp b/host/utils/uhd_cal_rx_iq_balance.cpp
+--- a/host/utils/uhd_cal_rx_iq_balance.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/utils/uhd_cal_rx_iq_balance.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -11,6 +11,7 @@
+ #include <uhd/utils/paths.hpp>
+ #include <uhd/utils/safe_main.hpp>
+ #include <uhd/utils/thread.hpp>
++#include <boost/bind.hpp>
+ #include <boost/format.hpp>
+ #include <boost/math/special_functions/round.hpp>
+ #include <boost/program_options.hpp>
+diff -pur a/host/utils/uhd_cal_tx_dc_offset.cpp b/host/utils/uhd_cal_tx_dc_offset.cpp
+--- a/host/utils/uhd_cal_tx_dc_offset.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/utils/uhd_cal_tx_dc_offset.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -11,6 +11,7 @@
+ #include <uhd/utils/paths.hpp>
+ #include <uhd/utils/safe_main.hpp>
+ #include <uhd/utils/thread.hpp>
++#include <boost/bind.hpp>
+ #include <boost/format.hpp>
+ #include <boost/math/special_functions/round.hpp>
+ #include <boost/program_options.hpp>
+diff -pur a/host/utils/uhd_cal_tx_iq_balance.cpp b/host/utils/uhd_cal_tx_iq_balance.cpp
+--- a/host/utils/uhd_cal_tx_iq_balance.cpp	2020-01-01 05:21:49.000000000 +0100
++++ b/host/utils/uhd_cal_tx_iq_balance.cpp	2020-10-12 13:36:15.000000000 +0200
+@@ -8,6 +8,7 @@
+ #include "usrp_cal_utils.hpp"
+ #include <uhd/utils/safe_main.hpp>
+ #include <uhd/utils/thread.hpp>
++#include <boost/bind.hpp>
+ #include <boost/math/special_functions/round.hpp>
+ #include <boost/program_options.hpp>
+ #include <boost/thread/thread.hpp>
