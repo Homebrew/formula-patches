@@ -1,0 +1,59 @@
+--- /dev/null
++++ llvm-11.0.0.src/cmake/modules/GetLibraryName.cmake
+@@ -0,0 +1,16 @@
++function(get_library_name path name)
++   get_filename_component(path ${path} NAME)
++   set(prefixes ${CMAKE_FIND_LIBRARY_PREFIXES})
++   set(suffixes ${CMAKE_FIND_LIBRARY_SUFFIXES})
++   list(FILTER prefixes EXCLUDE REGEX "^\\s*$")
++   list(FILTER suffixes EXCLUDE REGEX "^\\s*$")
++   if(prefixes)
++     string(REPLACE ";" "|" prefixes "${prefixes}")
++     string(REGEX REPLACE "^(${prefixes})" "" path ${path})
++   endif()
++   if(suffixes)
++     string(REPLACE ";" "|" suffixes "${suffixes}")
++     string(REGEX REPLACE "(${suffixes})$" "" path ${path})
++   endif()
++   set(${name} "${path}" PARENT_SCOPE)
++ endfunction()
+--- llvm-11.0.0.src/lib/WindowsManifest/CMakeLists.txt
++++ llvm-11.0.0.src/lib/WindowsManifest/CMakeLists.txt
+@@ -1,23 +1,23 @@
++include(GetLibraryName)
++
++set(imported_libs LibXml2::LibXml2)
++
+ add_llvm_component_library(LLVMWindowsManifest
+   WindowsManifestMerger.cpp
+ 
+   ADDITIONAL_HEADER_DIRS
+   ${LLVM_MAIN_INCLUDE_DIR}/llvm/WindowsManifest
+-  ${Backtrace_INCLUDE_DIRS})
++  ${Backtrace_INCLUDE_DIRS}
++  LINK_LIBS ${imported_libs})
+ 
+ if(LIBXML2_LIBRARIES)
+-  target_link_libraries(LLVMWindowsManifest PUBLIC ${LIBXML2_LIBRARIES})
+-
+-  get_filename_component(xml2_library ${LIBXML2_LIBRARIES} NAME)
+-  if (CMAKE_STATIC_LIBRARY_PREFIX AND
+-      xml2_library MATCHES "^${CMAKE_STATIC_LIBRARY_PREFIX}.*${CMAKE_STATIC_LIBRARY_SUFFIX}$")
+-    string(REGEX REPLACE "^${CMAKE_STATIC_LIBRARY_PREFIX}" "" xml2_library ${xml2_library})
+-    string(REGEX REPLACE "${CMAKE_STATIC_LIBRARY_SUFFIX}$" "" xml2_library ${xml2_library})
+-  elseif (CMAKE_SHARED_LIBRARY_PREFIX AND
+-          xml2_library MATCHES "^${CMAKE_SHARED_LIBRARY_PREFIX}.*${CMAKE_SHARED_LIBRARY_SUFFIX}$")
+-    string(REGEX REPLACE "^${CMAKE_SHARED_LIBRARY_PREFIX}" "" xml2_library ${xml2_library})
+-    string(REGEX REPLACE "${CMAKE_SHARED_LIBRARY_SUFFIX}$" "" xml2_library ${xml2_library})
++  if(CMAKE_BUILD_TYPE)
++     string(TOUPPER ${CMAKE_BUILD_TYPE} build_type)
++     get_property(libxml2_library TARGET LibXml2::LibXml2 PROPERTY LOCATION_${build_type})
+   endif()
+-  set_property(TARGET LLVMWindowsManifest PROPERTY
+-    LLVM_SYSTEM_LIBS ${xml2_library})
++  if(NOT zlib_library)
++    get_property(libxml2_library TARGET LibXml2::LibXml2 PROPERTY LOCATION)
++  endif()
++  get_library_name(${libxml2_library} libxml2_library)
++  set_property(TARGET LLVMWindowsManifest PROPERTY LLVM_SYSTEM_LIBS ${libxml2_library})
+ endif()
