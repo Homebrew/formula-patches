@@ -1,0 +1,620 @@
+From 3f637d28dfeba8cf1391c9e70a89c0aac0f2150a Mon Sep 17 00:00:00 2001
+From: George Adams <georgeadams1995@gmail.com>
+Date: Tue, 21 Apr 2020 12:17:15 +0100
+Subject: [PATCH] intial patches to build JDK8u on XCode 11
+
+This is slightly altered from the original adoptopenjdk patch to remove
+the unnecessary config.log addition and portions already upstreamed
+in the jdk8u Mercurial repository.
+
+Cf. https://github.com/AdoptOpenJDK/openjdk-jdk8u/pull/10
+
+diff --git a/common/autoconf/basics.m4 b/common/autoconf/basics.m4
+index 4ee9cdd1933bfa99718f36f6470751b39f38bab0..1ab440e888a713edd46fa23f6239d32d57c36bfa 100644
+--- a/common/autoconf/basics.m4
++++ b/common/autoconf/basics.m4
+@@ -575,7 +575,7 @@ AC_DEFUN_ONCE([BASIC_SETUP_DEVKIT],
+ 
+   # Xcode version will be validated later
+   AC_ARG_WITH([xcode-path], [AS_HELP_STRING([--with-xcode-path],
+-      [explicit path to Xcode 4 (generally for building on 10.9 and later)])],
++      [explicit path to Xcode (Xcode 4 is supported; generally for building on 10.9 and later)])],
+       [XCODE_PATH=$with_xcode_path]
+   )
+ 
+diff --git a/common/autoconf/flags.m4 b/common/autoconf/flags.m4
+index 077efa297c614221dc69806901a84c57069561cd..29dac14c1b3d841ea5229d96d2d912ef0b4be546 100644
+--- a/common/autoconf/flags.m4
++++ b/common/autoconf/flags.m4
+@@ -160,6 +160,26 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_LIBS],
+     C_FLAG_REORDER=''
+     CXX_FLAG_REORDER=''
+ 
++    if test "x$OPENJDK_TARGET_OS" = xmacosx; then
++      # Linking is different on MacOSX
++      SHARED_LIBRARY_FLAGS="-dynamiclib -compatibility_version 1.0.0 -current_version 1.0.0 $PICFLAG"
++      SET_EXECUTABLE_ORIGIN='-Xlinker -rpath -Xlinker @loader_path/.'
++      SET_SHARED_LIBRARY_ORIGIN="$SET_EXECUTABLE_ORIGIN"
++      SET_SHARED_LIBRARY_NAME='-Xlinker -install_name -Xlinker @rpath/[$]1'
++      SET_SHARED_LIBRARY_MAPFILE=''
++    else
++      # Default works for linux, might work on other platforms as well.
++      SHARED_LIBRARY_FLAGS='-shared'
++      SET_EXECUTABLE_ORIGIN='-Xlinker -rpath -Xlinker \$$$$ORIGIN[$]1'
++      SET_SHARED_LIBRARY_ORIGIN="-Xlinker -z -Xlinker origin $SET_EXECUTABLE_ORIGIN"
++      SET_SHARED_LIBRARY_NAME='-Xlinker -soname=[$]1'
++      SET_SHARED_LIBRARY_MAPFILE='-Xlinker -version-script=[$]1'
++    fi
++  elif test "x$TOOLCHAIN_TYPE" = xclang; then
++    PICFLAG="-fPIC"
++    C_FLAG_REORDER=''
++    CXX_FLAG_REORDER=''
++
+     if test "x$OPENJDK_TARGET_OS" = xmacosx; then
+       # Linking is different on MacOSX
+       SHARED_LIBRARY_FLAGS="-dynamiclib -compatibility_version 1.0.0 -current_version 1.0.0 $PICFLAG"
+@@ -272,6 +292,8 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_OPTIMIZATION],
+   # Generate make dependency files
+   if test "x$TOOLCHAIN_TYPE" = xgcc; then
+     C_FLAG_DEPS="-MMD -MF"
++  elif test "x$TOOLCHAIN_TYPE" = xclang; then
++    C_FLAG_DEPS="-MMD -MF"
+   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+     C_FLAG_DEPS="-xMMD -xMF"
+   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
+@@ -296,6 +318,15 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_OPTIMIZATION],
+       CXXFLAGS_DEBUG_SYMBOLS="-g"
+     fi
+     ASFLAGS_DEBUG_SYMBOLS="-g"
++  elif test "x$TOOLCHAIN_TYPE" = xclang; then
++    if test "x$OPENJDK_TARGET_CPU_BITS" = "x64" && test "x$DEBUG_LEVEL" = "xfastdebug"; then
++      CFLAGS_DEBUG_SYMBOLS="-g1"
++      CXXFLAGS_DEBUG_SYMBOLS="-g1"
++    else
++      CFLAGS_DEBUG_SYMBOLS="-g"
++      CXXFLAGS_DEBUG_SYMBOLS="-g"
++    fi
++    ASFLAGS_DEBUG_SYMBOLS="-g"
+   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+     CFLAGS_DEBUG_SYMBOLS="-g -xs"
+     CXXFLAGS_DEBUG_SYMBOLS="-g0 -xs"
+@@ -352,6 +383,20 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_OPTIMIZATION],
+         C_O_FLAG_NORM="-O2"
+         C_O_FLAG_NONE="-O0"
+       fi
++    elif test "x$TOOLCHAIN_TYPE" = xclang; then
++      if test "x$OPENJDK_TARGET_OS" = xmacosx; then
++        # On MacOSX we optimize for size, something
++        # we should do for all platforms?
++        C_O_FLAG_HIGHEST="-Os"
++        C_O_FLAG_HI="-Os"
++        C_O_FLAG_NORM="-Os"
++        C_O_FLAG_NONE=""
++      else
++        C_O_FLAG_HIGHEST="-O3"
++        C_O_FLAG_HI="-O3"
++        C_O_FLAG_NORM="-O2"
++        C_O_FLAG_NONE="-O0"
++      fi
+     elif test "x$TOOLCHAIN_TYPE" = xxlc; then
+       C_O_FLAG_HIGHEST="-O3"
+       C_O_FLAG_HI="-O3 -qstrict"
+@@ -639,6 +684,22 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
+       # The expected format is X.Y.Z
+       MACOSX_VERSION_MIN=10.7.0
+       AC_SUBST(MACOSX_VERSION_MIN)
++
++      # The macro takes the version with no dots, ex: 1070
++      # Let the flags variables get resolved in make for easier override on make
++      # command line.
++      CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DMAC_OS_X_VERSION_MAX_ALLOWED=\$(subst .,,\$(MACOSX_VERSION_MIN)) -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
++      LDFLAGS_JDK="$LDFLAGS_JDK -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
++    elif test "x$TOOLCHAIN_TYPE" = xclang; then
++      # FIXME: This needs to be exported in spec.gmk due to closed legacy code.
++      # FIXME: clean this up, and/or move it elsewhere.
++
++      # Setting these parameters makes it an error to link to macosx APIs that are
++      # newer than the given OS version and makes the linked binaries compatible
++      # even if built on a newer version of the OS.
++      # The expected format is X.Y.Z
++      MACOSX_VERSION_MIN=10.9.0
++      AC_SUBST(MACOSX_VERSION_MIN)
+     
+       # The macro takes the version with no dots, ex: 1070
+       # Let the flags variables get resolved in make for easier override on make
+@@ -713,6 +774,23 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
+           LDFLAGS_JDK="${LDFLAGS_JDK} -Xlinker -O1"
+         fi
+       fi
++    elif test "x$TOOLCHAIN_TYPE" = xclang; then
++      # If this is a --hash-style=gnu system, use --hash-style=both, why?
++      # We have previously set HAS_GNU_HASH if this is the case
++      if test -n "$HAS_GNU_HASH"; then
++        LDFLAGS_JDK="${LDFLAGS_JDK} -Xlinker --hash-style=both "
++      fi
++      if test "x$OPENJDK_TARGET_OS" = xlinux; then
++        # And since we now know that the linker is gnu, then add:
++        #   -z defs, to forbid undefined symbols in object files
++        #   -z noexecstack, to mark stack regions as non-executable
++        LDFLAGS_JDK="${LDFLAGS_JDK} -Xlinker -z -Xlinker defs -Xlinker -z -Xlinker noexecstack"
++        if test "x$DEBUG_LEVEL" = "xrelease"; then
++          # When building release libraries, tell the linker optimize them.
++          # Should this be supplied to the OSS linker as well?
++          LDFLAGS_JDK="${LDFLAGS_JDK} -Xlinker -O1"
++        fi
++      fi
+     fi
+ 
+     if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+diff --git a/common/autoconf/generated-configure.sh b/common/autoconf/generated-configure.sh
+index 3d1258bedf073620492a7cb9cc93a05a198e0775..7e461284139c1f3785f5e8d2815b137f02fc4480 100644
+--- a/common/autoconf/generated-configure.sh
++++ b/common/autoconf/generated-configure.sh
+@@ -1895,8 +1895,8 @@ Optional Packages:
+   --with-toolchain-path   prepend these directories when searching for
+                           toolchain binaries (compilers etc)
+   --with-extra-path       prepend these directories to the default path
+-  --with-xcode-path       explicit path to Xcode 4 (generally for building on
+-                          10.9 and later)
++  --with-xcode-path       explicit path to Xcode (Xcode 4 is supported;
++                          generally for building on 10.9 and later)
+   --with-conf-name        use this as the name of the configuration [generated
+                           from important configuration options]
+   --with-builddeps-conf   use this configuration file for the builddeps
+@@ -14008,6 +14008,8 @@ $as_echo "$COMPILE_TYPE" >&6; }
+     elif test "x$OPENJDK_TARGET_CPU_ARCH" = xx86; then
+       OPENJDK_TARGET_CPU_JLI_CFLAGS="$OPENJDK_TARGET_CPU_JLI_CFLAGS -DLIBARCH32NAME='\"i386\"' -DLIBARCH64NAME='\"amd64\"'"
+     fi
++  elif test "x$OPENJDK_TARGET_OS" = xmacosx && test "x$TOOLCHAIN_TYPE" = xclang ; then
++    OPENJDK_TARGET_CPU_JLI_CFLAGS="$OPENJDK_TARGET_CPU_JLI_CFLAGS -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
+   fi
+ 
+ 
+@@ -26749,7 +26751,7 @@ $as_echo "$as_me: or run \"bash.exe -l\" from a VS command prompt and then run c
+ $as_echo_n "checking Determining if we need to set DEVELOPER_DIR... " >&6; }
+     if test -n "$DEVELOPER_DIR"; then
+       if test ! -d "$DEVELOPER_DIR"; then
+-        as_fn_error $? "Xcode Developer path does not exist: $DEVELOPER_DIR, please provide a path to the Xcode 4 application bundle using --with-xcode-path" "$LINENO" 5
++        as_fn_error $? "Xcode Developer path does not exist: $DEVELOPER_DIR, please provide a path to the Xcode application bundle using --with-xcode-path" "$LINENO" 5
+       fi
+       if test ! -f "$DEVELOPER_DIR"/usr/bin/xcodebuild; then
+         as_fn_error $? "Xcode Developer path is not valid: $DEVELOPER_DIR, it must point to Contents/Developer inside an Xcode application bundle" "$LINENO" 5
+@@ -26812,8 +26814,8 @@ fi
+     # Fail-fast: verify we're building on Xcode 4, we cannot build with Xcode 5 or later
+     XCODE_VERSION=`$XCODEBUILD -version | grep '^Xcode ' | sed 's/Xcode //'`
+     XC_VERSION_PARTS=( ${XCODE_VERSION//./ } )
+-    if test ! "${XC_VERSION_PARTS[0]}" = "4"; then
+-      as_fn_error $? "Xcode 4 is required to build JDK 8, the version found was $XCODE_VERSION. Use --with-xcode-path to specify the location of Xcode 4 or make Xcode 4 active by using xcode-select." "$LINENO" 5
++    if test "${XC_VERSION_PARTS[0]}" != "4" -a "${XC_VERSION_PARTS[0]}" != "9" -a "${XC_VERSION_PARTS[0]}" != "10" -a "${XC_VERSION_PARTS[0]}" != "11" ; then
++      as_fn_error $? "Xcode 4, 9, 10 or 11 is required to build JDK 8, the version found was $XCODE_VERSION. Use --with-xcode-path to specify the location of Xcode or make Xcode active by using xcode-select." "$LINENO" 5
+     fi
+ 
+     # Some versions of Xcode 5 command line tools install gcc and g++ as symlinks to
+@@ -41270,6 +41272,26 @@ $as_echo "$ac_cv_c_bigendian" >&6; }
+     C_FLAG_REORDER=''
+     CXX_FLAG_REORDER=''
+ 
++    if test "x$OPENJDK_TARGET_OS" = xmacosx; then
++      # Linking is different on MacOSX
++      SHARED_LIBRARY_FLAGS="-dynamiclib -compatibility_version 1.0.0 -current_version 1.0.0 $PICFLAG"
++      SET_EXECUTABLE_ORIGIN='-Xlinker -rpath -Xlinker @loader_path/.'
++      SET_SHARED_LIBRARY_ORIGIN="$SET_EXECUTABLE_ORIGIN"
++      SET_SHARED_LIBRARY_NAME='-Xlinker -install_name -Xlinker @rpath/$1'
++      SET_SHARED_LIBRARY_MAPFILE=''
++    else
++      # Default works for linux, might work on other platforms as well.
++      SHARED_LIBRARY_FLAGS='-shared'
++      SET_EXECUTABLE_ORIGIN='-Xlinker -rpath -Xlinker \$$$$ORIGIN$1'
++      SET_SHARED_LIBRARY_ORIGIN="-Xlinker -z -Xlinker origin $SET_EXECUTABLE_ORIGIN"
++      SET_SHARED_LIBRARY_NAME='-Xlinker -soname=$1'
++      SET_SHARED_LIBRARY_MAPFILE='-Xlinker -version-script=$1'
++    fi
++  elif test "x$TOOLCHAIN_TYPE" = xclang; then
++    PICFLAG="-fPIC"
++    C_FLAG_REORDER=''
++    CXX_FLAG_REORDER=''
++
+     if test "x$OPENJDK_TARGET_OS" = xmacosx; then
+       # Linking is different on MacOSX
+       SHARED_LIBRARY_FLAGS="-dynamiclib -compatibility_version 1.0.0 -current_version 1.0.0 $PICFLAG"
+@@ -41349,6 +41371,8 @@ $as_echo "$ac_cv_c_bigendian" >&6; }
+   # Generate make dependency files
+   if test "x$TOOLCHAIN_TYPE" = xgcc; then
+     C_FLAG_DEPS="-MMD -MF"
++  elif test "x$TOOLCHAIN_TYPE" = xclang; then
++    C_FLAG_DEPS="-MMD -MF"
+   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+     C_FLAG_DEPS="-xMMD -xMF"
+   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
+@@ -41373,6 +41397,15 @@ $as_echo "$ac_cv_c_bigendian" >&6; }
+       CXXFLAGS_DEBUG_SYMBOLS="-g"
+     fi
+     ASFLAGS_DEBUG_SYMBOLS="-g"
++  elif test "x$TOOLCHAIN_TYPE" = xclang; then
++    if test "x$OPENJDK_TARGET_CPU_BITS" = "x64" && test "x$DEBUG_LEVEL" = "xfastdebug"; then
++      CFLAGS_DEBUG_SYMBOLS="-g1"
++      CXXFLAGS_DEBUG_SYMBOLS="-g1"
++    else
++      CFLAGS_DEBUG_SYMBOLS="-g"
++      CXXFLAGS_DEBUG_SYMBOLS="-g"
++    fi
++    ASFLAGS_DEBUG_SYMBOLS="-g"
+   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+     CFLAGS_DEBUG_SYMBOLS="-g -xs"
+     CXXFLAGS_DEBUG_SYMBOLS="-g0 -xs"
+@@ -41429,6 +41462,20 @@ $as_echo "$ac_cv_c_bigendian" >&6; }
+         C_O_FLAG_NORM="-O2"
+         C_O_FLAG_NONE="-O0"
+       fi
++    elif test "x$TOOLCHAIN_TYPE" = xclang; then
++      if test "x$OPENJDK_TARGET_OS" = xmacosx; then
++        # On MacOSX we optimize for size, something
++        # we should do for all platforms?
++        C_O_FLAG_HIGHEST="-Os"
++        C_O_FLAG_HI="-Os"
++        C_O_FLAG_NORM="-Os"
++        C_O_FLAG_NONE=""
++      else
++        C_O_FLAG_HIGHEST="-O3"
++        C_O_FLAG_HI="-O3"
++        C_O_FLAG_NORM="-O2"
++        C_O_FLAG_NONE="-O0"
++      fi
+     elif test "x$TOOLCHAIN_TYPE" = xxlc; then
+       C_O_FLAG_HIGHEST="-O3"
+       C_O_FLAG_HI="-O3 -qstrict"
+@@ -42100,6 +42147,22 @@ $as_echo "$supports" >&6; }
+       MACOSX_VERSION_MIN=10.7.0
+ 
+ 
++      # The macro takes the version with no dots, ex: 1070
++      # Let the flags variables get resolved in make for easier override on make
++      # command line.
++      CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DMAC_OS_X_VERSION_MAX_ALLOWED=\$(subst .,,\$(MACOSX_VERSION_MIN)) -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
++      LDFLAGS_JDK="$LDFLAGS_JDK -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
++    elif test "x$TOOLCHAIN_TYPE" = xclang; then
++      # FIXME: This needs to be exported in spec.gmk due to closed legacy code.
++      # FIXME: clean this up, and/or move it elsewhere.
++
++      # Setting these parameters makes it an error to link to macosx APIs that are
++      # newer than the given OS version and makes the linked binaries compatible
++      # even if built on a newer version of the OS.
++      # The expected format is X.Y.Z
++      MACOSX_VERSION_MIN=10.9.0
++
++
+       # The macro takes the version with no dots, ex: 1070
+       # Let the flags variables get resolved in make for easier override on make
+       # command line.
+@@ -42173,6 +42236,23 @@ $as_echo "$supports" >&6; }
+           LDFLAGS_JDK="${LDFLAGS_JDK} -Xlinker -O1"
+         fi
+       fi
++    elif test "x$TOOLCHAIN_TYPE" = xclang; then
++      # If this is a --hash-style=gnu system, use --hash-style=both, why?
++      # We have previously set HAS_GNU_HASH if this is the case
++      if test -n "$HAS_GNU_HASH"; then
++        LDFLAGS_JDK="${LDFLAGS_JDK} -Xlinker --hash-style=both "
++      fi
++      if test "x$OPENJDK_TARGET_OS" = xlinux; then
++        # And since we now know that the linker is gnu, then add:
++        #   -z defs, to forbid undefined symbols in object files
++        #   -z noexecstack, to mark stack regions as non-executable
++        LDFLAGS_JDK="${LDFLAGS_JDK} -Xlinker -z -Xlinker defs -Xlinker -z -Xlinker noexecstack"
++        if test "x$DEBUG_LEVEL" = "xrelease"; then
++          # When building release libraries, tell the linker optimize them.
++          # Should this be supplied to the OSS linker as well?
++          LDFLAGS_JDK="${LDFLAGS_JDK} -Xlinker -O1"
++        fi
++      fi
+     fi
+ 
+     if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+@@ -48831,8 +48911,12 @@ fi
+   fi
+ 
+   # TODO better (platform agnostic) test
+-  if test "x$OPENJDK_TARGET_OS" = xmacosx && test "x$LIBCXX" = x && test "x$TOOLCHAIN_TYPE" = xgcc; then
+-    LIBCXX="-lstdc++"
++  if test "x$OPENJDK_TARGET_OS" = xmacosx && test "x$LIBCXX" = x ; then
++    if test "x$TOOLCHAIN_TYPE" = xgcc; then
++      LIBCXX="-lstdc++"
++    elif test "x$TOOLCHAIN_TYPE" = xclang; then
++      LIBCXX="-std=libc++"
++    fi
+   fi
+ 
+ 
+diff --git a/common/autoconf/libraries.m4 b/common/autoconf/libraries.m4
+index 6d803f9b1c4e303f383ad40322e8514a8abbd32c..933ba9832e63eed8b82c860fae8acfbb6119b1a1 100644
+--- a/common/autoconf/libraries.m4
++++ b/common/autoconf/libraries.m4
+@@ -1047,8 +1047,12 @@ AC_DEFUN_ONCE([LIB_SETUP_STATIC_LINK_LIBSTDCPP],
+   fi
+ 
+   # TODO better (platform agnostic) test
+-  if test "x$OPENJDK_TARGET_OS" = xmacosx && test "x$LIBCXX" = x && test "x$TOOLCHAIN_TYPE" = xgcc; then
+-    LIBCXX="-lstdc++"
++  if test "x$OPENJDK_TARGET_OS" = xmacosx && test "x$LIBCXX" = x ; then
++    if test "x$TOOLCHAIN_TYPE" = xgcc; then
++      LIBCXX="-lstdc++"
++    elif test "x$TOOLCHAIN_TYPE" = xclang; then
++      LIBCXX="-std=libc++"
++    fi
+   fi
+ 
+   AC_SUBST(LIBCXX)
+diff --git a/common/autoconf/platform.m4 b/common/autoconf/platform.m4
+index 945579d6066e101404416a0007175afa77050a5c..65b0f45ea793d78a65f8d029acfff539cae331f2 100644
+--- a/common/autoconf/platform.m4
++++ b/common/autoconf/platform.m4
+@@ -334,6 +334,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS],
+     elif test "x$OPENJDK_TARGET_CPU_ARCH" = xx86; then
+       OPENJDK_TARGET_CPU_JLI_CFLAGS="$OPENJDK_TARGET_CPU_JLI_CFLAGS -DLIBARCH32NAME='\"i386\"' -DLIBARCH64NAME='\"amd64\"'"
+     fi
++  elif test "x$OPENJDK_TARGET_OS" = xmacosx && test "x$TOOLCHAIN_TYPE" = xclang ; then
++    OPENJDK_TARGET_CPU_JLI_CFLAGS="$OPENJDK_TARGET_CPU_JLI_CFLAGS -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
+   fi
+   AC_SUBST(OPENJDK_TARGET_CPU_JLI_CFLAGS)
+ 
+diff --git a/common/autoconf/toolchain.m4 b/common/autoconf/toolchain.m4
+index e3a82c8153490e06f1800b255b26043c6bdfda5a..4478040334a813ba0c4efbac1a097dc64d4161b8 100644
+--- a/common/autoconf/toolchain.m4
++++ b/common/autoconf/toolchain.m4
+@@ -249,7 +249,7 @@ AC_DEFUN_ONCE([TOOLCHAIN_PRE_DETECTION],
+     AC_MSG_CHECKING([Determining if we need to set DEVELOPER_DIR])
+     if test -n "$DEVELOPER_DIR"; then
+       if test ! -d "$DEVELOPER_DIR"; then
+-        AC_MSG_ERROR([Xcode Developer path does not exist: $DEVELOPER_DIR, please provide a path to the Xcode 4 application bundle using --with-xcode-path])
++        AC_MSG_ERROR([Xcode Developer path does not exist: $DEVELOPER_DIR, please provide a path to the Xcode application bundle using --with-xcode-path])
+       fi
+       if test ! -f "$DEVELOPER_DIR"/usr/bin/xcodebuild; then
+         AC_MSG_ERROR([Xcode Developer path is not valid: $DEVELOPER_DIR, it must point to Contents/Developer inside an Xcode application bundle])
+@@ -271,8 +271,8 @@ AC_DEFUN_ONCE([TOOLCHAIN_PRE_DETECTION],
+     # Fail-fast: verify we're building on Xcode 4, we cannot build with Xcode 5 or later
+     XCODE_VERSION=`$XCODEBUILD -version | grep '^Xcode ' | sed 's/Xcode //'`
+     XC_VERSION_PARTS=( ${XCODE_VERSION//./ } )
+-    if test ! "${XC_VERSION_PARTS[[0]]}" = "4"; then
+-      AC_MSG_ERROR([Xcode 4 is required to build JDK 8, the version found was $XCODE_VERSION. Use --with-xcode-path to specify the location of Xcode 4 or make Xcode 4 active by using xcode-select.])
++    if test "${XC_VERSION_PARTS[[0]]}" != "4" -a "${XC_VERSION_PARTS[[0]]}" != "9" -a "${XC_VERSION_PARTS[[0]]}" != "10" -a "${XC_VERSION_PARTS[[0]]}" != "11" ; then
++      AC_MSG_ERROR([Xcode 4, 9, 10 or 11 is required to build JDK 8, the version found was $XCODE_VERSION. Use --with-xcode-path to specify the location of Xcode or make Xcode active by using xcode-select.])
+     fi
+ 
+     # Some versions of Xcode 5 command line tools install gcc and g++ as symlinks to
+diff --git a/hotspot/make/bsd/makefiles/gcc.make b/hotspot/make/bsd/makefiles/gcc.make
+index 52885199c612223f071d57df416158febb27d54b..1d7c382b4dc5495563ad5a8595603c00dc3d8ddf 100644
+--- a/hotspot/make/bsd/makefiles/gcc.make
++++ b/hotspot/make/bsd/makefiles/gcc.make
+@@ -313,10 +313,8 @@ OPT_CFLAGS/NOOPT=-O0
+ 
+ # Work around some compiler bugs.
+ ifeq ($(USE_CLANG), true)
+-  ifeq ($(shell expr $(CC_VER_MAJOR) = 4 \& $(CC_VER_MINOR) = 2), 1)
+-    OPT_CFLAGS/loopTransform.o += $(OPT_CFLAGS/NOOPT)
+-    OPT_CFLAGS/unsafe.o += -O1
+-  endif
++  OPT_CFLAGS/loopTransform.o += $(OPT_CFLAGS/NOOPT)
++  OPT_CFLAGS/unsafe.o += -O1
+ else
+   # 6835796. Problem in GCC 4.3.0 with mulnode.o optimized compilation.
+   ifeq ($(shell expr $(CC_VER_MAJOR) = 4 \& $(CC_VER_MINOR) = 3), 1)
+@@ -362,7 +360,15 @@ ASFLAGS += -x assembler-with-cpp
+ # Linker flags
+ 
+ # statically link libstdc++.so, work with gcc but ignored by g++
+-STATIC_STDCXX = -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic
++ifeq ($(OS_VENDOR), Darwin)
++  ifeq ($(USE_CLANG), true)
++    STATIC_STDCXX = -Wl,-Bstatic -lc++ -Wl,-Bdynamic
++  else
++    STATIC_STDCXX = -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic
++  endif
++else
++  STATIC_STDCXX = -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic
++endif
+ 
+ ifeq ($(USE_CLANG),)
+   # statically link libgcc and/or libgcc_s, libgcc does not exist before gcc-3.x.
+diff --git a/hotspot/make/bsd/makefiles/jsig.make b/hotspot/make/bsd/makefiles/jsig.make
+index b5860bfd8d225051f90330a81027c8136b763a4f..5cfb8995720c7915fd622ec509d267fe331b941b 100644
+--- a/hotspot/make/bsd/makefiles/jsig.make
++++ b/hotspot/make/bsd/makefiles/jsig.make
+@@ -54,6 +54,11 @@ LIBJSIG_MAPFILE = $(MAKEFILES_DIR)/mapfile-vers-jsig
+ 
+ LFLAGS_JSIG += -D_GNU_SOURCE -pthread $(LDFLAGS_HASH_STYLE) $(EXTRA_LDFLAGS)
+ 
++ifeq ($(OS_VENDOR), Darwin)
++# bring in minimum version argument or we'll fail on OSX 10.10
++LFLAGS_JSIG += $(LFLAGS)
++endif
++
+ # DEBUG_BINARIES overrides everything, use full -g debug information
+ ifeq ($(DEBUG_BINARIES), true)
+   JSIG_DEBUG_CFLAGS = -g
+diff --git a/hotspot/src/os/aix/vm/decoder_aix.hpp b/hotspot/src/os/aix/vm/decoder_aix.hpp
+index ac234c1ab008e11c42944d3044674d6d0043f2fb..dca2dad3ebce499f3b62ddb212df358c9f3e3613 100644
+--- a/hotspot/src/os/aix/vm/decoder_aix.hpp
++++ b/hotspot/src/os/aix/vm/decoder_aix.hpp
+@@ -32,7 +32,7 @@ class AIXDecoder: public AbstractDecoder {
+   AIXDecoder() {
+     _decoder_status = no_error;
+   }
+-  ~AIXDecoder() {}
++  virtual ~AIXDecoder() {}
+ 
+   virtual bool can_decode_C_frame_in_vm() const { return true; }
+ 
+diff --git a/hotspot/src/os/bsd/vm/decoder_machO.hpp b/hotspot/src/os/bsd/vm/decoder_machO.hpp
+index 25dedc6aa0e45178a01b086f878f46c3aa51abf1..675d7cb93313cf2602d09e9e8bc741e81f169f57 100644
+--- a/hotspot/src/os/bsd/vm/decoder_machO.hpp
++++ b/hotspot/src/os/bsd/vm/decoder_machO.hpp
+@@ -34,7 +34,7 @@
+ class MachODecoder : public AbstractDecoder {
+  public:
+   MachODecoder() { }
+-  ~MachODecoder() { }
++  virtual ~MachODecoder() { }
+   virtual bool can_decode_C_frame_in_vm() const {
+     return true;
+   }
+diff --git a/hotspot/src/os/windows/vm/decoder_windows.hpp b/hotspot/src/os/windows/vm/decoder_windows.hpp
+index 731b3a3f5dc7987309bbed272ce85a8aa605752d..533425d6d4b0be7f6a36eb6cecd0db7589763f16 100644
+--- a/hotspot/src/os/windows/vm/decoder_windows.hpp
++++ b/hotspot/src/os/windows/vm/decoder_windows.hpp
+@@ -56,7 +56,7 @@ class WindowsDecoder : public AbstractDecoder {
+ 
+ public:
+   WindowsDecoder();
+-  ~WindowsDecoder() { uninitialize(); };
++  virtual ~WindowsDecoder() { uninitialize(); };
+ 
+   bool can_decode_C_frame_in_vm() const;
+   bool demangle(const char* symbol, char *buf, int buflen);
+diff --git a/hotspot/src/share/vm/classfile/classLoader.hpp b/hotspot/src/share/vm/classfile/classLoader.hpp
+index 27f5068f709887781d741e3e54015aaacd225d0b..bb9584e7e51a3c5025c02dbb07d923cc1d4816bb 100644
+--- a/hotspot/src/share/vm/classfile/classLoader.hpp
++++ b/hotspot/src/share/vm/classfile/classLoader.hpp
+@@ -39,7 +39,7 @@ class MetaIndex: public CHeapObj<mtClass> {
+   int    _num_meta_package_names;
+  public:
+   MetaIndex(char** meta_package_names, int num_meta_package_names);
+-  ~MetaIndex();
++  virtual ~MetaIndex();
+   bool may_contain(const char* class_name);
+ };
+ 
+@@ -61,6 +61,7 @@ class ClassPathEntry: public CHeapObj<mtClass> {
+   virtual bool is_lazy();
+   // Constructor
+   ClassPathEntry();
++  virtual ~ClassPathEntry() {}
+   // Attempt to locate file_name through this class path entry.
+   // Returns a class file parsing stream if successfull.
+   virtual ClassFileStream* open_stream(const char* name, TRAPS) = 0;
+@@ -77,6 +78,7 @@ class ClassPathDirEntry: public ClassPathEntry {
+   bool is_jar_file()  { return false;  }
+   const char* name()  { return _dir; }
+   ClassPathDirEntry(const char* dir);
++  virtual ~ClassPathDirEntry() {}
+   ClassFileStream* open_stream(const char* name, TRAPS);
+   // Debugging
+   NOT_PRODUCT(void compile_the_world(Handle loader, TRAPS);)
+@@ -106,7 +108,7 @@ class ClassPathZipEntry: public ClassPathEntry {
+   bool is_jar_file()  { return true;  }
+   const char* name()  { return _zip_name; }
+   ClassPathZipEntry(jzfile* zip, const char* zip_name);
+-  ~ClassPathZipEntry();
++  virtual ~ClassPathZipEntry();
+   u1* open_entry(const char* name, jint* filesize, bool nul_terminate, TRAPS);
+   ClassFileStream* open_stream(const char* name, TRAPS);
+   void contents_do(void f(const char* name, void* context), void* context);
+@@ -134,6 +136,7 @@ class LazyClassPathEntry: public ClassPathEntry {
+   bool is_jar_file();
+   const char* name()  { return _path; }
+   LazyClassPathEntry(const char* path, const struct stat* st, bool throw_exception);
++  virtual ~LazyClassPathEntry() {}
+   u1* open_entry(const char* name, jint* filesize, bool nul_terminate, TRAPS);
+   ClassFileStream* open_stream(const char* name, TRAPS);
+   void set_meta_index(MetaIndex* meta_index) { _meta_index = meta_index; }
+diff --git a/hotspot/src/share/vm/prims/jvmtiImpl.hpp b/hotspot/src/share/vm/prims/jvmtiImpl.hpp
+index c1e4b81b66e9b0b5ee83f1052cdcc98d80703046..9f36f28fb990406df6f7fdefc8f8801d33e19d92 100644
+--- a/hotspot/src/share/vm/prims/jvmtiImpl.hpp
++++ b/hotspot/src/share/vm/prims/jvmtiImpl.hpp
+@@ -64,6 +64,7 @@ class JvmtiBreakpoints;
+ 
+ class GrowableElement : public CHeapObj<mtInternal> {
+ public:
++  virtual ~GrowableElement() {}
+   virtual address getCacheValue()          =0;
+   virtual bool equals(GrowableElement* e)  =0;
+   virtual bool lessThan(GrowableElement *e)=0;
+diff --git a/hotspot/src/share/vm/runtime/perfData.hpp b/hotspot/src/share/vm/runtime/perfData.hpp
+index 9ba4e4b71e4eb8849c8a8bbecd512ca85f0af402..0ed4a3c6853b6731bdb253a2b47102b94b835190 100644
+--- a/hotspot/src/share/vm/runtime/perfData.hpp
++++ b/hotspot/src/share/vm/runtime/perfData.hpp
+@@ -288,7 +288,7 @@ class PerfData : public CHeapObj<mtInternal> {
+     void *_valuep;
+ 
+     PerfData(CounterNS ns, const char* name, Units u, Variability v);
+-    ~PerfData();
++    virtual ~PerfData();
+ 
+     // create the entry for the PerfData item in the PerfData memory region.
+     // this region is maintained separately from the PerfData objects to
+diff --git a/hotspot/src/share/vm/utilities/decoder.hpp b/hotspot/src/share/vm/utilities/decoder.hpp
+index 353734b858275eacc2e56ed6b513db31bee892ce..c6c09e3977d29d3ba157b7dd674252f53f3d5f3f 100644
+--- a/hotspot/src/share/vm/utilities/decoder.hpp
++++ b/hotspot/src/share/vm/utilities/decoder.hpp
+@@ -32,6 +32,7 @@
+ 
+ class AbstractDecoder : public CHeapObj<mtInternal> {
+ public:
++  virtual ~AbstractDecoder() {}
+   // status code for decoding native C frame
+   enum decoder_status {
+          not_available = -10,  // real decoder is not available
+@@ -78,7 +79,7 @@ class NullDecoder : public AbstractDecoder {
+     _decoder_status = not_available;
+   }
+ 
+-  ~NullDecoder() {};
++  virtual ~NullDecoder() {};
+ 
+   virtual bool decode(address pc, char* buf, int buflen, int* offset,
+     const char* modulepath = NULL) {
+diff --git a/hotspot/src/share/vm/utilities/decoder_elf.hpp b/hotspot/src/share/vm/utilities/decoder_elf.hpp
+index f0d3372a9bda740e9158cd0eeeedb1fb6b5a559a..e92c958820b6861a572b661b2b3f95e087a17abd 100644
+--- a/hotspot/src/share/vm/utilities/decoder_elf.hpp
++++ b/hotspot/src/share/vm/utilities/decoder_elf.hpp
+@@ -37,7 +37,7 @@ class ElfDecoder : public AbstractDecoder {
+     _opened_elf_files = NULL;
+     _decoder_status = no_error;
+   }
+-  ~ElfDecoder();
++  virtual ~ElfDecoder();
+ 
+   bool can_decode_C_frame_in_vm() const { return true; }
+ 
+diff --git a/jdk/make/lib/CoreLibraries.gmk b/jdk/make/lib/CoreLibraries.gmk
+index c8e4815e1174bbd934ced90764cfc13cce43809e..7667cc99144b69f4d89520d38c527acfaf325305 100644
+--- a/jdk/make/lib/CoreLibraries.gmk
++++ b/jdk/make/lib/CoreLibraries.gmk
+@@ -410,6 +410,7 @@ LIBJLI_CFLAGS += $(OPENJDK_TARGET_CPU_JLI_CFLAGS)
+ 
+ ifeq ($(OPENJDK_TARGET_OS), macosx)
+   LIBJLI_CFLAGS += -DPACKAGE_PATH=\"$(PACKAGE_PATH)\"
++  LIBJLI_CFLAGS += -mmacosx-version-min=$(MACOSX_VERSION_MIN)
+ endif
+ 
+ ifneq ($(USE_EXTERNAL_LIBZ), true)
+@@ -443,7 +444,7 @@ $(eval $(call SetupNativeCompilation,BUILD_LIBJLI, \
+         $(call SET_SHARED_LIBRARY_ORIGIN), \
+     LDFLAGS_linux := $(call SET_SHARED_LIBRARY_ORIGIN,/..), \
+     LDFLAGS_solaris := $(call SET_SHARED_LIBRARY_ORIGIN,/..), \
+-    LDFLAGS_macosx := -framework Cocoa -framework Security -framework ApplicationServices, \
++    LDFLAGS_macosx := -framework Cocoa -framework Security -framework ApplicationServices -mmacosx-version-min=$(MACOSX_VERSION_MIN), \
+     LDFLAGS_SUFFIX_solaris := $(LIBZ) $(LIBDL) -lc, \
+     LDFLAGS_SUFFIX_linux := $(LIBZ) $(LIBDL) -lc -lpthread, \
+     LDFLAGS_SUFFIX_aix := $(LIBZ) $(LIBDL),\
+@@ -504,7 +505,7 @@ else ifeq ($(OPENJDK_TARGET_OS), macosx)
+       LANG := C, \
+       OPTIMIZATION := HIGH, \
+       CFLAGS := $(CFLAGS_JDKLIB) $(LIBJLI_CFLAGS), \
+-      LDFLAGS := -nostdlib -r, \
++      LDFLAGS := -nostdlib -r -mmacosx-version-min=$(MACOSX_VERSION_MIN), \
+       OBJECT_DIR := $(JDK_OUTPUTDIR)/objs/libjli_static, \
+       DEBUG_SYMBOLS := $(DEBUG_ALL_BINARIES)))
+ 
+diff --git a/jdk/src/macosx/native/sun/osxapp/ThreadUtilities.m b/jdk/src/macosx/native/sun/osxapp/ThreadUtilities.m
+index 7458431010b7fc11dea9015e11ac06a6c99aa1cd..c1ce39b830bcc458e67806efd97a09b15e88a61e 100644
+--- a/jdk/src/macosx/native/sun/osxapp/ThreadUtilities.m
++++ b/jdk/src/macosx/native/sun/osxapp/ThreadUtilities.m
+@@ -36,7 +36,7 @@
+ static jobject appkitThreadGroup = NULL;
+ static BOOL awtEmbedded = NO;
+ 
+-inline void attachCurrentThread(void** env) {
++static inline void attachCurrentThread(void** env) {
+     if ([NSThread isMainThread]) {
+         JavaVMAttachArgs args;
+         args.version = JNI_VERSION_1_4;
