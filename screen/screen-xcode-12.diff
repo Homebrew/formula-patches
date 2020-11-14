@@ -1,0 +1,22 @@
+diff --git a/configure.ac b/configure.ac
+index c0f02df..e28fc6a 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -284,10 +284,15 @@ dnl    ****  select()  ****
+ dnl
+ 
+ AC_CHECKING(select)
+-AC_TRY_LINK(,[select(0, 0, 0, 0, 0);],, 
++AC_TRY_LINK([
++#include <sys/select.h>
++],[select(0, 0, 0, 0, 0);],,
+ LIBS="$LIBS -lnet -lnsl"
+ AC_CHECKING(select with $LIBS)
+-AC_TRY_LINK(,[select(0, 0, 0, 0, 0);],, 
++AC_TRY_LINK([
++#include <sys/select.h>
++],[select(0, 0, 0, 0, 0);],,
++
+ AC_MSG_ERROR(!!! no select - no screen))
+ )
+ dnl
