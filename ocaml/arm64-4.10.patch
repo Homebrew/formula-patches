@@ -1,0 +1,6270 @@
+diff --git a/.depend b/.depend
+index c40e2f0..3f0fb02 100644
+--- a/.depend
++++ b/.depend
+@@ -2165,6 +2165,7 @@ asmcomp/cmm.cmo : \
+     lambda/debuginfo.cmi \
+     middle_end/backend_var.cmi \
+     parsing/asttypes.cmi \
++    asmcomp/arch.cmo \
+     asmcomp/cmm.cmi
+ asmcomp/cmm.cmx : \
+     utils/targetint.cmx \
+@@ -2172,6 +2173,7 @@ asmcomp/cmm.cmx : \
+     lambda/debuginfo.cmx \
+     middle_end/backend_var.cmx \
+     parsing/asttypes.cmi \
++    asmcomp/arch.cmx \
+     asmcomp/cmm.cmi
+ asmcomp/cmm.cmi : \
+     utils/targetint.cmi \
+@@ -2617,7 +2619,8 @@ asmcomp/proc.cmx : \
+     asmcomp/proc.cmi
+ asmcomp/proc.cmi : \
+     asmcomp/reg.cmi \
+-    asmcomp/mach.cmi
++    asmcomp/mach.cmi \
++    asmcomp/cmm.cmi
+ asmcomp/reg.cmo : \
+     asmcomp/cmm.cmi \
+     middle_end/backend_var.cmi \
+diff --git a/Changes b/Changes
+index fc5591e..5551f12 100644
+--- a/Changes
++++ b/Changes
+@@ -1,3 +1,11 @@
++Working version
++-----------------------------
++
++- #9752: Revised handling of calling conventions for external C functions.
++   Provide a more precise description of the types of unboxed arguments,
++   so that the ARM64 iOS/macOS calling conventions can be honored.
++   (Xavier Leroy, review by Mark Shinwell and Github user @EduardoRFS)
++
+ OCaml 4.10.0 (21 February 2020)
+ -------------------------------
+ 
+diff --git a/asmcomp/afl_instrument.ml b/asmcomp/afl_instrument.ml
+index 9e00841..92301e7 100644
+--- a/asmcomp/afl_instrument.ml
++++ b/asmcomp/afl_instrument.ml
+@@ -101,7 +101,7 @@ let instrument_initialiser c dbg =
+      calls *)
+   with_afl_logging
+     (Csequence
+-       (Cop (Cextcall ("caml_setup_afl", typ_int, false, None),
++       (Cop (Cextcall ("caml_setup_afl", typ_int, [], false, None),
+              [Cconst_int (0, dbg ())],
+              dbg ()),
+         c))
+diff --git a/asmcomp/amd64/proc.ml b/asmcomp/amd64/proc.ml
+index c64ad9a..23708ec 100644
+--- a/asmcomp/amd64/proc.ml
++++ b/asmcomp/amd64/proc.ml
+@@ -165,7 +165,7 @@ let calling_conventions first_int last_int first_float last_float make_stack
+   let float = ref first_float in
+   let ofs = ref 0 in
+   for i = 0 to Array.length arg - 1 do
+-    match arg.(i).typ with
++    match arg.(i) with
+     | Val | Int | Addr as ty ->
+         if !int <= last_int then begin
+           loc.(i) <- phys_reg !int;
+@@ -234,7 +234,7 @@ let win64_loc_external_arguments arg =
+   let reg = ref 0
+   and ofs = ref 32 in
+   for i = 0 to Array.length arg - 1 do
+-    match arg.(i).typ with
++    match arg.(i) with
+     | Val | Int | Addr as ty ->
+         if !reg < 4 then begin
+           loc.(i) <- phys_reg win64_int_external_arguments.(!reg);
+@@ -254,15 +254,14 @@ let win64_loc_external_arguments arg =
+   done;
+   (loc, Misc.align !ofs 16)  (* keep stack 16-aligned *)
+ 
+-let loc_external_arguments arg =
+-  let arg =
+-    Array.map (fun regs -> assert (Array.length regs = 1); regs.(0)) arg
+-  in
+-  let loc, alignment =
+-    if win64 then win64_loc_external_arguments arg
++let loc_external_arguments ty_args =
++  let arg = Cmm.machtype_of_exttype_list ty_args in
++  let loc, stack_ofs =
++    if win64
++    then win64_loc_external_arguments arg
+     else unix_loc_external_arguments arg
+   in
+-  Array.map (fun reg -> [|reg|]) loc, alignment
++  Array.map (fun reg -> [|reg|]) loc, stack_ofs
+ 
+ let loc_exn_bucket = rax
+ 
+diff --git a/asmcomp/amd64/selection.ml b/asmcomp/amd64/selection.ml
+index bd7871c..1e6c0fd 100644
+--- a/asmcomp/amd64/selection.ml
++++ b/asmcomp/amd64/selection.ml
+@@ -135,7 +135,7 @@ method is_immediate_natint n = n <= 0x7FFFFFFFn && n >= -0x80000000n
+ 
+ method! is_simple_expr e =
+   match e with
+-  | Cop(Cextcall (fn, _, _, _), args, _)
++  | Cop(Cextcall (fn, _, _, _, _), args, _)
+     when List.mem fn inline_ops ->
+       (* inlined ops are simple if their arguments are *)
+       List.for_all self#is_simple_expr args
+@@ -144,7 +144,7 @@ method! is_simple_expr e =
+ 
+ method! effects_of e =
+   match e with
+-  | Cop(Cextcall(fn, _, _, _), args, _)
++  | Cop(Cextcall(fn, _, _, _, _), args, _)
+     when List.mem fn inline_ops ->
+       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
+   | _ ->
+@@ -201,7 +201,7 @@ method! select_operation op args dbg =
+       self#select_floatarith true Imulf Ifloatmul args
+   | Cdivf ->
+       self#select_floatarith false Idivf Ifloatdiv args
+-  | Cextcall("sqrt", _, false, _) ->
++  | Cextcall("sqrt", _, _, false, _) ->
+      begin match args with
+        [Cop(Cload ((Double|Double_u as chunk), _), [loc], _dbg)] ->
+          let (addr, arg) = self#select_addressing chunk loc in
+@@ -221,12 +221,12 @@ method! select_operation op args dbg =
+       | _ ->
+           super#select_operation op args dbg
+       end
+-  | Cextcall("caml_bswap16_direct", _, _, _) ->
++  | Cextcall("caml_bswap16_direct", _, _, _, _) ->
+       (Ispecific (Ibswap 16), args)
+-  | Cextcall("caml_int32_direct_bswap", _, _, _) ->
++  | Cextcall("caml_int32_direct_bswap", _, _, _, _) ->
+       (Ispecific (Ibswap 32), args)
+-  | Cextcall("caml_int64_direct_bswap", _, _, _)
+-  | Cextcall("caml_nativeint_direct_bswap", _, _, _) ->
++  | Cextcall("caml_int64_direct_bswap", _, _, _, _)
++  | Cextcall("caml_nativeint_direct_bswap", _, _, _, _) ->
+       (Ispecific (Ibswap 64), args)
+   (* AMD64 does not support immediate operands for multiply high signed *)
+   | Cmulhi ->
+diff --git a/asmcomp/arm/proc.ml b/asmcomp/arm/proc.ml
+index 9ac9cf1..2c79f38 100644
+--- a/asmcomp/arm/proc.ml
++++ b/asmcomp/arm/proc.ml
+@@ -111,67 +111,58 @@ let loc_spacetime_node_hole = Reg.dummy  (* Spacetime unsupported *)
+ 
+ (* Calling conventions *)
+ 
++let loc_int last_int make_stack int ofs =
++  if !int <= last_int then begin
++    let l = phys_reg !int in
++    incr int; l
++  end else begin
++    let l = stack_slot (make_stack !ofs) Int in
++    ofs := !ofs + size_int; l
++  end
++
++let loc_float last_float make_stack float ofs =
++  assert (abi = EABI_HF);
++  assert (!fpu >= VFPv2);
++  if !float <= last_float then begin
++    let l = phys_reg !float in
++    incr float; l
++  end else begin
++    ofs := Misc.align !ofs size_float;
++    let l = stack_slot (make_stack !ofs) Float in
++    ofs := !ofs + size_float; l
++  end
++
++let loc_int_pair last_int make_stack int ofs =
++  (* 64-bit quantities split across two registers must either be in a
++     consecutive pair of registers where the lowest numbered is an
++     even-numbered register; or in a stack slot that is 8-byte aligned. *)
++  int := Misc.align !int 2;
++  if !int <= last_int - 1 then begin
++    let reg_lower = phys_reg !int in
++    let reg_upper = phys_reg (1 + !int) in
++    int := !int + 2;
++    [| reg_lower; reg_upper |]
++  end else begin
++    let size_int64 = size_int * 2 in
++    ofs := Misc.align !ofs size_int64;
++    let stack_lower = stack_slot (make_stack !ofs) Int in
++    let stack_upper = stack_slot (make_stack (size_int + !ofs)) Int in
++    ofs := !ofs + size_int64;
++    [| stack_lower; stack_upper |]
++  end
++
+ let calling_conventions first_int last_int first_float last_float make_stack
+       arg =
+-  let loc = Array.make (Array.length arg) [| Reg.dummy |] in
++  let loc = Array.make (Array.length arg) Reg.dummy in
+   let int = ref first_int in
+   let float = ref first_float in
+   let ofs = ref 0 in
+   for i = 0 to Array.length arg - 1 do
+     match arg.(i) with
+-    | [| arg |] ->
+-      begin match arg.typ with
+-      | Val | Int | Addr as ty ->
+-          if !int <= last_int then begin
+-            loc.(i) <- [| phys_reg !int |];
+-            incr int
+-          end else begin
+-            loc.(i) <- [| stack_slot (make_stack !ofs) ty |];
+-            ofs := !ofs + size_int
+-          end
+-      | Float ->
+-          assert (abi = EABI_HF);
+-          assert (!fpu >= VFPv2);
+-          if !float <= last_float then begin
+-            loc.(i) <- [| phys_reg !float |];
+-            incr float
+-          end else begin
+-            ofs := Misc.align !ofs size_float;
+-            loc.(i) <- [| stack_slot (make_stack !ofs) Float |];
+-            ofs := !ofs + size_float
+-          end
+-      end
+-    | [| arg1; arg2 |] ->
+-      (* Passing of 64-bit quantities to external functions. *)
+-      begin match arg1.typ, arg2.typ with
+-      | Int, Int ->
+-          (* 64-bit quantities split across two registers must either be in a
+-             consecutive pair of registers where the lowest numbered is an
+-             even-numbered register; or in a stack slot that is 8-byte
+-             aligned. *)
+-          int := Misc.align !int 2;
+-          if !int <= last_int - 1 then begin
+-            let reg_lower = phys_reg !int in
+-            let reg_upper = phys_reg (1 + !int) in
+-            loc.(i) <- [| reg_lower; reg_upper |];
+-            int := !int + 2
+-          end else begin
+-            let size_int64 = size_int * 2 in
+-            ofs := Misc.align !ofs size_int64;
+-            let stack_lower = stack_slot (make_stack !ofs) Int in
+-            let stack_upper = stack_slot (make_stack (size_int + !ofs)) Int in
+-            loc.(i) <- [| stack_lower; stack_upper |];
+-            ofs := !ofs + size_int64
+-          end
+-      | _, _ ->
+-        let f = function Int -> "I" | Addr -> "A" | Val -> "V" | Float -> "F" in
+-        fatal_error (Printf.sprintf "Proc.calling_conventions: bad register \
+-            type(s) for multi-register argument: %s, %s"
+-          (f arg1.typ) (f arg2.typ))
+-      end
+-    | _ ->
+-      fatal_error "Proc.calling_conventions: bad number of registers for \
+-        multi-register argument"
++    | Val | Int | Addr ->
++        loc.(i) <- loc_int last_int make_stack int ofs
++    | Float ->
++        loc.(i) <- loc_float last_float make_stack float ofs
+   done;
+   (loc, Misc.align !ofs 8)  (* keep stack 8-aligned *)
+ 
+@@ -187,40 +178,50 @@ let not_supported _ofs = fatal_error "Proc.loc_results: cannot call"
+ 
+ let max_arguments_for_tailcalls = 8
+ 
+-let single_regs arg = Array.map (fun arg -> [| arg |]) arg
+-let ensure_single_regs res =
+-  Array.map (function
+-      | [| res |] -> res
+-      | _ -> failwith "Proc.ensure_single_regs")
+-    res
+-
+ let loc_arguments arg =
+-  let (loc, alignment) =
+-    calling_conventions 0 7 100 115 outgoing (single_regs arg)
+-  in
+-  ensure_single_regs loc, alignment
++  calling_conventions 0 7 100 115 outgoing arg
++
+ let loc_parameters arg =
+-  let (loc, _) = calling_conventions 0 7 100 115 incoming (single_regs arg) in
+-  ensure_single_regs loc
++  let (loc, _) = calling_conventions 0 7 100 115 incoming arg in loc
++
+ let loc_results res =
+-  let (loc, _) =
+-    calling_conventions 0 7 100 115 not_supported (single_regs res)
+-  in
+-  ensure_single_regs loc
++  let (loc, _) = calling_conventions 0 7 100 115 not_supported res in loc
+ 
+ (* C calling convention:
+      first integer args in r0...r3
++     first 64-bit integer args in r0-r1, r2-r3
+      first float args in d0...d7 (EABI+VFP)
++     first float args in r0-r1, r2-r3 (soft FP)
+      remaining args on stack.
+-   Return values in r0...r1 or d0. *)
++   Return values in r0, r0-r1, or d0. *)
++
++let external_calling_conventions first_int last_int first_float last_float
++                                 make_stack ty_args =
++  let loc = Array.make (List.length ty_args) [| Reg.dummy |] in
++  let int = ref first_int in
++  let float = ref first_float in
++  let ofs = ref 0 in
++  List.iteri
++    (fun i ty_arg ->
++      match ty_arg with
++      | XInt | XInt32 ->
++        loc.(i) <- [| loc_int last_int make_stack int ofs |]
++      | XInt64 ->
++        loc.(i) <- loc_int_pair last_int make_stack int ofs
++      | XFloat ->
++        loc.(i) <-
++         (if abi = EABI_HF
++          then [| loc_float last_float make_stack float ofs |]
++          else loc_int_pair last_int make_stack int ofs))
++    ty_args;
++  (loc, Misc.align !ofs 8)  (* keep stack 8-aligned *)
++
++let loc_external_arguments ty_args =
++  external_calling_conventions 0 3 100 107 outgoing ty_args
+ 
+-let loc_external_arguments arg =
+-  calling_conventions 0 3 100 107 outgoing arg
+ let loc_external_results res =
+-  let (loc, _) =
+-    calling_conventions 0 1 100 100 not_supported (single_regs res)
+-  in
+-  ensure_single_regs loc
++  let (loc, _) = calling_conventions 0 1 100 100 not_supported res
++  in loc
+ 
+ let loc_exn_bucket = phys_reg 0
+ 
+diff --git a/asmcomp/arm/selection.ml b/asmcomp/arm/selection.ml
+index f43c13d..d2ef296 100644
+--- a/asmcomp/arm/selection.ml
++++ b/asmcomp/arm/selection.ml
+@@ -78,7 +78,7 @@ let pseudoregs_for_operation op arg res =
+       (arg', res)
+   (* We use __aeabi_idivmod for Cmodi only, and hence we care only
+      for the remainder in r1, so fix up the destination register. *)
+-  | Iextcall { func = "__aeabi_idivmod"; alloc = false; } ->
++  | Iextcall { func = "__aeabi_idivmod"; _ } ->
+       (arg, [|r1|])
+   (* Other instructions are regular *)
+   | _ -> raise Use_default
+@@ -107,25 +107,25 @@ method is_immediate n =
+ 
+ method! is_simple_expr = function
+   (* inlined floating-point ops are simple if their arguments are *)
+-  | Cop(Cextcall("sqrt", _, _, _), args, _) when !fpu >= VFPv2 ->
++  | Cop(Cextcall("sqrt", _, _, _, _), args, _) when !fpu >= VFPv2 ->
+       List.for_all self#is_simple_expr args
+   (* inlined byte-swap ops are simple if their arguments are *)
+-  | Cop(Cextcall("caml_bswap16_direct", _, _, _), args, _)
++  | Cop(Cextcall("caml_bswap16_direct", _, _, _, _), args, _)
+     when !arch >= ARMv6T2 ->
+       List.for_all self#is_simple_expr args
+-  | Cop(Cextcall("caml_int32_direct_bswap",_,_,_), args, _)
++  | Cop(Cextcall("caml_int32_direct_bswap", _, _, _, _), args, _)
+     when !arch >= ARMv6 ->
+       List.for_all self#is_simple_expr args
+   | e -> super#is_simple_expr e
+ 
+ method! effects_of e =
+   match e with
+-  | Cop(Cextcall("sqrt", _, _, _), args, _) when !fpu >= VFPv2 ->
++  | Cop(Cextcall("sqrt", _, _, _, _), args, _) when !fpu >= VFPv2 ->
+       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
+-  | Cop(Cextcall("caml_bswap16_direct", _, _, _), args, _)
++  | Cop(Cextcall("caml_bswap16_direct", _, _, _, _), args, _)
+     when !arch >= ARMv6T2 ->
+       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
+-  | Cop(Cextcall("caml_int32_direct_bswap",_,_,_), args, _)
++  | Cop(Cextcall("caml_int32_direct_bswap",_ ,_ , _, _), args, _)
+     when !arch >= ARMv6 ->
+       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
+   | e -> super#effects_of e
+@@ -179,8 +179,9 @@ method select_shift_arith op dbg arithop arithrevop args =
+       | op_args -> op_args
+       end
+ 
+-method private iextcall (func, alloc) =
+-  Iextcall { func; alloc; label_after = Cmm.new_label (); }
++method private iextcall func ty_res ty_args =
++  Iextcall { func; ty_res; ty_args;
++             alloc = false; label_after = Cmm.new_label (); }
+ 
+ method! select_operation op args dbg =
+   match (op, args) with
+@@ -215,15 +216,15 @@ method! select_operation op args dbg =
+       (Iintop Imulh, args)
+   (* Turn integer division/modulus into runtime ABI calls *)
+   | (Cdivi, args) ->
+-      (self#iextcall("__aeabi_idiv", false), args)
++      (self#iextcall "__aeabi_idiv" typ_int [], args)
+   | (Cmodi, args) ->
+       (* See above for fix up of return register *)
+-      (self#iextcall("__aeabi_idivmod", false), args)
++      (self#iextcall "__aeabi_idivmod" typ_int [], args)
+   (* Recognize 16-bit bswap instruction (ARMv6T2 because we need movt) *)
+-  | (Cextcall("caml_bswap16_direct", _, _, _), args) when !arch >= ARMv6T2 ->
++  | (Cextcall("caml_bswap16_direct", _, _, _, _), args) when !arch >= ARMv6T2 ->
+       (Ispecific(Ibswap 16), args)
+   (* Recognize 32-bit bswap instructions (ARMv6 and above) *)
+-  | (Cextcall("caml_int32_direct_bswap", _, _, _), args)
++  | (Cextcall("caml_int32_direct_bswap", _, _, _, _), args)
+     when !arch >= ARMv6 ->
+       (Ispecific(Ibswap 32), args)
+   (* Turn floating-point operations into runtime ABI calls for softfp *)
+@@ -234,12 +235,18 @@ method! select_operation op args dbg =
+ method private select_operation_softfp op args dbg =
+   match (op, args) with
+   (* Turn floating-point operations into runtime ABI calls *)
+-  | (Caddf, args) -> (self#iextcall("__aeabi_dadd", false), args)
+-  | (Csubf, args) -> (self#iextcall("__aeabi_dsub", false), args)
+-  | (Cmulf, args) -> (self#iextcall("__aeabi_dmul", false), args)
+-  | (Cdivf, args) -> (self#iextcall("__aeabi_ddiv", false), args)
+-  | (Cfloatofint, args) -> (self#iextcall("__aeabi_i2d", false), args)
+-  | (Cintoffloat, args) -> (self#iextcall("__aeabi_d2iz", false), args)
++  | (Caddf, args) ->
++      (self#iextcall "__aeabi_dadd" typ_float [XFloat;XFloat], args)
++  | (Csubf, args) ->
++      (self#iextcall "__aeabi_dsub" typ_float [XFloat;XFloat], args)
++  | (Cmulf, args) ->
++      (self#iextcall "__aeabi_dmul" typ_float [XFloat;XFloat], args)
++  | (Cdivf, args) ->
++      (self#iextcall "__aeabi_ddiv" typ_float [XFloat;XFloat], args)
++  | (Cfloatofint, args) ->
++      (self#iextcall "__aeabi_i2d" typ_float [XInt], args)
++  | (Cintoffloat, args) ->
++      (self#iextcall "__aeabi_d2iz" typ_int [XFloat], args)
+   | (Ccmpf comp, args) ->
+       let comp, func =
+         match comp with
+@@ -255,14 +262,16 @@ method private select_operation_softfp op args dbg =
+         | CFnge -> Ceq, "__aeabi_dcmpge"
+       in
+       (Iintop_imm(Icomp(Iunsigned comp), 0),
+-       [Cop(Cextcall(func, typ_int, false, None), args, dbg)])
++       [Cop(Cextcall(func, typ_int, [XFloat;XFloat], false, None),
++            args, dbg)])
+   (* Add coercions around loads and stores of 32-bit floats *)
+   | (Cload (Single, mut), args) ->
+-      (self#iextcall("__aeabi_f2d", false),
++      (self#iextcall "__aeabi_f2d" typ_float [XInt],
+         [Cop(Cload (Word_int, mut), args, dbg)])
+   | (Cstore (Single, init), [arg1; arg2]) ->
+       let arg2' =
+-        Cop(Cextcall("__aeabi_d2f", typ_int, false, None), [arg2], dbg) in
++        Cop(Cextcall("__aeabi_d2f", typ_int, [XFloat], false, None),
++            [arg2], dbg) in
+       self#select_operation (Cstore (Word_int, init)) [arg1; arg2'] dbg
+   (* Other operations are regular *)
+   | (op, args) -> super#select_operation op args dbg
+@@ -287,7 +296,7 @@ method private select_operation_vfpv3 op args dbg =
+   | (Csubf, [Cop(Cmulf, args, _); arg]) ->
+       (Ispecific Imulsubf, arg :: args)
+   (* Recognize floating-point square root *)
+-  | (Cextcall("sqrt", _, false, _), args) ->
++  | (Cextcall("sqrt", _, _, false, _), args) ->
+       (Ispecific Isqrtf, args)
+   (* Other operations are regular *)
+   | (op, args) -> super#select_operation op args dbg
+diff --git a/asmcomp/arm64/NOTES.md b/asmcomp/arm64/NOTES.md
+index e2134eb..68ba2a5 100644
+--- a/asmcomp/arm64/NOTES.md
++++ b/asmcomp/arm64/NOTES.md
+@@ -10,3 +10,4 @@ Debian architecture name: `arm64`.
+   _ARM Architecture Reference Manual, ARMv8_, restricted to the AArch64 subset.
+ * Application binary interface:
+   _Procedure Call Standard for the ARM 64-bit Architecture (AArch64)_
++  _Apple ARM64 Function Calling Conventions_
+diff --git a/asmcomp/arm64/arch.ml b/asmcomp/arm64/arch.ml
+index ce5902a..4441143 100644
+--- a/asmcomp/arm64/arch.ml
++++ b/asmcomp/arm64/arch.ml
+@@ -19,6 +19,10 @@
+ 
+ open Format
+ 
++let macosx = (Config.system = "macosx")
++
++(* Machine-specific command-line options *)
++
+ let command_line_options = []
+ 
+ (* Addressing modes *)
+@@ -55,6 +59,7 @@ type specific_operation =
+   | Inegmulsubf   (* floating-point negate, multiply and subtract *)
+   | Isqrtf        (* floating-point square root *)
+   | Ibswap of int (* endianness conversion *)
++  | Imove32       (* 32-bit integer move *)
+ 
+ and arith_operation =
+     Ishiftadd
+@@ -64,7 +69,7 @@ let spacetime_node_hole_pointer_is_live_before = function
+   | Ifar_alloc _ | Ifar_intop_checkbound _ | Ifar_intop_imm_checkbound _
+   | Ishiftarith _ | Ishiftcheckbound _ | Ifar_shiftcheckbound _ -> false
+   | Imuladd | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf
+-  | Inegmulsubf | Isqrtf | Ibswap _ -> false
++  | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 -> false
+ 
+ (* Sizes, endianness *)
+ 
+@@ -169,3 +174,6 @@ let print_specific_operation printreg op ppf arg =
+   | Ibswap n ->
+       fprintf ppf "bswap%i %a" n
+         printreg arg.(0)
++  | Imove32 ->
++      fprintf ppf "move32 %a"
++        printreg arg.(0)
+diff --git a/asmcomp/arm64/emit.mlp b/asmcomp/arm64/emit.mlp
+index eb8424b..636da01 100644
+--- a/asmcomp/arm64/emit.mlp
++++ b/asmcomp/arm64/emit.mlp
+@@ -38,18 +38,35 @@ let reg_trap_ptr = phys_reg 23
+ let reg_alloc_ptr = phys_reg 24
+ let reg_alloc_limit = phys_reg 25
+ let reg_tmp1 = phys_reg 26
+-let reg_x15 = phys_reg 15
++let reg_x8 = phys_reg 8
+ 
+ (* Output a label *)
+ 
++let label_prefix =
++  if macosx then "L" else ".L"
++
+ let emit_label lbl =
+-  emit_string ".L"; emit_int lbl
++  emit_string label_prefix; emit_int lbl
+ 
+ (* Symbols *)
+ 
+ let emit_symbol s =
++  if macosx then emit_string "_";
+   Emitaux.emit_symbol '$' s
+ 
++(* Object types *)
++
++let emit_symbol_type emit_lbl_or_sym lbl_or_sym ty =
++  if not macosx then begin
++    `	.type	{emit_lbl_or_sym lbl_or_sym}, %{emit_string ty}\n`
++  end
++
++
++let emit_symbol_size sym =
++  if not macosx then begin
++    `	.size	{emit_symbol sym}, .-{emit_symbol sym}\n`
++  end
++
+ (* Output a pseudo-register *)
+ 
+ let emit_reg = function
+@@ -320,6 +337,8 @@ let float_literal f =
+ (* Emit all pending literals *)
+ let emit_literals() =
+   if !float_literals <> [] then begin
++    if macosx then
++      `	.section	__TEXT,__literal8,8byte_literals\n`;
+     `	.align	3\n`;
+     List.iter
+       (fun (f, lbl) ->
+@@ -331,7 +350,10 @@ let emit_literals() =
+ (* Emit code to load the address of a symbol *)
+ 
+ let emit_load_symbol_addr dst s =
+-  if not !Clflags.dlcode then begin
++  if macosx then begin
++    `	adrp	{emit_reg dst}, {emit_symbol s}@GOTPAGE\n`;
++    `	ldr	{emit_reg dst}, [{emit_reg dst}, {emit_symbol s}@GOTPAGEOFF]\n`
++  end else if not !Clflags.dlcode then begin
+     `	adrp	{emit_reg dst}, {emit_symbol s}\n`;
+     `	add	{emit_reg dst}, {emit_reg dst}, #:lo12:{emit_symbol s}\n`
+   end else begin
+@@ -481,6 +503,7 @@ module BR = Branch_relaxation.Make (struct
+     | Lop (Ispecific (Imuladd | Imulsub)) -> 1
+     | Lop (Ispecific (Ibswap 16)) -> 2
+     | Lop (Ispecific (Ibswap _)) -> 1
++    | Lop (Ispecific Imove32) -> 1
+     | Lop (Iname_for_debugger _) -> 0
+     | Lreloadretaddr -> 0
+     | Lreturn -> epilogue_size ()
+@@ -565,7 +588,7 @@ let assembly_code_for_allocation ?label_after_call_gc i ~n ~far =
+     | 16 -> `	bl	{emit_symbol "caml_alloc1"}\n`
+     | 24 -> `	bl	{emit_symbol "caml_alloc2"}\n`
+     | 32 -> `	bl	{emit_symbol "caml_alloc3"}\n`
+-    | _  -> emit_intconst reg_x15 (Nativeint.of_int n);
++    | _  -> emit_intconst reg_x8 (Nativeint.of_int n);
+             `	bl	{emit_symbol "caml_allocN"}\n`
+     end;
+     `{emit_label lbl_frame}:	add	{emit_reg i.res.(0)}, {emit_reg reg_alloc_ptr}, #8\n`
+@@ -580,6 +603,17 @@ let emit_named_text_section func_name =
+   else
+     `	.text\n`
+ 
++(* Emit code to load an emitted literal *)
++
++let emit_load_literal dst lbl =
++  if macosx then begin
++    `	adrp	{emit_reg reg_tmp1}, {emit_label lbl}@PAGE\n`;
++    `	ldr	{emit_reg dst}, [{emit_reg reg_tmp1}, {emit_label lbl}@PAGEOFF]\n`
++  end else begin
++    `	adrp	{emit_reg reg_tmp1}, {emit_label lbl}\n`;
++    `	ldr	{emit_reg dst}, [{emit_reg reg_tmp1}, #:lo12:{emit_label lbl}]\n`
++  end
++
+ (* Output the assembly code for an instruction *)
+ 
+ let emit_instr i =
+@@ -610,6 +644,19 @@ let emit_instr i =
+           | _ ->
+               assert false
+         end
++    | Lop(Ispecific Imove32) ->
++        let src = i.arg.(0) and dst = i.res.(0) in
++        if src.loc <> dst.loc then begin
++          match (src, dst) with
++          | {loc = Reg _}, {loc = Reg _} ->
++              `	mov	{emit_wreg dst}, {emit_wreg src}\n`
++          | {loc = Reg _}, {loc = Stack _} ->
++              `	str	{emit_wreg src}, {emit_stack dst}\n`
++          | {loc = Stack _}, {loc = Reg _} ->
++              `	ldr	{emit_wreg dst}, {emit_stack src}\n`
++          | _ ->
++              assert false
++        end
+     | Lop(Iconst_int n) ->
+         emit_intconst i.res.(0) n
+     | Lop(Iconst_float f) ->
+@@ -619,8 +666,7 @@ let emit_instr i =
+           `	fmov	{emit_reg i.res.(0)}, #{emit_printf "%.7f" (Int64.float_of_bits f)}\n`
+         else begin
+           let lbl = float_literal f in
+-          `	adrp	{emit_reg reg_tmp1}, {emit_label lbl}\n`;
+-          `	ldr	{emit_reg i.res.(0)}, [{emit_reg reg_tmp1}, #:lo12:{emit_label lbl}]\n`
++          emit_load_literal i.res.(0) lbl
+         end
+     | Lop(Iconst_symbol s) ->
+         emit_load_symbol_addr i.res.(0) s
+@@ -640,7 +686,7 @@ let emit_instr i =
+     | Lop(Iextcall { func; alloc = false; label_after = _; }) ->
+         `	bl	{emit_symbol func}\n`
+     | Lop(Iextcall { func; alloc = true; label_after; }) ->
+-        emit_load_symbol_addr reg_x15 func;
++        emit_load_symbol_addr reg_x8 func;
+         `	bl	{emit_symbol "caml_c_call"}\n`;
+         `{record_frame i.live false i.dbg ~label:label_after}\n`
+     | Lop(Istackoffset n) ->
+@@ -940,7 +986,7 @@ let fundecl fundecl =
+   emit_named_text_section !function_name;
+   `	.align	3\n`;
+   `	.globl	{emit_symbol fundecl.fun_name}\n`;
+-  `	.type	{emit_symbol fundecl.fun_name}, %function\n`;
++  emit_symbol_type emit_symbol fundecl.fun_name "function";
+   `{emit_symbol fundecl.fun_name}:\n`;
+   emit_debug_info fundecl.fun_dbg;
+   cfi_startproc();
+@@ -958,8 +1004,8 @@ let fundecl fundecl =
+   assert (List.length !call_gc_sites = num_call_gc);
+   assert (List.length !bound_error_sites = num_check_bound);
+   cfi_endproc();
+-  `	.type	{emit_symbol fundecl.fun_name}, %function\n`;
+-  `	.size	{emit_symbol fundecl.fun_name}, .-{emit_symbol fundecl.fun_name}\n`;
++  emit_symbol_type emit_symbol fundecl.fun_name "function";
++  emit_symbol_size fundecl.fun_name;
+   emit_literals()
+ 
+ (* Emission of data *)
+@@ -1022,10 +1068,10 @@ let end_assembly () =
+   `{emit_symbol lbl}:\n`;
+   emit_frames
+     { efa_code_label = (fun lbl ->
+-                       `	.type	{emit_label lbl}, %function\n`;
++                       emit_symbol_type emit_label lbl "function";
+                        `	.quad	{emit_label lbl}\n`);
+       efa_data_label = (fun lbl ->
+-                       `	.type	{emit_label lbl}, %object\n`;
++                       emit_symbol_type emit_label lbl "object";
+                        `	.quad	{emit_label lbl}\n`);
+       efa_16 = (fun n -> `	.short	{emit_int n}\n`);
+       efa_32 = (fun n -> `	.long	{emit_int32 n}\n`);
+@@ -1035,8 +1081,8 @@ let end_assembly () =
+                            `	.long	{emit_label lbl} - . + {emit_int32 ofs}\n`);
+       efa_def_label = (fun lbl -> `{emit_label lbl}:\n`);
+       efa_string = (fun s -> emit_string_directive "	.asciz	" s) };
+-  `	.type	{emit_symbol lbl}, %object\n`;
+-  `	.size	{emit_symbol lbl}, .-{emit_symbol lbl}\n`;
++  emit_symbol_type emit_symbol lbl "object";
++  emit_symbol_size lbl;
+   begin match Config.system with
+   | "linux" ->
+       (* Mark stack as non-executable *)
+diff --git a/asmcomp/arm64/proc.ml b/asmcomp/arm64/proc.ml
+index ff0b785..c95bbb9 100644
+--- a/asmcomp/arm64/proc.ml
++++ b/asmcomp/arm64/proc.ml
+@@ -99,7 +99,7 @@ let all_phys_regs =
+ let phys_reg n =
+   if n < 100 then hard_int_reg.(n) else hard_float_reg.(n - 100)
+ 
+-let reg_x15 = phys_reg 15
++let reg_x8 = phys_reg 8
+ let reg_d7 = phys_reg 107
+ 
+ let stack_slot slot ty =
+@@ -109,6 +109,36 @@ let loc_spacetime_node_hole = Reg.dummy  (* Spacetime unsupported *)
+ 
+ (* Calling conventions *)
+ 
++let loc_int last_int make_stack int ofs =
++  if !int <= last_int then begin
++    let l = phys_reg !int in
++    incr int; l
++  end else begin
++    ofs := Misc.align !ofs size_int;
++    let l = stack_slot (make_stack !ofs) Int in
++    ofs := !ofs + size_int; l
++  end
++
++let loc_float last_float make_stack float ofs =
++  if !float <= last_float then begin
++    let l = phys_reg !float in
++    incr float; l
++  end else begin
++    ofs := Misc.align !ofs size_float;
++    let l = stack_slot (make_stack !ofs) Float in
++    ofs := !ofs + size_float; l
++  end
++
++let loc_int32 last_int make_stack int ofs =
++  if !int <= last_int then begin
++    let l = phys_reg !int in
++    incr int; l
++  end else begin
++    let l = stack_slot (make_stack !ofs) Int in
++    ofs := !ofs + (if macosx then 4 else 8);
++    l
++  end
++
+ let calling_conventions
+     first_int last_int first_float last_float make_stack arg =
+   let loc = Array.make (Array.length arg) Reg.dummy in
+@@ -116,23 +146,11 @@ let calling_conventions
+   let float = ref first_float in
+   let ofs = ref 0 in
+   for i = 0 to Array.length arg - 1 do
+-    match arg.(i).typ with
+-    | Val | Int | Addr as ty ->
+-        if !int <= last_int then begin
+-          loc.(i) <- phys_reg !int;
+-          incr int
+-        end else begin
+-          loc.(i) <- stack_slot (make_stack !ofs) ty;
+-          ofs := !ofs + size_int
+-        end
++    match arg.(i) with
++    | Val | Int | Addr ->
++        loc.(i) <- loc_int last_int make_stack int ofs
+     | Float ->
+-        if !float <= last_float then begin
+-          loc.(i) <- phys_reg !float;
+-          incr float
+-        end else begin
+-          loc.(i) <- stack_slot (make_stack !ofs) Float;
+-          ofs := !ofs + size_float
+-        end
++        loc.(i) <- loc_float last_float make_stack float ofs
+   done;
+   (loc, Misc.align !ofs 16)  (* keep stack 16-aligned *)
+ 
+@@ -147,26 +165,44 @@ let not_supported _ofs = fatal_error "Proc.loc_results: cannot call"
+    Return values in r0...r15 or d0...d15. *)
+ 
+ let max_arguments_for_tailcalls = 16
++let last_int_register = if macosx then 7 else 15
+ 
+ let loc_arguments arg =
+-  calling_conventions 0 15 100 115 outgoing arg
++  calling_conventions 0 last_int_register 100 115 outgoing arg
+ let loc_parameters arg =
+-  let (loc, _) = calling_conventions 0 15 100 115 incoming arg in loc
++  let (loc, _) = calling_conventions 0 last_int_register 100 115 incoming arg in loc
+ let loc_results res =
+-  let (loc, _) = calling_conventions 0 15 100 115 not_supported res in loc
++  let (loc, _) = calling_conventions 0 last_int_register 100 115 not_supported res in loc
+ 
+ (* C calling convention:
+      first integer args in r0...r7
+      first float args in d0...d7
+      remaining args on stack.
++   macOS/iOS peculiarity: int32 arguments passed on stack occupy 4 bytes,
++   while the AAPCS64 says 8 bytes.
+    Return values in r0...r1 or d0. *)
+ 
+-let loc_external_arguments arg =
+-  let arg =
+-    Array.map (fun regs -> assert (Array.length regs = 1); regs.(0)) arg
+-  in
+-  let loc, alignment = calling_conventions 0 7 100 107 outgoing arg in
+-  Array.map (fun reg -> [|reg|]) loc, alignment
++let external_calling_conventions
++    first_int last_int first_float last_float make_stack ty_args =
++  let loc = Array.make (List.length ty_args) [| Reg.dummy |] in
++  let int = ref first_int in
++  let float = ref first_float in
++  let ofs = ref 0 in
++  List.iteri (fun i ty_arg ->
++    begin match ty_arg with
++    | XInt | XInt64 ->
++        loc.(i) <- [| loc_int last_int make_stack int ofs |]
++    | XInt32 ->
++        loc.(i) <- [| loc_int32 last_int make_stack int ofs |]
++    | XFloat ->
++        loc.(i) <- [| loc_float last_float make_stack float ofs |]
++    end)
++    ty_args;
++  (loc, Misc.align !ofs 16)  (* keep stack 16-aligned *)
++
++let loc_external_arguments ty_args =
++  external_calling_conventions 0 7 100 107 outgoing ty_args
++
+ let loc_external_results res =
+   let (loc, _) = calling_conventions 0 1 100 100 not_supported res in loc
+ 
+@@ -217,7 +253,7 @@ let destroyed_at_oper = function
+   | Iop(Iextcall { alloc = false; }) ->
+       destroyed_at_c_call
+   | Iop(Ialloc _) ->
+-      [| reg_x15 |]
++      [| reg_x8 |]
+   | Iop(Iintoffloat | Ifloatofint | Iload(Single, _) | Istore(Single, _, _)) ->
+       [| reg_d7 |]            (* d7 / s7 destroyed *)
+   | _ -> [||]
+diff --git a/asmcomp/arm64/reload.ml b/asmcomp/arm64/reload.ml
+index 0c342b6..7d27e07 100644
+--- a/asmcomp/arm64/reload.ml
++++ b/asmcomp/arm64/reload.ml
+@@ -15,5 +15,26 @@
+ 
+ (* Reloading for the ARM 64 bits *)
+ 
++open Reg
++
++class reload = object (self)
++
++inherit Reloadgen.reload_generic as super
++
++method! reload_operation op arg res =
++  match op with
++  | Ispecific Imove32 ->
++      (* Like Imove: argument or result can be on stack but not both *)
++      begin match arg.(0), res.(0) with
++      | {loc = Stack s1}, {loc = Stack s2} when s1 <> s2 ->
++          ([| self#makereg arg.(0) |], res)
++      | _ ->
++          (arg, res)
++      end
++   | _ ->
++      super#reload_operation op arg res
++
++end
++
+ let fundecl f num_stack_slots =
+-  (new Reloadgen.reload_generic)#fundecl f num_stack_slots
++  (new reload)#fundecl f num_stack_slots
+diff --git a/asmcomp/arm64/selection.ml b/asmcomp/arm64/selection.ml
+index 9016614..45305de 100644
+--- a/asmcomp/arm64/selection.ml
++++ b/asmcomp/arm64/selection.ml
+@@ -83,7 +83,12 @@ let inline_ops =
+     "caml_int64_direct_bswap"; "caml_nativeint_direct_bswap" ]
+ 
+ let use_direct_addressing _symb =
+-  not !Clflags.dlcode
++  (not !Clflags.dlcode) && (not Arch.macosx)
++
++let is_stack_slot rv =
++  Reg.(match rv with
++        | [| { loc = Stack _ } |] -> true
++        | _ -> false)
+ 
+ (* Instruction selection *)
+ 
+@@ -98,13 +103,13 @@ method is_immediate n =
+ 
+ method! is_simple_expr = function
+   (* inlined floating-point ops are simple if their arguments are *)
+-  | Cop(Cextcall (fn, _, _, _), args, _) when List.mem fn inline_ops ->
++  | Cop(Cextcall (fn, _, _, _, _), args, _) when List.mem fn inline_ops ->
+       List.for_all self#is_simple_expr args
+   | e -> super#is_simple_expr e
+ 
+ method! effects_of e =
+   match e with
+-  | Cop(Cextcall (fn, _, _, _), args, _) when List.mem fn inline_ops ->
++  | Cop(Cextcall (fn, _, _, _, _), args, _) when List.mem fn inline_ops ->
+       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
+   | e -> super#effects_of e
+ 
+@@ -228,15 +233,15 @@ method! select_operation op args dbg =
+           super#select_operation op args dbg
+       end
+   (* Recognize floating-point square root *)
+-  | Cextcall("sqrt", _, _, _) ->
++  | Cextcall("sqrt", _, _, _, _) ->
+       (Ispecific Isqrtf, args)
+   (* Recognize bswap instructions *)
+-  | Cextcall("caml_bswap16_direct", _, _, _) ->
++  | Cextcall("caml_bswap16_direct", _, _, _, _) ->
+       (Ispecific(Ibswap 16), args)
+-  | Cextcall("caml_int32_direct_bswap", _, _, _) ->
++  | Cextcall("caml_int32_direct_bswap", _, _, _, _) ->
+       (Ispecific(Ibswap 32), args)
+   | Cextcall(("caml_int64_direct_bswap"|"caml_nativeint_direct_bswap"),
+-              _, _, _) ->
++              _, _, _, _) ->
+       (Ispecific (Ibswap 64), args)
+   (* Other operations are regular *)
+   | _ ->
+@@ -250,6 +255,10 @@ method select_logical op = function
+   | args ->
+       (Iintop op, args)
+ 
++method! insert_move_extcall_arg env ty_arg src dst =
++  if macosx && ty_arg = XInt32 && is_stack_slot dst
++  then self#insert env (Iop (Ispecific Imove32)) src dst
++  else self#insert_moves env src dst
+ end
+ 
+ let fundecl f = (new selector)#emit_fundecl f
+diff --git a/asmcomp/cmm.ml b/asmcomp/cmm.ml
+index 15ec6db..874b3bd 100644
+--- a/asmcomp/cmm.ml
++++ b/asmcomp/cmm.ml
+@@ -77,6 +77,21 @@ let ge_component comp1 comp2 =
+   | Float, (Int | Addr | Val) ->
+     assert false
+ 
++type exttype =
++  | XInt
++  | XInt32
++  | XInt64
++  | XFloat
++
++let machtype_of_exttype = function
++  | XInt -> typ_int
++  | XInt32 -> typ_int
++  | XInt64 -> if Arch.size_int = 4 then [|Int;Int|] else typ_int
++  | XFloat -> typ_float
++
++let machtype_of_exttype_list xtl =
++  Array.concat (List.map machtype_of_exttype xtl)
++
+ type integer_comparison = Lambda.integer_comparison =
+   | Ceq | Cne | Clt | Cgt | Cle | Cge
+ 
+@@ -124,7 +139,7 @@ type memory_chunk =
+ 
+ and operation =
+     Capply of machtype
+-  | Cextcall of string * machtype * bool * label option
++  | Cextcall of string * machtype * exttype list * bool * label option
+     (** If specified, the given label will be placed immediately after the
+         call (at the same place as any frame descriptor would reference). *)
+   | Cload of memory_chunk * Asttypes.mutable_flag
+diff --git a/asmcomp/cmm.mli b/asmcomp/cmm.mli
+index 84c79a2..2315975 100644
+--- a/asmcomp/cmm.mli
++++ b/asmcomp/cmm.mli
+@@ -68,6 +68,17 @@ val ge_component
+   -> machtype_component
+   -> bool
+ 
++type exttype =
++  | XInt                                (**r OCaml value, word-sized integer *)
++  | XInt32                              (**r 32-bit integer *)
++  | XInt64                              (**r 64-bit integer  *)
++  | XFloat                              (**r double-precision FP number  *)
++(** A variant of [machtype] used to describe arguments
++    to external C functions *)
++
++val machtype_of_exttype: exttype -> machtype
++val machtype_of_exttype_list: exttype list -> machtype
++
+ type integer_comparison = Lambda.integer_comparison =
+   | Ceq | Cne | Clt | Cgt | Cle | Cge
+ 
+@@ -127,7 +138,10 @@ type memory_chunk =
+ 
+ and operation =
+     Capply of machtype
+-  | Cextcall of string * machtype * bool * label option
++  | Cextcall of string * machtype * exttype list * bool * label option
++      (** The [machtype] is the machine type of the result.
++          The [exttype list] describes the unboxing types of the arguments.
++          An empty list means "all arguments are machine words [XInt]". *)
+   | Cload of memory_chunk * Asttypes.mutable_flag
+   | Calloc
+   | Cstore of memory_chunk * Lambda.initialization_or_assignment
+diff --git a/asmcomp/cmm_helpers.ml b/asmcomp/cmm_helpers.ml
+index c02e2b3..15dc187 100644
+--- a/asmcomp/cmm_helpers.ml
++++ b/asmcomp/cmm_helpers.ml
+@@ -568,8 +568,8 @@ let rec remove_unit = function
+       Clet(id, c1, remove_unit c2)
+   | Cop(Capply _mty, args, dbg) ->
+       Cop(Capply typ_void, args, dbg)
+-  | Cop(Cextcall(proc, _mty, alloc, label_after), args, dbg) ->
+-      Cop(Cextcall(proc, typ_void, alloc, label_after), args, dbg)
++  | Cop(Cextcall(proc, _ty_res, ty_args, alloc, label_after), args, dbg) ->
++      Cop(Cextcall(proc, typ_void, ty_args, alloc, label_after), args, dbg)
+   | Cexit (_,_) as c -> c
+   | Ctuple [] as c -> c
+   | c -> Csequence(c, Ctuple [])
+@@ -691,10 +691,10 @@ let float_array_ref arr ofs dbg =
+   box_float dbg (unboxed_float_array_ref arr ofs dbg)
+ 
+ let addr_array_set arr ofs newval dbg =
+-  Cop(Cextcall("caml_modify", typ_void, false, None),
++  Cop(Cextcall("caml_modify", typ_void, [], false, None),
+       [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
+ let addr_array_initialize arr ofs newval dbg =
+-  Cop(Cextcall("caml_initialize", typ_void, false, None),
++  Cop(Cextcall("caml_initialize", typ_void, [], false, None),
+       [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
+ let int_array_set arr ofs newval dbg =
+   Cop(Cstore (Word_int, Lambda.Assignment),
+@@ -730,7 +730,7 @@ let bigstring_length ba dbg =
+ 
+ let lookup_tag obj tag dbg =
+   bind "tag" tag (fun tag ->
+-    Cop(Cextcall("caml_get_public_method", typ_val, false, None),
++    Cop(Cextcall("caml_get_public_method", typ_val, [], false, None),
+         [obj; tag],
+         dbg))
+ 
+@@ -760,14 +760,14 @@ let make_alloc_generic set_fn dbg tag wordsize args =
+     | e1::el -> Csequence(set_fn (Cvar id) (Cconst_int (idx, dbg)) e1 dbg,
+                           fill_fields (idx + 2) el) in
+     Clet(VP.create id,
+-         Cop(Cextcall("caml_alloc", typ_val, true, None),
++         Cop(Cextcall("caml_alloc", typ_val, [], true, None),
+                  [Cconst_int (wordsize, dbg); Cconst_int (tag, dbg)], dbg),
+          fill_fields 1 args)
+   end
+ 
+ let make_alloc dbg tag args =
+   let addr_array_init arr ofs newval dbg =
+-    Cop(Cextcall("caml_initialize", typ_void, false, None),
++    Cop(Cextcall("caml_initialize", typ_void, [], false, None),
+         [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
+   in
+   make_alloc_generic addr_array_init dbg tag (List.length args) args
+@@ -2099,18 +2099,18 @@ let arraylength kind arg dbg =
+       Cop(Cor, [float_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
+ 
+ let bbswap bi arg dbg =
+-  let prim = match (bi : Primitive.boxed_integer) with
+-    | Pnativeint -> "nativeint"
+-    | Pint32 -> "int32"
+-    | Pint64 -> "int64"
++  let prim, tyarg = match (bi : Primitive.boxed_integer) with
++    | Pnativeint -> "nativeint", XInt
++    | Pint32 -> "int32", XInt32
++    | Pint64 -> "int64", XInt64
+   in
+   Cop(Cextcall(Printf.sprintf "caml_%s_direct_bswap" prim,
+-               typ_int, false, None),
++               typ_int, [tyarg], false, None),
+       [arg],
+       dbg)
+ 
+ let bswap16 arg dbg =
+-  (Cop(Cextcall("caml_bswap16_direct", typ_int, false, None),
++  (Cop(Cextcall("caml_bswap16_direct", typ_int, [], false, None),
+        [arg],
+        dbg))
+ 
+@@ -2135,15 +2135,15 @@ let assignment_kind
+ let setfield n ptr init arg1 arg2 dbg =
+   match assignment_kind ptr init with
+   | Caml_modify ->
+-      return_unit dbg (Cop(Cextcall("caml_modify", typ_void, false, None),
+-                      [field_address arg1 n dbg;
+-                       arg2],
+-                      dbg))
++      return_unit dbg
++        (Cop(Cextcall("caml_modify", typ_void, [], false, None),
++             [field_address arg1 n dbg; arg2],
++             dbg))
+   | Caml_initialize ->
+-      return_unit dbg (Cop(Cextcall("caml_initialize", typ_void, false, None),
+-                      [field_address arg1 n dbg;
+-                       arg2],
+-                      dbg))
++      return_unit dbg
++        (Cop(Cextcall("caml_initialize", typ_void, [], false, None),
++             [field_address arg1 n dbg; arg2],
++             dbg))
+   | Simple ->
+       return_unit dbg (set_field arg1 n arg2 init dbg)
+ 
+diff --git a/asmcomp/cmmgen.ml b/asmcomp/cmmgen.ml
+index fd42fc5..8fd328d 100644
+--- a/asmcomp/cmmgen.ml
++++ b/asmcomp/cmmgen.ml
+@@ -729,7 +729,7 @@ and transl_catch env nfail ids body handler dbg =
+ and transl_make_array dbg env kind args =
+   match kind with
+   | Pgenarray ->
+-      Cop(Cextcall("caml_make_array", typ_val, true, None),
++      Cop(Cextcall("caml_make_array", typ_val, [], true, None),
+           [make_alloc dbg 0 (List.map (transl env) args)], dbg)
+   | Paddrarray | Pintarray ->
+       make_alloc dbg 0 (List.map (transl env) args)
+@@ -740,20 +740,32 @@ and transl_make_array dbg env kind args =
+ and transl_ccall env prim args dbg =
+   let transl_arg native_repr arg =
+     match native_repr with
+-    | Same_as_ocaml_repr -> transl env arg
+-    | Unboxed_float -> transl_unbox_float dbg env arg
+-    | Unboxed_integer bi -> transl_unbox_int dbg env bi arg
+-    | Untagged_int -> untag_int (transl env arg) dbg
++    | Same_as_ocaml_repr ->
++        (XInt, transl env arg)
++    | Unboxed_float ->
++        (XFloat, transl_unbox_float dbg env arg)
++    | Unboxed_integer bi ->
++        let xty =
++          match bi with
++          | Pnativeint -> XInt
++          | Pint32 -> XInt32
++          | Pint64 -> XInt64 in
++        (xty, transl_unbox_int dbg env bi arg)
++    | Untagged_int ->
++        (XInt, untag_int (transl env arg) dbg)
+   in
+   let rec transl_args native_repr_args args =
+     match native_repr_args, args with
+     | [], args ->
+         (* We don't require the two lists to be of the same length as
+            [default_prim] always sets the arity to [0]. *)
+-        List.map (transl env) args
+-    | _, [] -> assert false
++        (List.map (fun _ -> XInt) args, List.map (transl env) args)
++    | _, [] ->
++        assert false
+     | native_repr :: native_repr_args, arg :: args ->
+-        transl_arg native_repr arg :: transl_args native_repr_args args
++        let (ty1, arg') = transl_arg native_repr arg in
++        let (tys, args') = transl_args native_repr_args args in
++        (ty1 :: tys, arg' :: args')
+   in
+   let typ_res, wrap_result =
+     match prim.prim_native_repr_res with
+@@ -764,10 +776,10 @@ and transl_ccall env prim args dbg =
+     | Unboxed_integer bi -> (typ_int, box_int dbg bi)
+     | Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
+   in
+-  let args = transl_args prim.prim_native_repr_args args in
++  let typ_args, args = transl_args prim.prim_native_repr_args args in
+   wrap_result
+     (Cop(Cextcall(Primitive.native_name prim,
+-                  typ_res, prim.prim_alloc, None), args, dbg))
++                  typ_res, typ_args, prim.prim_alloc, None), args, dbg))
+ 
+ and transl_prim_1 env p arg dbg =
+   match p with
+@@ -1284,7 +1296,7 @@ and transl_letrec env bindings cont =
+       bindings
+   in
+   let op_alloc prim args =
+-    Cop(Cextcall(prim, typ_val, true, None), args, dbg) in
++    Cop(Cextcall(prim, typ_val, [], true, None), args, dbg) in
+   let rec init_blocks = function
+     | [] -> fill_nonrec bsz
+     | (id, _exp, RHS_block sz) :: rem ->
+@@ -1310,7 +1322,7 @@ and transl_letrec env bindings cont =
+     | [] -> cont
+     | (id, exp, (RHS_block _ | RHS_infix _ | RHS_floatblock _)) :: rem ->
+         let op =
+-          Cop(Cextcall("caml_update_dummy", typ_void, false, None),
++          Cop(Cextcall("caml_update_dummy", typ_void, [], false, None),
+               [Cvar (VP.var id); transl env exp], dbg) in
+         Csequence(op, fill_blocks rem)
+     | (_id, _exp, RHS_nonrec) :: rem ->
+diff --git a/asmcomp/i386/proc.ml b/asmcomp/i386/proc.ml
+index e3e114a..5d3f054 100644
+--- a/asmcomp/i386/proc.ml
++++ b/asmcomp/i386/proc.ml
+@@ -121,7 +121,7 @@ let calling_conventions first_int last_int first_float last_float make_stack
+   let float = ref first_float in
+   let ofs = ref (-64) in
+   for i = 0 to Array.length arg - 1 do
+-    match arg.(i).typ with
++    match arg.(i) with
+       Val | Int | Addr as ty ->
+         if !int <= last_int then begin
+           loc.(i) <- phys_reg !int;
+@@ -158,7 +158,7 @@ let loc_external_arguments _arg =
+   fatal_error "Proc.loc_external_arguments"
+ let loc_external_results res =
+   match res with
+-  | [|{typ=Int};{typ=Int}|] -> [|eax; edx|]
++  | [| Int; Int |] -> [|eax; edx|]
+   | _ ->
+       let (loc, _ofs) = calling_conventions 0 0 100 100 not_supported res in loc
+ 
+diff --git a/asmcomp/i386/selection.ml b/asmcomp/i386/selection.ml
+index 59b5e2e..03e3a93 100644
+--- a/asmcomp/i386/selection.ml
++++ b/asmcomp/i386/selection.ml
+@@ -89,7 +89,7 @@ let rec float_needs = function
+       let n1 = float_needs arg1 in
+       let n2 = float_needs arg2 in
+       if n1 = n2 then 1 + n1 else if n1 > n2 then n1 else n2
+-  | Cop(Cextcall(fn, _ty_res, _alloc, _label), args, _dbg)
++  | Cop(Cextcall(fn, _ty_res, _ty_args, _alloc, _label), args, _dbg)
+     when !fast_math && List.mem fn inline_float_ops ->
+       begin match args with
+         [arg] -> float_needs arg
+@@ -162,7 +162,7 @@ method is_immediate (_n : int) = true
+ 
+ method! is_simple_expr e =
+   match e with
+-  | Cop(Cextcall(fn, _, _alloc, _), args, _)
++  | Cop(Cextcall(fn, _, _, _, _), args, _)
+     when !fast_math && List.mem fn inline_float_ops ->
+       (* inlined float ops are simple if their arguments are *)
+       List.for_all self#is_simple_expr args
+@@ -171,7 +171,7 @@ method! is_simple_expr e =
+ 
+ method! effects_of e =
+   match e with
+-  | Cop(Cextcall(fn, _, _, _), args, _)
++  | Cop(Cextcall(fn, _, _, _, _), args, _)
+     when !fast_math && List.mem fn inline_float_ops ->
+       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
+   | _ ->
+@@ -237,7 +237,7 @@ method! select_operation op args dbg =
+           super#select_operation op args dbg
+       end
+   (* Recognize inlined floating point operations *)
+-  | Cextcall(fn, _ty_res, false, _label)
++  | Cextcall(fn, _ty_res, _ty_args, false, _label)
+     when !fast_math && List.mem fn inline_float_ops ->
+       (Ispecific(Ifloatspecial fn), args)
+   (* i386 does not support immediate operands for multiply high signed *)
+@@ -304,7 +304,7 @@ method select_push exp =
+ method! mark_c_tailcall =
+   contains_calls := true
+ 
+-method! emit_extcall_args env args =
++method! emit_extcall_args env _ty_args args =
+   let rec size_pushes = function
+   | [] -> 0
+   | e :: el -> Selectgen.size_expr env e + size_pushes el in
+diff --git a/asmcomp/mach.ml b/asmcomp/mach.ml
+index ab69e0c..21c4aeb 100644
+--- a/asmcomp/mach.ml
++++ b/asmcomp/mach.ml
+@@ -50,7 +50,9 @@ type operation =
+   | Icall_imm of { func : string; label_after : label; }
+   | Itailcall_ind of { label_after : label; }
+   | Itailcall_imm of { func : string; label_after : label; }
+-  | Iextcall of { func : string; alloc : bool; label_after : label; }
++  | Iextcall of { func : string;
++                  ty_res : Cmm.machtype; ty_args : Cmm.exttype list;
++                  alloc : bool; label_after : label; }
+   | Istackoffset of int
+   | Iload of Cmm.memory_chunk * Arch.addressing_mode
+   | Istore of Cmm.memory_chunk * Arch.addressing_mode * bool
+diff --git a/asmcomp/mach.mli b/asmcomp/mach.mli
+index 5df7958..79647a6 100644
+--- a/asmcomp/mach.mli
++++ b/asmcomp/mach.mli
+@@ -57,7 +57,9 @@ type operation =
+   | Icall_imm of { func : string; label_after : label; }
+   | Itailcall_ind of { label_after : label; }
+   | Itailcall_imm of { func : string; label_after : label; }
+-  | Iextcall of { func : string; alloc : bool; label_after : label; }
++  | Iextcall of { func : string;
++                  ty_res : Cmm.machtype; ty_args : Cmm.exttype list;
++                  alloc : bool; label_after : label; }
+   | Istackoffset of int
+   | Iload of Cmm.memory_chunk * Arch.addressing_mode
+   | Istore of Cmm.memory_chunk * Arch.addressing_mode * bool
+diff --git a/asmcomp/power/proc.ml b/asmcomp/power/proc.ml
+index 3bcd12f..5ee902f 100644
+--- a/asmcomp/power/proc.ml
++++ b/asmcomp/power/proc.ml
+@@ -95,107 +95,81 @@ let loc_spacetime_node_hole = Reg.dummy  (* Spacetime unsupported *)
+ 
+ (* Calling conventions *)
+ 
+-let calling_conventions
+-    first_int last_int first_float last_float
+-    make_stack stack_ofs reg_use_stack arg =
+-  let loc = Array.make (Array.length arg) [| Reg.dummy |] in
++let loc_int last_int make_stack reg_use_stack int ofs =
++  if !int <= last_int then begin
++    let l = phys_reg !int in
++    incr int;
++    if reg_use_stack then ofs := !ofs + size_int;
++    l
++  end else begin
++    let l = stack_slot (make_stack !ofs) Int in
++    ofs := !ofs + size_int; l
++  end
++
++let loc_float last_float make_stack reg_use_stack int float ofs =
++  if !float <= last_float then begin
++    let l = phys_reg !float in
++    incr float;
++    (* On 64-bit platforms, passing a float in a float register
++       reserves a normal register as well *)
++    if size_int = 8 then incr int;
++    if reg_use_stack then ofs := !ofs + size_float;
++    l
++  end else begin
++    ofs := Misc.align !ofs size_float;
++    let l = stack_slot (make_stack !ofs) Float in
++    ofs := !ofs + size_float; l
++  end
++
++let loc_int_pair last_int make_stack int ofs =
++  (* 64-bit quantities split across two registers must either be in a
++     consecutive pair of registers where the lowest numbered is an
++     even-numbered register; or in a stack slot that is 8-byte aligned. *)
++  int := Misc.align !int 2;
++  if !int <= last_int - 1 then begin
++    let reg_lower = phys_reg !int in
++    let reg_upper = phys_reg (1 + !int) in
++    int := !int + 2;
++    [| reg_lower; reg_upper |]
++  end else begin
++    ofs := Misc.align !ofs 8;
++    let stack_lower = stack_slot (make_stack !ofs) Int in
++    let stack_upper = stack_slot (make_stack (size_int + !ofs)) Int in
++    ofs := !ofs + 8;
++    [| stack_lower; stack_upper |]
++  end
++
++let calling_conventions first_int last_int first_float last_float make_stack
++      arg =
++  let loc = Array.make (Array.length arg) Reg.dummy in
+   let int = ref first_int in
+   let float = ref first_float in
+-  let ofs = ref stack_ofs in
++  let ofs = ref 0 in
+   for i = 0 to Array.length arg - 1 do
+     match arg.(i) with
+-    | [| arg |] ->
+-      begin match arg.typ with
+-      | Val | Int | Addr as ty ->
+-          if !int <= last_int then begin
+-            loc.(i) <- [| phys_reg !int |];
+-            incr int;
+-            if reg_use_stack then ofs := !ofs + size_int
+-          end else begin
+-            loc.(i) <- [| stack_slot (make_stack !ofs) ty |];
+-            ofs := !ofs + size_int
+-          end
+-      | Float ->
+-          if !float <= last_float then begin
+-            loc.(i) <- [| phys_reg !float |];
+-            incr float;
+-            (* On 64-bit platforms, passing a float in a float register
+-               reserves a normal register as well *)
+-            if size_int = 8 then incr int;
+-            if reg_use_stack then ofs := !ofs + size_float
+-          end else begin
+-            ofs := Misc.align !ofs size_float;
+-            loc.(i) <- [| stack_slot (make_stack !ofs) Float |];
+-            ofs := !ofs + size_float
+-          end
+-      end
+-    | [| arg1; arg2 |] ->
+-      (* Passing of 64-bit quantities to external functions
+-         on 32-bit platform. *)
+-      assert (size_int = 4);
+-      begin match arg1.typ, arg2.typ with
+-      | Int, Int ->
+-          (* 64-bit quantities split across two registers must either be in a
+-             consecutive pair of registers where the lowest numbered is an
+-             even-numbered register; or in a stack slot that is 8-byte
+-             aligned. *)
+-          int := Misc.align !int 2;
+-          if !int <= last_int - 1 then begin
+-            let reg_lower = phys_reg !int in
+-            let reg_upper = phys_reg (!int + 1) in
+-            loc.(i) <- [| reg_lower; reg_upper |];
+-            int := !int + 2
+-          end else begin
+-            let size_int64 = 8 in
+-            ofs := Misc.align !ofs size_int64;
+-            let ofs_lower = !ofs in
+-            let ofs_upper = !ofs + size_int in
+-            let stack_lower = stack_slot (make_stack ofs_lower) Int in
+-            let stack_upper = stack_slot (make_stack ofs_upper) Int in
+-            loc.(i) <- [| stack_lower; stack_upper |];
+-            ofs := !ofs + size_int64
+-          end
+-      | _, _ ->
+-        let f = function Int -> "I" | Addr -> "A" | Val -> "V" | Float -> "F" in
+-        fatal_error (Printf.sprintf "Proc.calling_conventions: bad register \
+-            type(s) for multi-register argument: %s, %s"
+-          (f arg1.typ) (f arg2.typ))
+-      end
+-    | _ ->
+-      fatal_error "Proc.calling_conventions: bad number of registers for \
+-                   multi-register argument"
++    | Val | Int | Addr ->
++        loc.(i) <- loc_int last_int make_stack false int ofs
++    | Float ->
++        loc.(i) <- loc_float last_float make_stack false int float ofs
+   done;
+-  (loc, Misc.align !ofs 16)
+-  (* Keep stack 16-aligned. *)
++  (loc, Misc.align !ofs 16)  (* keep stack 16-aligned *)
+ 
+ let incoming ofs = Incoming ofs
+ let outgoing ofs = Outgoing ofs
+ let not_supported _ofs = fatal_error "Proc.loc_results: cannot call"
+ 
+-let single_regs arg = Array.map (fun arg -> [| arg |]) arg
+-let ensure_single_regs res =
+-  Array.map (function
+-      | [| res |] -> res
+-      | _ -> failwith "Proc.ensure_single_regs")
+-    res
+-
+ let max_arguments_for_tailcalls = 8
+ 
+ let loc_arguments arg =
+-  let (loc, ofs) =
+-    calling_conventions 0 7 100 112 outgoing 0 false (single_regs arg)
+-  in
+-  (ensure_single_regs loc, ofs)
++    calling_conventions 0 7 100 112 outgoing arg
++
+ let loc_parameters arg =
+-  let (loc, _ofs) =
+-    calling_conventions 0 7 100 112 incoming 0 false (single_regs arg)
+-  in
+-  ensure_single_regs loc
++  let (loc, _ofs) = calling_conventions 0 7 100 112 incoming arg
++  in loc
++
+ let loc_results res =
+-  let (loc, _ofs) =
+-    calling_conventions 0 7 100 112 not_supported 0 false (single_regs res)
+-  in
+-  ensure_single_regs loc
++  let (loc, _ofs) = calling_conventions 0 7 100 112 not_supported res
++  in loc
+ 
+ (* C calling conventions for ELF32:
+      use GPR 3-10 and FPR 1-8 just like ML calling conventions.
+@@ -223,19 +197,43 @@ let loc_results res =
+      and need not appear here.
+ *)
+ 
+-let loc_external_arguments =
++let external_calling_conventions
++    first_int last_int first_float last_float
++    make_stack stack_ofs reg_use_stack ty_args =
++  let loc = Array.make (List.length ty_args) [| Reg.dummy |] in
++  let int = ref first_int in
++  let float = ref first_float in
++  let ofs = ref stack_ofs in
++  List.iteri
++    (fun i ty_arg ->
++      match ty_arg with
++      | XInt | XInt32 ->
++        loc.(i) <-
++          [| loc_int last_int make_stack reg_use_stack int ofs |]
++      | XInt64 ->
++          if size_int = 4 then begin
++            assert (not reg_use_stack);
++            loc.(i) <- loc_int_pair last_int make_stack int ofs
++          end else
++            loc.(i) <-
++              [| loc_int last_int make_stack reg_use_stack int ofs |]
++      | XFloat ->
++        loc.(i) <-
++          [| loc_float last_float make_stack reg_use_stack int float ofs |])
++    ty_args;
++  (loc, Misc.align !ofs 16) (* Keep stack 16-aligned *)
++
++let loc_external_arguments ty_args =
+   match abi with
+   | ELF32 ->
+-      calling_conventions 0 7 100 107 outgoing 8 false
++      external_calling_conventions 0 7 100 107 outgoing 8 false ty_args
+   | ELF64v1 ->
+-      fun args ->
+       let (loc, ofs) =
+-        calling_conventions 0 7 100 112 outgoing 0 true args in
++        external_calling_conventions 0 7 100 112 outgoing 0 true ty_args in
+       (loc, max ofs 64)
+   | ELF64v2 ->
+-      fun args ->
+       let (loc, ofs) =
+-        calling_conventions 0 7 100 112 outgoing 0 true args in
++        external_calling_conventions 0 7 100 112 outgoing 0 true ty_args in
+       if Array.fold_left
+            (fun stk r ->
+               assert (Array.length r = 1);
+@@ -249,10 +247,8 @@ let loc_external_arguments =
+ (* Results are in GPR 3 and FPR 1 *)
+ 
+ let loc_external_results res =
+-  let (loc, _ofs) =
+-    calling_conventions 0 1 100 100 not_supported 0 false (single_regs res)
+-  in
+-  ensure_single_regs loc
++  let (loc, _ofs) = calling_conventions 0 1 100 100 not_supported res
++  in loc
+ 
+ (* Exceptions are in GPR 3 *)
+ 
+diff --git a/asmcomp/printcmm.ml b/asmcomp/printcmm.ml
+index 1da5fe2..538fe36 100644
+--- a/asmcomp/printcmm.ml
++++ b/asmcomp/printcmm.ml
+@@ -39,6 +39,21 @@ let machtype ppf mty =
+            fprintf ppf "*%a" machtype_component mty.(i)
+          done
+ 
++let exttype ppf = function
++  | XInt -> fprintf ppf "int"
++  | XInt32 -> fprintf ppf "int32"
++  | XInt64 -> fprintf ppf "int64"
++  | XFloat -> fprintf ppf "float"
++
++let extcall_signature ppf (ty_res, ty_args) =
++  begin match ty_args with
++  | [] -> ()
++  | ty_arg1 :: ty_args ->
++      exttype ppf ty_arg1;
++      List.iter (fun ty -> fprintf ppf ",%a" exttype ty) ty_args
++  end;
++  fprintf ppf "->%a" machtype ty_res
++
+ let integer_comparison = function
+   | Ceq -> "=="
+   | Cne -> "!="
+@@ -97,7 +112,7 @@ let phantom_defining_expr_opt ppf defining_expr =
+ 
+ let operation d = function
+   | Capply _ty -> "app" ^ Debuginfo.to_string d
+-  | Cextcall(lbl, _ty, _alloc, _) ->
++  | Cextcall(lbl, _ty_res, _ty_args, _alloc, _) ->
+       Printf.sprintf "extcall \"%s\"%s" lbl (Debuginfo.to_string d)
+   | Cload (c, Asttypes.Immutable) -> Printf.sprintf "load %s" (chunk c)
+   | Cload (c, Asttypes.Mutable) -> Printf.sprintf "load_mut %s" (chunk c)
+@@ -201,7 +216,8 @@ let rec expr ppf = function
+       List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
+       begin match op with
+       | Capply mty -> fprintf ppf "@ %a" machtype mty
+-      | Cextcall(_, mty, _, _) -> fprintf ppf "@ %a" machtype mty
++      | Cextcall(_, ty_res, ty_args, _, _) ->
++          fprintf ppf "@ %a" extcall_signature (ty_res, ty_args)
+       | _ -> ()
+       end;
+       fprintf ppf ")@]"
+diff --git a/asmcomp/printcmm.mli b/asmcomp/printcmm.mli
+index 462239a..f88d886 100644
+--- a/asmcomp/printcmm.mli
++++ b/asmcomp/printcmm.mli
+@@ -19,7 +19,9 @@ open Format
+ 
+ val rec_flag : formatter -> Cmm.rec_flag -> unit
+ val machtype_component : formatter -> Cmm.machtype_component -> unit
+-val machtype : formatter -> Cmm.machtype_component array -> unit
++val machtype : formatter -> Cmm.machtype -> unit
++val exttype : formatter -> Cmm.exttype -> unit
++val extcall_signature : formatter -> Cmm.machtype * Cmm.exttype list -> unit
+ val integer_comparison : Cmm.integer_comparison -> string
+ val float_comparison : Cmm.float_comparison -> string
+ val chunk : Cmm.memory_chunk -> string
+diff --git a/asmcomp/proc.mli b/asmcomp/proc.mli
+index 91b15de..835ca1d 100644
+--- a/asmcomp/proc.mli
++++ b/asmcomp/proc.mli
+@@ -28,16 +28,14 @@ val phys_reg: int -> Reg.t
+ val rotate_registers: bool
+ 
+ (* Calling conventions *)
+-val loc_arguments: Reg.t array -> Reg.t array * int
+-val loc_results: Reg.t array -> Reg.t array
+-val loc_parameters: Reg.t array -> Reg.t array
++val loc_arguments: Cmm.machtype -> Reg.t array * int
++val loc_results: Cmm.machtype -> Reg.t array
++val loc_parameters: Cmm.machtype -> Reg.t array
+ (* For argument number [n] split across multiple registers, the target-specific
+    implementation of [loc_external_arguments] must return [regs] such that
+-   [regs.(n).(0)] is to hold the part of the value at the lowest address.
+-   (All that matters for the input to [loc_external_arguments] is the pattern
+-   of lengths and register types of the various supplied arrays.) *)
+-val loc_external_arguments: Reg.t array array -> Reg.t array array * int
+-val loc_external_results: Reg.t array -> Reg.t array
++   [regs.(n).(0)] is to hold the part of the value at the lowest address. *)
++val loc_external_arguments: Cmm.exttype list -> Reg.t array array * int
++val loc_external_results: Cmm.machtype -> Reg.t array
+ val loc_exn_bucket: Reg.t
+ val loc_spacetime_node_hole: Reg.t
+ 
+diff --git a/asmcomp/reg.ml b/asmcomp/reg.ml
+index 72b68da..1f6f7ac 100644
+--- a/asmcomp/reg.ml
++++ b/asmcomp/reg.ml
+@@ -100,6 +100,9 @@ let at_location ty loc =
+   incr currstamp;
+   r
+ 
++let typv rv =
++  Array.map (fun r -> r.typ) rv
++
+ let anonymous t =
+   match Raw_name.to_string t.raw_name with
+   | None -> true
+diff --git a/asmcomp/reg.mli b/asmcomp/reg.mli
+index cd37639..20d3cfe 100644
+--- a/asmcomp/reg.mli
++++ b/asmcomp/reg.mli
+@@ -49,7 +49,7 @@ val createv: Cmm.machtype -> t array
+ val createv_like: t array -> t array
+ val clone: t -> t
+ val at_location: Cmm.machtype_component -> location -> t
+-
++val typv: t array -> Cmm.machtype
+ val anonymous : t -> bool
+ 
+ (* Name for printing *)
+diff --git a/asmcomp/s390x/proc.ml b/asmcomp/s390x/proc.ml
+index 9f0dff2..2c6c357 100644
+--- a/asmcomp/s390x/proc.ml
++++ b/asmcomp/s390x/proc.ml
+@@ -105,7 +105,7 @@ let calling_conventions
+   let float = ref first_float in
+   let ofs = ref stack_ofs in
+   for i = 0 to Array.length arg - 1 do
+-    match arg.(i).typ with
++    match arg.(i) with
+     | Val | Int | Addr as ty ->
+         if !int <= last_int then begin
+           loc.(i) <- phys_reg !int;
+@@ -145,11 +145,9 @@ let loc_results res =
+      Always reserve 160 bytes at bottom of stack, plus whatever is needed
+      to hold the overflow arguments. *)
+ 
+-let loc_external_arguments arg =
+-  let arg =
+-    Array.map (fun regs -> assert (Array.length regs = 1); regs.(0)) arg in
+-  let (loc, ofs) =
+-    calling_conventions 0 4 100 103 outgoing 160 arg in
++let loc_external_arguments ty_args =
++  let arg = Cmm.machtype_of_exttype_list ty_args in
++  let (loc, ofs) = calling_conventions 0 4 100 103 outgoing 160 arg in
+   (Array.map (fun reg -> [|reg|]) loc, ofs)
+ 
+ (* Results are in GPR 2 and FPR 0 *)
+diff --git a/asmcomp/selectgen.ml b/asmcomp/selectgen.ml
+index b024dfe..ee81081 100644
+--- a/asmcomp/selectgen.ml
++++ b/asmcomp/selectgen.ml
+@@ -55,7 +55,7 @@ let env_empty = {
+ 
+ let oper_result_type = function
+     Capply ty -> ty
+-  | Cextcall(_s, ty, _alloc, _) -> ty
++  | Cextcall(_s, ty_res, _ty_args, _alloc, _) -> ty_res
+   | Cload (c, _) ->
+       begin match c with
+       | Word_val -> typ_val
+@@ -434,13 +434,13 @@ method select_operation op args _dbg =
+   | (Capply _, _) ->
+     let label_after = Cmm.new_label () in
+     (Icall_ind { label_after; }, args)
+-  | (Cextcall(func, _ty, alloc, label_after), _) ->
++  | (Cextcall(func, ty_res, ty_args, alloc, label_after), _) ->
+     let label_after =
+       match label_after with
+       | None -> Cmm.new_label ()
+       | Some label_after -> label_after
+     in
+-    Iextcall { func; alloc; label_after; }, args
++    Iextcall { func; ty_res; ty_args; alloc; label_after; }, args
+   | (Cload (chunk, _mut), [arg]) ->
+       let (addr, eloc) = self#select_addressing chunk arg in
+       (Iload(chunk, addr), [eloc])
+@@ -736,8 +736,8 @@ method emit_expr (env:environment) exp =
+               let r1 = self#emit_tuple env new_args in
+               let rarg = Array.sub r1 1 (Array.length r1 - 1) in
+               let rd = self#regs_for ty in
+-              let (loc_arg, stack_ofs) = Proc.loc_arguments rarg in
+-              let loc_res = Proc.loc_results rd in
++              let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv rarg) in
++              let loc_res = Proc.loc_results (Reg.typv rd) in
+               let spacetime_reg =
+                 self#about_to_emit_call env (Iop new_op) [| r1.(0) |] dbg
+               in
+@@ -750,8 +750,8 @@ method emit_expr (env:environment) exp =
+           | Icall_imm _ ->
+               let r1 = self#emit_tuple env new_args in
+               let rd = self#regs_for ty in
+-              let (loc_arg, stack_ofs) = Proc.loc_arguments r1 in
+-              let loc_res = Proc.loc_results rd in
++              let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv r1) in
++              let loc_res = Proc.loc_results (Reg.typv rd) in
+               let spacetime_reg =
+                 self#about_to_emit_call env (Iop new_op) [| |] dbg
+               in
+@@ -760,16 +760,16 @@ method emit_expr (env:environment) exp =
+               self#insert_debug env (Iop new_op) dbg loc_arg loc_res;
+               self#insert_move_results env loc_res rd stack_ofs;
+               Some rd
+-          | Iextcall _ ->
++          | Iextcall { ty_args; _} ->
+               let spacetime_reg =
+-                self#about_to_emit_call env (Iop new_op) [| |] dbg
+-              in
+-              let (loc_arg, stack_ofs) = self#emit_extcall_args env new_args in
++                self#about_to_emit_call env (Iop new_op) [| |] dbg in
++              let (loc_arg, stack_ofs) =
++                self#emit_extcall_args env ty_args new_args in
+               self#maybe_emit_spacetime_move env ~spacetime_reg;
+               let rd = self#regs_for ty in
+               let loc_res =
+                 self#insert_op_debug env new_op dbg
+-                  loc_arg (Proc.loc_external_results rd) in
++                  loc_arg (Proc.loc_external_results (Reg.typv rd)) in
+               self#insert_move_results env loc_res rd stack_ofs;
+               Some rd
+           | Ialloc { bytes = _; spacetime_index; label_after_call_gc; } ->
+@@ -1008,19 +1008,26 @@ method private emit_tuple_not_flattened env exp_list =
+ method private emit_tuple env exp_list =
+   Array.concat (self#emit_tuple_not_flattened env exp_list)
+ 
+-method emit_extcall_args env args =
++method emit_extcall_args env ty_args args =
+   let args = self#emit_tuple_not_flattened env args in
+-  let arg_hard_regs, stack_ofs =
+-    Proc.loc_external_arguments (Array.of_list args)
+-  in
+-  (* Flattening [args] and [arg_hard_regs] causes parts of values split
+-     across multiple registers to line up correctly, by virtue of the
+-     semantics of [split_int64_for_32bit_target] in cmmgen.ml, and the
+-     required semantics of [loc_external_arguments] (see proc.mli). *)
+-  let args = Array.concat args in
+-  let arg_hard_regs = Array.concat (Array.to_list arg_hard_regs) in
+-  self#insert_move_args env args arg_hard_regs stack_ofs;
+-  arg_hard_regs, stack_ofs
++  let ty_args =
++    if ty_args = [] then List.map (fun _ -> XInt) args else ty_args in
++  let locs, stack_ofs = Proc.loc_external_arguments ty_args in
++  let ty_args = Array.of_list ty_args in
++  if stack_ofs <> 0 then
++    self#insert env (Iop(Istackoffset stack_ofs)) [||] [||];
++  List.iteri
++    (fun i arg ->
++      self#insert_move_extcall_arg env ty_args.(i) arg locs.(i))
++    args;
++  Array.concat (Array.to_list locs), stack_ofs
++
++method insert_move_extcall_arg env _ty_arg src dst =
++  (* The default implementation is one or two ordinary moves.
++     (Two in the case of an int64 argument on a 32-bit platform.)
++     It can be overriden to use special move instructions,
++     for example a "32-bit move" instruction for int32 arguments. *)
++  self#insert_moves env src dst
+ 
+ method emit_stores env data regs_addr =
+   let a =
+@@ -1052,7 +1059,7 @@ method private emit_return (env:environment) exp =
+   match self#emit_expr env exp with
+     None -> ()
+   | Some r ->
+-      let loc = Proc.loc_results r in
++      let loc = Proc.loc_results (Reg.typv r) in
+       self#insert_moves env r loc;
+       self#insert env Ireturn loc [||]
+ 
+@@ -1074,7 +1081,7 @@ method emit_tail (env:environment) exp =
+             Icall_ind { label_after; } ->
+               let r1 = self#emit_tuple env new_args in
+               let rarg = Array.sub r1 1 (Array.length r1 - 1) in
+-              let (loc_arg, stack_ofs) = Proc.loc_arguments rarg in
++              let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv rarg) in
+               if stack_ofs = 0 then begin
+                 let call = Iop (Itailcall_ind { label_after; }) in
+                 let spacetime_reg =
+@@ -1086,7 +1093,7 @@ method emit_tail (env:environment) exp =
+                             (Array.append [|r1.(0)|] loc_arg) [||];
+               end else begin
+                 let rd = self#regs_for ty in
+-                let loc_res = Proc.loc_results rd in
++                let loc_res = Proc.loc_results (Reg.typv rd) in
+                 let spacetime_reg =
+                   self#about_to_emit_call env (Iop new_op) [| r1.(0) |] dbg
+                 in
+@@ -1099,7 +1106,7 @@ method emit_tail (env:environment) exp =
+               end
+           | Icall_imm { func; label_after; } ->
+               let r1 = self#emit_tuple env new_args in
+-              let (loc_arg, stack_ofs) = Proc.loc_arguments r1 in
++              let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv r1) in
+               if stack_ofs = 0 then begin
+                 let call = Iop (Itailcall_imm { func; label_after; }) in
+                 let spacetime_reg =
+@@ -1110,7 +1117,7 @@ method emit_tail (env:environment) exp =
+                 self#insert_debug env call dbg loc_arg [||];
+               end else if func = !current_function_name then begin
+                 let call = Iop (Itailcall_imm { func; label_after; }) in
+-                let loc_arg' = Proc.loc_parameters r1 in
++                let loc_arg' = Proc.loc_parameters (Reg.typv r1) in
+                 let spacetime_reg =
+                   self#about_to_emit_call env call [| |] dbg
+                 in
+@@ -1119,7 +1126,7 @@ method emit_tail (env:environment) exp =
+                 self#insert_debug env call dbg loc_arg' [||];
+               end else begin
+                 let rd = self#regs_for ty in
+-                let loc_res = Proc.loc_results rd in
++                let loc_res = Proc.loc_results (Reg.typv rd) in
+                 let spacetime_reg =
+                   self#about_to_emit_call env (Iop new_op) [| |] dbg
+                 in
+@@ -1194,7 +1201,7 @@ method emit_tail (env:environment) exp =
+       begin match opt_r1 with
+         None -> ()
+       | Some r1 ->
+-          let loc = Proc.loc_results r1 in
++          let loc = Proc.loc_results (Reg.typv r1) in
+           self#insert_moves env r1 loc;
+           self#insert env Ireturn loc [||]
+       end
+@@ -1223,7 +1230,7 @@ method emit_fundecl f =
+       (fun (id, ty) -> let r = self#regs_for ty in name_regs id r; r)
+       f.Cmm.fun_args in
+   let rarg = Array.concat rargs in
+-  let loc_arg = Proc.loc_parameters rarg in
++  let loc_arg = Proc.loc_parameters (Reg.typv rarg) in
+   (* To make it easier to add the Spacetime instrumentation code, we
+      first emit the body and extract the resulting instruction sequence;
+      then we emit the prologue followed by any Spacetime instrumentation.  The
+@@ -1267,9 +1274,8 @@ end
+ *)
+ 
+ let is_tail_call nargs =
+-  assert (Reg.dummy.typ = Int);
+-  let args = Array.make (nargs + 1) Reg.dummy in
+-  let (_loc_arg, stack_ofs) = Proc.loc_arguments args in
++  let ty = Array.make (nargs + 1) Int in
++  let (_loc_arg, stack_ofs) = Proc.loc_arguments ty in
+   stack_ofs = 0
+ 
+ let _ =
+diff --git a/asmcomp/selectgen.mli b/asmcomp/selectgen.mli
+index f3c734f..f443f62 100644
+--- a/asmcomp/selectgen.mli
++++ b/asmcomp/selectgen.mli
+@@ -96,8 +96,13 @@ class virtual selector_generic : object
+       -> Reg.t array -> Reg.t array
+     (* Can be overridden to deal with 2-address instructions
+        or instructions with hardwired input/output registers *)
++  method insert_move_extcall_arg :
++    environment -> Cmm.exttype -> Reg.t array -> Reg.t array -> unit
++    (* Can be overriden to deal with unusual unboxed calling conventions,
++       e.g. on a 64-bit platform, passing unboxed 32-bit arguments
++       in 32-bit stack slots. *)
+   method emit_extcall_args :
+-    environment -> Cmm.expression list -> Reg.t array * int
++    environment -> Cmm.exttype list -> Cmm.expression list -> Reg.t array * int
+     (* Can be overridden to deal with stack-based calling conventions *)
+   method emit_stores :
+     environment -> Cmm.expression list -> Reg.t array -> unit
+diff --git a/asmcomp/spacetime_profiling.ml b/asmcomp/spacetime_profiling.ml
+index a61cd1c..81a82ae 100644
+--- a/asmcomp/spacetime_profiling.ml
++++ b/asmcomp/spacetime_profiling.ml
+@@ -111,7 +111,7 @@ let code_for_function_prologue ~function_name ~fun_dbg:dbg ~node_hole =
+           Clet (VP.create is_new_node,
+             Clet (VP.create pc, cconst_symbol function_name,
+               Cop (Cextcall ("caml_spacetime_allocate_node",
+-                  [| Int |], false, None),
++                  typ_int, [], false, None),
+                 [cconst_int (1 (* header *) + !index_within_node);
+                 Cvar pc;
+                 Cvar node_hole;
+@@ -151,7 +151,7 @@ let code_for_blockheader ~value's_header ~node ~dbg =
+        the latter table to be used for resolving a program counter at such
+        a point to a location.
+     *)
+-    Cop (Cextcall ("caml_spacetime_generate_profinfo", [| Int |],
++    Cop (Cextcall ("caml_spacetime_generate_profinfo", typ_int, [],
+         false, Some label),
+       [Cvar address_of_profinfo;
+        cconst_int (index_within_node + 1)],
+@@ -272,7 +272,7 @@ let code_for_call ~node ~callee ~is_tail ~label dbg =
+         else cconst_int 1  (* [Val_unit] *)
+       in
+       Cop (Cextcall ("caml_spacetime_indirect_node_hole_ptr",
+-          [| Int |], false, None),
++           typ_int, [], false, None),
+         [callee; Cvar place_within_node; caller_node],
+         dbg))
+ 
+@@ -336,7 +336,7 @@ class virtual instruction_selection = object (self)
+         assert (Array.length arg = 1);
+         self#instrument_indirect_call ~env ~callee:arg.(0)
+           ~is_tail:true ~label_after dbg
+-      | M.Iop (M.Iextcall { func; alloc = true; label_after; }) ->
++      | M.Iop (M.Iextcall { func; alloc = true; label_after; _}) ->
+         (* N.B. No need to instrument "noalloc" external calls. *)
+         assert (Array.length arg = 0);
+         self#instrument_direct_call ~env ~func ~is_tail:false ~label_after dbg
+diff --git a/build-aux/config.guess b/build-aux/config.guess
+index f50dcdb..e94095c 100755
+--- a/build-aux/config.guess
++++ b/build-aux/config.guess
+@@ -1,8 +1,8 @@
+ #! /bin/sh
+ # Attempt to guess a canonical system name.
+-#   Copyright 1992-2018 Free Software Foundation, Inc.
++#   Copyright 1992-2020 Free Software Foundation, Inc.
+ 
+-timestamp='2018-02-24'
++timestamp='2020-07-12'
+ 
+ # This file is free software; you can redistribute it and/or modify it
+ # under the terms of the GNU General Public License as published by
+@@ -50,7 +50,7 @@ version="\
+ GNU config.guess ($timestamp)
+ 
+ Originally written by Per Bothner.
+-Copyright 1992-2018 Free Software Foundation, Inc.
++Copyright 1992-2020 Free Software Foundation, Inc.
+ 
+ This is free software; see the source for copying conditions.  There is NO
+ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+@@ -84,8 +84,6 @@ if test $# != 0; then
+   exit 1
+ fi
+ 
+-trap 'exit 1' 1 2 15
+-
+ # CC_FOR_BUILD -- compiler used by this script. Note that the use of a
+ # compiler to aid in system detection is discouraged as it requires
+ # temporary files to be created and, as you can see below, it is a
+@@ -96,34 +94,40 @@ trap 'exit 1' 1 2 15
+ 
+ # Portable tmp directory creation inspired by the Autoconf team.
+ 
+-set_cc_for_build='
+-trap "exitcode=\$?; (rm -f \$tmpfiles 2>/dev/null; rmdir \$tmp 2>/dev/null) && exit \$exitcode" 0 ;
+-trap "rm -f \$tmpfiles 2>/dev/null; rmdir \$tmp 2>/dev/null; exit 1" 1 2 13 15 ;
+-: ${TMPDIR=/tmp} ;
+- { tmp=`(umask 077 && mktemp -d "$TMPDIR/cgXXXXXX") 2>/dev/null` && test -n "$tmp" && test -d "$tmp" ; } ||
+- { test -n "$RANDOM" && tmp=$TMPDIR/cg$$-$RANDOM && (umask 077 && mkdir $tmp) ; } ||
+- { tmp=$TMPDIR/cg-$$ && (umask 077 && mkdir $tmp) && echo "Warning: creating insecure temp directory" >&2 ; } ||
+- { echo "$me: cannot create a temporary directory in $TMPDIR" >&2 ; exit 1 ; } ;
+-dummy=$tmp/dummy ;
+-tmpfiles="$dummy.c $dummy.o $dummy.rel $dummy" ;
+-case $CC_FOR_BUILD,$HOST_CC,$CC in
+- ,,)    echo "int x;" > "$dummy.c" ;
+-	for c in cc gcc c89 c99 ; do
+-	  if ($c -c -o "$dummy.o" "$dummy.c") >/dev/null 2>&1 ; then
+-	     CC_FOR_BUILD="$c"; break ;
+-	  fi ;
+-	done ;
+-	if test x"$CC_FOR_BUILD" = x ; then
+-	  CC_FOR_BUILD=no_compiler_found ;
+-	fi
+-	;;
+- ,,*)   CC_FOR_BUILD=$CC ;;
+- ,*,*)  CC_FOR_BUILD=$HOST_CC ;;
+-esac ; set_cc_for_build= ;'
++tmp=
++# shellcheck disable=SC2172
++trap 'test -z "$tmp" || rm -fr "$tmp"' 0 1 2 13 15
++
++set_cc_for_build() {
++    # prevent multiple calls if $tmp is already set
++    test "$tmp" && return 0
++    : "${TMPDIR=/tmp}"
++    # shellcheck disable=SC2039
++    { tmp=`(umask 077 && mktemp -d "$TMPDIR/cgXXXXXX") 2>/dev/null` && test -n "$tmp" && test -d "$tmp" ; } ||
++	{ test -n "$RANDOM" && tmp=$TMPDIR/cg$$-$RANDOM && (umask 077 && mkdir "$tmp" 2>/dev/null) ; } ||
++	{ tmp=$TMPDIR/cg-$$ && (umask 077 && mkdir "$tmp" 2>/dev/null) && echo "Warning: creating insecure temp directory" >&2 ; } ||
++	{ echo "$me: cannot create a temporary directory in $TMPDIR" >&2 ; exit 1 ; }
++    dummy=$tmp/dummy
++    case ${CC_FOR_BUILD-},${HOST_CC-},${CC-} in
++	,,)    echo "int x;" > "$dummy.c"
++	       for driver in cc gcc c89 c99 ; do
++		   if ($driver -c -o "$dummy.o" "$dummy.c") >/dev/null 2>&1 ; then
++		       CC_FOR_BUILD="$driver"
++		       break
++		   fi
++	       done
++	       if test x"$CC_FOR_BUILD" = x ; then
++		   CC_FOR_BUILD=no_compiler_found
++	       fi
++	       ;;
++	,,*)   CC_FOR_BUILD=$CC ;;
++	,*,*)  CC_FOR_BUILD=$HOST_CC ;;
++    esac
++}
+ 
+ # This is needed to find uname on a Pyramid OSx when run in the BSD universe.
+ # (ghazi@noc.rutgers.edu 1994-08-24)
+-if (test -f /.attbin/uname) >/dev/null 2>&1 ; then
++if test -f /.attbin/uname ; then
+ 	PATH=$PATH:/.attbin ; export PATH
+ fi
+ 
+@@ -138,7 +142,7 @@ Linux|GNU|GNU/*)
+ 	# We could probably try harder.
+ 	LIBC=gnu
+ 
+-	eval "$set_cc_for_build"
++	set_cc_for_build
+ 	cat <<-EOF > "$dummy.c"
+ 	#include <features.h>
+ 	#if defined(__UCLIBC__)
+@@ -199,7 +203,7 @@ case "$UNAME_MACHINE:$UNAME_SYSTEM:$UNAME_RELEASE:$UNAME_VERSION" in
+ 		os=netbsdelf
+ 		;;
+ 	    arm*|i386|m68k|ns32k|sh3*|sparc|vax)
+-		eval "$set_cc_for_build"
++		set_cc_for_build
+ 		if echo __ELF__ | $CC_FOR_BUILD -E - 2>/dev/null \
+ 			| grep -q __ELF__
+ 		then
+@@ -237,7 +241,7 @@ case "$UNAME_MACHINE:$UNAME_SYSTEM:$UNAME_RELEASE:$UNAME_VERSION" in
+ 	# Since CPU_TYPE-MANUFACTURER-KERNEL-OPERATING_SYSTEM:
+ 	# contains redundant information, the shorter form:
+ 	# CPU_TYPE-MANUFACTURER-OPERATING_SYSTEM is used.
+-	echo "$machine-${os}${release}${abi}"
++	echo "$machine-${os}${release}${abi-}"
+ 	exit ;;
+     *:Bitrig:*:*)
+ 	UNAME_MACHINE_ARCH=`arch | sed 's/Bitrig.//'`
+@@ -260,6 +264,9 @@ case "$UNAME_MACHINE:$UNAME_SYSTEM:$UNAME_RELEASE:$UNAME_VERSION" in
+     *:SolidBSD:*:*)
+ 	echo "$UNAME_MACHINE"-unknown-solidbsd"$UNAME_RELEASE"
+ 	exit ;;
++    *:OS108:*:*)
++	echo "$UNAME_MACHINE"-unknown-os108_"$UNAME_RELEASE"
++	exit ;;
+     macppc:MirBSD:*:*)
+ 	echo powerpc-unknown-mirbsd"$UNAME_RELEASE"
+ 	exit ;;
+@@ -269,12 +276,15 @@ case "$UNAME_MACHINE:$UNAME_SYSTEM:$UNAME_RELEASE:$UNAME_VERSION" in
+     *:Sortix:*:*)
+ 	echo "$UNAME_MACHINE"-unknown-sortix
+ 	exit ;;
++    *:Twizzler:*:*)
++	echo "$UNAME_MACHINE"-unknown-twizzler
++	exit ;;
+     *:Redox:*:*)
+ 	echo "$UNAME_MACHINE"-unknown-redox
+ 	exit ;;
+     mips:OSF1:*.*)
+-        echo mips-dec-osf1
+-        exit ;;
++	echo mips-dec-osf1
++	exit ;;
+     alpha:OSF1:*:*)
+ 	case $UNAME_RELEASE in
+ 	*4.0)
+@@ -389,7 +399,7 @@ case "$UNAME_MACHINE:$UNAME_SYSTEM:$UNAME_RELEASE:$UNAME_VERSION" in
+ 	echo i386-pc-auroraux"$UNAME_RELEASE"
+ 	exit ;;
+     i86pc:SunOS:5.*:* | i86xen:SunOS:5.*:*)
+-	eval "$set_cc_for_build"
++	set_cc_for_build
+ 	SUN_ARCH=i386
+ 	# If there is a compiler, see if it is configured for 64-bit objects.
+ 	# Note that the Sun cc does not turn __LP64__ into 1 like gcc does.
+@@ -482,7 +492,7 @@ case "$UNAME_MACHINE:$UNAME_SYSTEM:$UNAME_RELEASE:$UNAME_VERSION" in
+ 	echo clipper-intergraph-clix"$UNAME_RELEASE"
+ 	exit ;;
+     mips:*:*:UMIPS | mips:*:*:RISCos)
+-	eval "$set_cc_for_build"
++	set_cc_for_build
+ 	sed 's/^	//' << EOF > "$dummy.c"
+ #ifdef __cplusplus
+ #include <stdio.h>  /* for printf() prototype */
+@@ -579,7 +589,7 @@ EOF
+ 	exit ;;
+     *:AIX:2:3)
+ 	if grep bos325 /usr/include/stdio.h >/dev/null 2>&1; then
+-		eval "$set_cc_for_build"
++		set_cc_for_build
+ 		sed 's/^		//' << EOF > "$dummy.c"
+ 		#include <sys/systemcfg.h>
+ 
+@@ -660,7 +670,7 @@ EOF
+ 		    esac
+ 		fi
+ 		if [ "$HP_ARCH" = "" ]; then
+-		    eval "$set_cc_for_build"
++		    set_cc_for_build
+ 		    sed 's/^		//' << EOF > "$dummy.c"
+ 
+ 		#define _HPUX_SOURCE
+@@ -700,7 +710,7 @@ EOF
+ 	esac
+ 	if [ "$HP_ARCH" = hppa2.0w ]
+ 	then
+-	    eval "$set_cc_for_build"
++	    set_cc_for_build
+ 
+ 	    # hppa2.0w-hp-hpux* has a 64-bit kernel and a compiler generating
+ 	    # 32-bit code.  hppa64-hp-hpux* has the same kernel and a compiler
+@@ -726,7 +736,7 @@ EOF
+ 	echo ia64-hp-hpux"$HPUX_REV"
+ 	exit ;;
+     3050*:HI-UX:*:*)
+-	eval "$set_cc_for_build"
++	set_cc_for_build
+ 	sed 's/^	//' << EOF > "$dummy.c"
+ 	#include <unistd.h>
+ 	int
+@@ -840,6 +850,17 @@ EOF
+     *:BSD/OS:*:*)
+ 	echo "$UNAME_MACHINE"-unknown-bsdi"$UNAME_RELEASE"
+ 	exit ;;
++    arm:FreeBSD:*:*)
++	UNAME_PROCESSOR=`uname -p`
++	set_cc_for_build
++	if echo __ARM_PCS_VFP | $CC_FOR_BUILD -E - 2>/dev/null \
++	    | grep -q __ARM_PCS_VFP
++	then
++	    echo "${UNAME_PROCESSOR}"-unknown-freebsd"`echo ${UNAME_RELEASE}|sed -e 's/[-(].*//'`"-gnueabi
++	else
++	    echo "${UNAME_PROCESSOR}"-unknown-freebsd"`echo ${UNAME_RELEASE}|sed -e 's/[-(].*//'`"-gnueabihf
++	fi
++	exit ;;
+     *:FreeBSD:*:*)
+ 	UNAME_PROCESSOR=`/usr/bin/uname -p`
+ 	case "$UNAME_PROCESSOR" in
+@@ -881,7 +902,7 @@ EOF
+ 	echo "$UNAME_MACHINE"-pc-uwin
+ 	exit ;;
+     amd64:CYGWIN*:*:* | x86_64:CYGWIN*:*:*)
+-	echo x86_64-unknown-cygwin
++	echo x86_64-pc-cygwin
+ 	exit ;;
+     prep*:SunOS:5.*:*)
+ 	echo powerpcle-unknown-solaris2"`echo "$UNAME_RELEASE"|sed -e 's/[^.]*//'`"
+@@ -894,8 +915,8 @@ EOF
+ 	# other systems with GNU libc and userland
+ 	echo "$UNAME_MACHINE-unknown-`echo "$UNAME_SYSTEM" | sed 's,^[^/]*/,,' | tr "[:upper:]" "[:lower:]"``echo "$UNAME_RELEASE"|sed -e 's/[-(].*//'`-$LIBC"
+ 	exit ;;
+-    i*86:Minix:*:*)
+-	echo "$UNAME_MACHINE"-pc-minix
++    *:Minix:*:*)
++	echo "$UNAME_MACHINE"-unknown-minix
+ 	exit ;;
+     aarch64:Linux:*:*)
+ 	echo "$UNAME_MACHINE"-unknown-linux-"$LIBC"
+@@ -905,7 +926,7 @@ EOF
+ 	echo "$UNAME_MACHINE"-unknown-linux-"$LIBC"
+ 	exit ;;
+     alpha:Linux:*:*)
+-	case `sed -n '/^cpu model/s/^.*: \(.*\)/\1/p' < /proc/cpuinfo` in
++	case `sed -n '/^cpu model/s/^.*: \(.*\)/\1/p' /proc/cpuinfo 2>/dev/null` in
+ 	  EV5)   UNAME_MACHINE=alphaev5 ;;
+ 	  EV56)  UNAME_MACHINE=alphaev56 ;;
+ 	  PCA56) UNAME_MACHINE=alphapca56 ;;
+@@ -922,7 +943,7 @@ EOF
+ 	echo "$UNAME_MACHINE"-unknown-linux-"$LIBC"
+ 	exit ;;
+     arm*:Linux:*:*)
+-	eval "$set_cc_for_build"
++	set_cc_for_build
+ 	if echo __ARM_EABI__ | $CC_FOR_BUILD -E - 2>/dev/null \
+ 	    | grep -q __ARM_EABI__
+ 	then
+@@ -971,23 +992,51 @@ EOF
+ 	echo "$UNAME_MACHINE"-unknown-linux-"$LIBC"
+ 	exit ;;
+     mips:Linux:*:* | mips64:Linux:*:*)
+-	eval "$set_cc_for_build"
++	set_cc_for_build
++	IS_GLIBC=0
++	test x"${LIBC}" = xgnu && IS_GLIBC=1
+ 	sed 's/^	//' << EOF > "$dummy.c"
+ 	#undef CPU
+-	#undef ${UNAME_MACHINE}
+-	#undef ${UNAME_MACHINE}el
++	#undef mips
++	#undef mipsel
++	#undef mips64
++	#undef mips64el
++	#if ${IS_GLIBC} && defined(_ABI64)
++	LIBCABI=gnuabi64
++	#else
++	#if ${IS_GLIBC} && defined(_ABIN32)
++	LIBCABI=gnuabin32
++	#else
++	LIBCABI=${LIBC}
++	#endif
++	#endif
++
++	#if ${IS_GLIBC} && defined(__mips64) && defined(__mips_isa_rev) && __mips_isa_rev>=6
++	CPU=mipsisa64r6
++	#else
++	#if ${IS_GLIBC} && !defined(__mips64) && defined(__mips_isa_rev) && __mips_isa_rev>=6
++	CPU=mipsisa32r6
++	#else
++	#if defined(__mips64)
++	CPU=mips64
++	#else
++	CPU=mips
++	#endif
++	#endif
++	#endif
++
+ 	#if defined(__MIPSEL__) || defined(__MIPSEL) || defined(_MIPSEL) || defined(MIPSEL)
+-	CPU=${UNAME_MACHINE}el
++	MIPS_ENDIAN=el
+ 	#else
+ 	#if defined(__MIPSEB__) || defined(__MIPSEB) || defined(_MIPSEB) || defined(MIPSEB)
+-	CPU=${UNAME_MACHINE}
++	MIPS_ENDIAN=
+ 	#else
+-	CPU=
++	MIPS_ENDIAN=
+ 	#endif
+ 	#endif
+ EOF
+-	eval "`$CC_FOR_BUILD -E "$dummy.c" 2>/dev/null | grep '^CPU'`"
+-	test "x$CPU" != x && { echo "$CPU-unknown-linux-$LIBC"; exit; }
++	eval "`$CC_FOR_BUILD -E "$dummy.c" 2>/dev/null | grep '^CPU\|^MIPS_ENDIAN\|^LIBCABI'`"
++	test "x$CPU" != x && { echo "$CPU${MIPS_ENDIAN}-unknown-linux-$LIBCABI"; exit; }
+ 	;;
+     mips64el:Linux:*:*)
+ 	echo "$UNAME_MACHINE"-unknown-linux-"$LIBC"
+@@ -1046,11 +1095,17 @@ EOF
+ 	echo "$UNAME_MACHINE"-dec-linux-"$LIBC"
+ 	exit ;;
+     x86_64:Linux:*:*)
+-	if objdump -f /bin/sh | grep -q elf32-x86-64; then
+-	    echo "$UNAME_MACHINE"-pc-linux-"$LIBC"x32
+-	else
+-	    echo "$UNAME_MACHINE"-pc-linux-"$LIBC"
++	set_cc_for_build
++	LIBCABI=$LIBC
++	if [ "$CC_FOR_BUILD" != no_compiler_found ]; then
++	    if (echo '#ifdef __ILP32__'; echo IS_X32; echo '#endif') | \
++		(CCOPTS="" $CC_FOR_BUILD -E - 2>/dev/null) | \
++		grep IS_X32 >/dev/null
++	    then
++		LIBCABI="$LIBC"x32
++	    fi
+ 	fi
++	echo "$UNAME_MACHINE"-pc-linux-"$LIBCABI"
+ 	exit ;;
+     xtensa*:Linux:*:*)
+ 	echo "$UNAME_MACHINE"-unknown-linux-"$LIBC"
+@@ -1104,7 +1159,7 @@ EOF
+ 	    *Pentium)	     UNAME_MACHINE=i586 ;;
+ 	    *Pent*|*Celeron) UNAME_MACHINE=i686 ;;
+ 	esac
+-	echo "$UNAME_MACHINE-unknown-sysv${UNAME_RELEASE}${UNAME_SYSTEM}{$UNAME_VERSION}"
++	echo "$UNAME_MACHINE-unknown-sysv${UNAME_RELEASE}${UNAME_SYSTEM}${UNAME_VERSION}"
+ 	exit ;;
+     i*86:*:3.2:*)
+ 	if test -f /usr/options/cb.name; then
+@@ -1287,39 +1342,43 @@ EOF
+     *:Rhapsody:*:*)
+ 	echo "$UNAME_MACHINE"-apple-rhapsody"$UNAME_RELEASE"
+ 	exit ;;
++    arm64:Darwin:*:*)
++	echo aarch64-apple-darwin"$UNAME_RELEASE"
++	exit ;;
+     *:Darwin:*:*)
+-	UNAME_PROCESSOR=`uname -p` || UNAME_PROCESSOR=unknown
+-	eval "$set_cc_for_build"
+-	if test "$UNAME_PROCESSOR" = unknown ; then
+-	    UNAME_PROCESSOR=powerpc
++	UNAME_PROCESSOR=`uname -p`
++	case $UNAME_PROCESSOR in
++	    unknown) UNAME_PROCESSOR=powerpc ;;
++	esac
++	if command -v xcode-select > /dev/null 2> /dev/null && \
++		! xcode-select --print-path > /dev/null 2> /dev/null ; then
++	    # Avoid executing cc if there is no toolchain installed as
++	    # cc will be a stub that puts up a graphical alert
++	    # prompting the user to install developer tools.
++	    CC_FOR_BUILD=no_compiler_found
++	else
++	    set_cc_for_build
+ 	fi
+-	if test "`echo "$UNAME_RELEASE" | sed -e 's/\..*//'`" -le 10 ; then
+-	    if [ "$CC_FOR_BUILD" != no_compiler_found ]; then
+-		if (echo '#ifdef __LP64__'; echo IS_64BIT_ARCH; echo '#endif') | \
+-		       (CCOPTS="" $CC_FOR_BUILD -E - 2>/dev/null) | \
+-		       grep IS_64BIT_ARCH >/dev/null
+-		then
+-		    case $UNAME_PROCESSOR in
+-			i386) UNAME_PROCESSOR=x86_64 ;;
+-			powerpc) UNAME_PROCESSOR=powerpc64 ;;
+-		    esac
+-		fi
+-		# On 10.4-10.6 one might compile for PowerPC via gcc -arch ppc
+-		if (echo '#ifdef __POWERPC__'; echo IS_PPC; echo '#endif') | \
+-		       (CCOPTS="" $CC_FOR_BUILD -E - 2>/dev/null) | \
+-		       grep IS_PPC >/dev/null
+-		then
+-		    UNAME_PROCESSOR=powerpc
+-		fi
++	if [ "$CC_FOR_BUILD" != no_compiler_found ]; then
++	    if (echo '#ifdef __LP64__'; echo IS_64BIT_ARCH; echo '#endif') | \
++		   (CCOPTS="" $CC_FOR_BUILD -E - 2>/dev/null) | \
++		   grep IS_64BIT_ARCH >/dev/null
++	    then
++		case $UNAME_PROCESSOR in
++		    i386) UNAME_PROCESSOR=x86_64 ;;
++		    powerpc) UNAME_PROCESSOR=powerpc64 ;;
++		esac
++	    fi
++	    # On 10.4-10.6 one might compile for PowerPC via gcc -arch ppc
++	    if (echo '#ifdef __POWERPC__'; echo IS_PPC; echo '#endif') | \
++		   (CCOPTS="" $CC_FOR_BUILD -E - 2>/dev/null) | \
++		   grep IS_PPC >/dev/null
++	    then
++		UNAME_PROCESSOR=powerpc
+ 	    fi
+ 	elif test "$UNAME_PROCESSOR" = i386 ; then
+-	    # Avoid executing cc on OS X 10.9, as it ships with a stub
+-	    # that puts up a graphical alert prompting to install
+-	    # developer tools.  Any system running Mac OS X 10.7 or
+-	    # later (Darwin 11 and later) is required to have a 64-bit
+-	    # processor. This is not true of the ARM version of Darwin
+-	    # that Apple uses in portable devices.
+-	    UNAME_PROCESSOR=x86_64
++	    # uname -m returns i386 or x86_64
++	    UNAME_PROCESSOR=$UNAME_MACHINE
+ 	fi
+ 	echo "$UNAME_PROCESSOR"-apple-darwin"$UNAME_RELEASE"
+ 	exit ;;
+@@ -1362,6 +1421,7 @@ EOF
+ 	# "uname -m" is not consistent, so use $cputype instead. 386
+ 	# is converted to i386 for consistency with other x86
+ 	# operating systems.
++	# shellcheck disable=SC2154
+ 	if test "$cputype" = 386; then
+ 	    UNAME_MACHINE=i386
+ 	else
+@@ -1418,8 +1478,148 @@ EOF
+     amd64:Isilon\ OneFS:*:*)
+ 	echo x86_64-unknown-onefs
+ 	exit ;;
++    *:Unleashed:*:*)
++	echo "$UNAME_MACHINE"-unknown-unleashed"$UNAME_RELEASE"
++	exit ;;
+ esac
+ 
++# No uname command or uname output not recognized.
++set_cc_for_build
++cat > "$dummy.c" <<EOF
++#ifdef _SEQUENT_
++#include <sys/types.h>
++#include <sys/utsname.h>
++#endif
++#if defined(ultrix) || defined(_ultrix) || defined(__ultrix) || defined(__ultrix__)
++#if defined (vax) || defined (__vax) || defined (__vax__) || defined(mips) || defined(__mips) || defined(__mips__) || defined(MIPS) || defined(__MIPS__)
++#include <signal.h>
++#if defined(_SIZE_T_) || defined(SIGLOST)
++#include <sys/utsname.h>
++#endif
++#endif
++#endif
++main ()
++{
++#if defined (sony)
++#if defined (MIPSEB)
++  /* BFD wants "bsd" instead of "newsos".  Perhaps BFD should be changed,
++     I don't know....  */
++  printf ("mips-sony-bsd\n"); exit (0);
++#else
++#include <sys/param.h>
++  printf ("m68k-sony-newsos%s\n",
++#ifdef NEWSOS4
++  "4"
++#else
++  ""
++#endif
++  ); exit (0);
++#endif
++#endif
++
++#if defined (NeXT)
++#if !defined (__ARCHITECTURE__)
++#define __ARCHITECTURE__ "m68k"
++#endif
++  int version;
++  version=`(hostinfo | sed -n 's/.*NeXT Mach \([0-9]*\).*/\1/p') 2>/dev/null`;
++  if (version < 4)
++    printf ("%s-next-nextstep%d\n", __ARCHITECTURE__, version);
++  else
++    printf ("%s-next-openstep%d\n", __ARCHITECTURE__, version);
++  exit (0);
++#endif
++
++#if defined (MULTIMAX) || defined (n16)
++#if defined (UMAXV)
++  printf ("ns32k-encore-sysv\n"); exit (0);
++#else
++#if defined (CMU)
++  printf ("ns32k-encore-mach\n"); exit (0);
++#else
++  printf ("ns32k-encore-bsd\n"); exit (0);
++#endif
++#endif
++#endif
++
++#if defined (__386BSD__)
++  printf ("i386-pc-bsd\n"); exit (0);
++#endif
++
++#if defined (sequent)
++#if defined (i386)
++  printf ("i386-sequent-dynix\n"); exit (0);
++#endif
++#if defined (ns32000)
++  printf ("ns32k-sequent-dynix\n"); exit (0);
++#endif
++#endif
++
++#if defined (_SEQUENT_)
++  struct utsname un;
++
++  uname(&un);
++  if (strncmp(un.version, "V2", 2) == 0) {
++    printf ("i386-sequent-ptx2\n"); exit (0);
++  }
++  if (strncmp(un.version, "V1", 2) == 0) { /* XXX is V1 correct? */
++    printf ("i386-sequent-ptx1\n"); exit (0);
++  }
++  printf ("i386-sequent-ptx\n"); exit (0);
++#endif
++
++#if defined (vax)
++#if !defined (ultrix)
++#include <sys/param.h>
++#if defined (BSD)
++#if BSD == 43
++  printf ("vax-dec-bsd4.3\n"); exit (0);
++#else
++#if BSD == 199006
++  printf ("vax-dec-bsd4.3reno\n"); exit (0);
++#else
++  printf ("vax-dec-bsd\n"); exit (0);
++#endif
++#endif
++#else
++  printf ("vax-dec-bsd\n"); exit (0);
++#endif
++#else
++#if defined(_SIZE_T_) || defined(SIGLOST)
++  struct utsname un;
++  uname (&un);
++  printf ("vax-dec-ultrix%s\n", un.release); exit (0);
++#else
++  printf ("vax-dec-ultrix\n"); exit (0);
++#endif
++#endif
++#endif
++#if defined(ultrix) || defined(_ultrix) || defined(__ultrix) || defined(__ultrix__)
++#if defined(mips) || defined(__mips) || defined(__mips__) || defined(MIPS) || defined(__MIPS__)
++#if defined(_SIZE_T_) || defined(SIGLOST)
++  struct utsname *un;
++  uname (&un);
++  printf ("mips-dec-ultrix%s\n", un.release); exit (0);
++#else
++  printf ("mips-dec-ultrix\n"); exit (0);
++#endif
++#endif
++#endif
++
++#if defined (alliant) && defined (i860)
++  printf ("i860-alliant-bsd\n"); exit (0);
++#endif
++
++  exit (1);
++}
++EOF
++
++$CC_FOR_BUILD -o "$dummy" "$dummy.c" 2>/dev/null && SYSTEM_NAME=`$dummy` &&
++	{ echo "$SYSTEM_NAME"; exit; }
++
++# Apollos put the system type in the environment.
++test -d /usr/apollo && { echo "$ISP-apollo-$SYSTYPE"; exit; }
++
+ echo "$0: unable to guess system type" >&2
+ 
+ case "$UNAME_MACHINE:$UNAME_SYSTEM" in
+@@ -1442,6 +1642,12 @@ copies of config.guess and config.sub with the latest versions from:
+   https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess
+ and
+   https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub
++EOF
++
++year=`echo $timestamp | sed 's,-.*,,'`
++# shellcheck disable=SC2003
++if test "`expr "\`date +%Y\`" - "$year"`" -lt 3 ; then
++   cat >&2 <<EOF
+ 
+ If $0 has already been updated, send the following data and any
+ information you think might be pertinent to config-patches@gnu.org to
+@@ -1469,11 +1675,12 @@ UNAME_RELEASE = "$UNAME_RELEASE"
+ UNAME_SYSTEM  = "$UNAME_SYSTEM"
+ UNAME_VERSION = "$UNAME_VERSION"
+ EOF
++fi
+ 
+ exit 1
+ 
+ # Local variables:
+-# eval: (add-hook 'write-file-functions 'time-stamp)
++# eval: (add-hook 'before-save-hook 'time-stamp)
+ # time-stamp-start: "timestamp='"
+ # time-stamp-format: "%:y-%02m-%02d"
+ # time-stamp-end: "'"
+diff --git a/build-aux/config.sub b/build-aux/config.sub
+index 1d8e98b..3d9a8dc 100755
+--- a/build-aux/config.sub
++++ b/build-aux/config.sub
+@@ -1,8 +1,8 @@
+ #! /bin/sh
+ # Configuration validation subroutine script.
+-#   Copyright 1992-2018 Free Software Foundation, Inc.
++#   Copyright 1992-2020 Free Software Foundation, Inc.
+ 
+-timestamp='2018-02-22'
++timestamp='2020-07-10'
+ 
+ # This file is free software; you can redistribute it and/or modify it
+ # under the terms of the GNU General Public License as published by
+@@ -67,7 +67,7 @@ Report bugs and patches to <config-patches@gnu.org>."
+ version="\
+ GNU config.sub ($timestamp)
+ 
+-Copyright 1992-2018 Free Software Foundation, Inc.
++Copyright 1992-2020 Free Software Foundation, Inc.
+ 
+ This is free software; see the source for copying conditions.  There is NO
+ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+@@ -89,7 +89,7 @@ while test $# -gt 0 ; do
+     - )	# Use stdin as input.
+        break ;;
+     -* )
+-       echo "$me: invalid option $1$help"
++       echo "$me: invalid option $1$help" >&2
+        exit 1 ;;
+ 
+     *local*)
+@@ -110,1223 +110,1167 @@ case $# in
+     exit 1;;
+ esac
+ 
+-# Separate what the user gave into CPU-COMPANY and OS or KERNEL-OS (if any).
+-# Here we must recognize all the valid KERNEL-OS combinations.
+-maybe_os=`echo "$1" | sed 's/^\(.*\)-\([^-]*-[^-]*\)$/\2/'`
+-case $maybe_os in
+-  nto-qnx* | linux-gnu* | linux-android* | linux-dietlibc | linux-newlib* | \
+-  linux-musl* | linux-uclibc* | uclinux-uclibc* | uclinux-gnu* | kfreebsd*-gnu* | \
+-  knetbsd*-gnu* | netbsd*-gnu* | netbsd*-eabi* | \
+-  kopensolaris*-gnu* | cloudabi*-eabi* | \
+-  storm-chaos* | os2-emx* | rtmk-nova*)
+-    os=-$maybe_os
+-    basic_machine=`echo "$1" | sed 's/^\(.*\)-\([^-]*-[^-]*\)$/\1/'`
+-    ;;
+-  android-linux)
+-    os=-linux-android
+-    basic_machine=`echo "$1" | sed 's/^\(.*\)-\([^-]*-[^-]*\)$/\1/'`-unknown
+-    ;;
+-  *)
+-    basic_machine=`echo "$1" | sed 's/-[^-]*$//'`
+-    if [ "$basic_machine" != "$1" ]
+-    then os=`echo "$1" | sed 's/.*-/-/'`
+-    else os=; fi
+-    ;;
+-esac
++# Split fields of configuration type
++# shellcheck disable=SC2162
++IFS="-" read field1 field2 field3 field4 <<EOF
++$1
++EOF
+ 
+-### Let's recognize common machines as not being operating systems so
+-### that things like config.sub decstation-3100 work.  We also
+-### recognize some manufacturers as not being operating systems, so we
+-### can provide default operating systems below.
+-case $os in
+-	-sun*os*)
+-		# Prevent following clause from handling this invalid input.
++# Separate into logical components for further validation
++case $1 in
++	*-*-*-*-*)
++		echo Invalid configuration \`"$1"\': more than four components >&2
++		exit 1
+ 		;;
+-	-dec* | -mips* | -sequent* | -encore* | -pc532* | -sgi* | -sony* | \
+-	-att* | -7300* | -3300* | -delta* | -motorola* | -sun[234]* | \
+-	-unicom* | -ibm* | -next | -hp | -isi* | -apollo | -altos* | \
+-	-convergent* | -ncr* | -news | -32* | -3600* | -3100* | -hitachi* |\
+-	-c[123]* | -convex* | -sun | -crds | -omron* | -dg | -ultra | -tti* | \
+-	-harris | -dolphin | -highlevel | -gould | -cbm | -ns | -masscomp | \
+-	-apple | -axis | -knuth | -cray | -microblaze*)
+-		os=
+-		basic_machine=$1
++	*-*-*-*)
++		basic_machine=$field1-$field2
++		basic_os=$field3-$field4
+ 		;;
+-	-bluegene*)
+-		os=-cnk
+-		;;
+-	-sim | -cisco | -oki | -wec | -winbond)
+-		os=
+-		basic_machine=$1
+-		;;
+-	-scout)
+-		;;
+-	-wrs)
+-		os=-vxworks
+-		basic_machine=$1
+-		;;
+-	-chorusos*)
+-		os=-chorusos
+-		basic_machine=$1
+-		;;
+-	-chorusrdb)
+-		os=-chorusrdb
+-		basic_machine=$1
+-		;;
+-	-hiux*)
+-		os=-hiuxwe2
+-		;;
+-	-sco6)
+-		os=-sco5v6
+-		basic_machine=`echo "$1" | sed -e 's/86-.*/86-pc/'`
+-		;;
+-	-sco5)
+-		os=-sco3.2v5
+-		basic_machine=`echo "$1" | sed -e 's/86-.*/86-pc/'`
+-		;;
+-	-sco4)
+-		os=-sco3.2v4
+-		basic_machine=`echo "$1" | sed -e 's/86-.*/86-pc/'`
+-		;;
+-	-sco3.2.[4-9]*)
+-		os=`echo $os | sed -e 's/sco3.2./sco3.2v/'`
+-		basic_machine=`echo "$1" | sed -e 's/86-.*/86-pc/'`
+-		;;
+-	-sco3.2v[4-9]*)
+-		# Don't forget version if it is 3.2v4 or newer.
+-		basic_machine=`echo "$1" | sed -e 's/86-.*/86-pc/'`
+-		;;
+-	-sco5v6*)
+-		# Don't forget version if it is 3.2v4 or newer.
+-		basic_machine=`echo "$1" | sed -e 's/86-.*/86-pc/'`
+-		;;
+-	-sco*)
+-		os=-sco3.2v2
+-		basic_machine=`echo "$1" | sed -e 's/86-.*/86-pc/'`
+-		;;
+-	-udk*)
+-		basic_machine=`echo "$1" | sed -e 's/86-.*/86-pc/'`
+-		;;
+-	-isc)
+-		os=-isc2.2
+-		basic_machine=`echo "$1" | sed -e 's/86-.*/86-pc/'`
+-		;;
+-	-clix*)
+-		basic_machine=clipper-intergraph
+-		;;
+-	-isc*)
+-		basic_machine=`echo "$1" | sed -e 's/86-.*/86-pc/'`
+-		;;
+-	-lynx*178)
+-		os=-lynxos178
+-		;;
+-	-lynx*5)
+-		os=-lynxos5
+-		;;
+-	-lynx*)
+-		os=-lynxos
+-		;;
+-	-ptx*)
+-		basic_machine=`echo "$1" | sed -e 's/86-.*/86-sequent/'`
+-		;;
+-	-psos*)
+-		os=-psos
+-		;;
+-	-mint | -mint[0-9]*)
+-		basic_machine=m68k-atari
+-		os=-mint
+-		;;
+-esac
+-
+-# Decode aliases for certain CPU-COMPANY combinations.
+-case $basic_machine in
+-	# Recognize the basic CPU types without company name.
+-	# Some are omitted here because they have special meanings below.
+-	1750a | 580 \
+-	| a29k \
+-	| aarch64 | aarch64_be \
+-	| alpha | alphaev[4-8] | alphaev56 | alphaev6[78] | alphapca5[67] \
+-	| alpha64 | alpha64ev[4-8] | alpha64ev56 | alpha64ev6[78] | alpha64pca5[67] \
+-	| am33_2.0 \
+-	| arc | arceb \
+-	| arm | arm[bl]e | arme[lb] | armv[2-8] | armv[3-8][lb] | armv7[arm] \
+-	| avr | avr32 \
+-	| ba \
+-	| be32 | be64 \
+-	| bfin \
+-	| c4x | c8051 | clipper \
+-	| d10v | d30v | dlx | dsp16xx \
+-	| e2k | epiphany \
+-	| fido | fr30 | frv | ft32 \
+-	| h8300 | h8500 | hppa | hppa1.[01] | hppa2.0 | hppa2.0[nw] | hppa64 \
+-	| hexagon \
+-	| i370 | i860 | i960 | ia16 | ia64 \
+-	| ip2k | iq2000 \
+-	| k1om \
+-	| le32 | le64 \
+-	| lm32 \
+-	| m32c | m32r | m32rle | m68000 | m68k | m88k \
+-	| maxq | mb | microblaze | microblazeel | mcore | mep | metag \
+-	| mips | mipsbe | mipseb | mipsel | mipsle \
+-	| mips16 \
+-	| mips64 | mips64el \
+-	| mips64octeon | mips64octeonel \
+-	| mips64orion | mips64orionel \
+-	| mips64r5900 | mips64r5900el \
+-	| mips64vr | mips64vrel \
+-	| mips64vr4100 | mips64vr4100el \
+-	| mips64vr4300 | mips64vr4300el \
+-	| mips64vr5000 | mips64vr5000el \
+-	| mips64vr5900 | mips64vr5900el \
+-	| mipsisa32 | mipsisa32el \
+-	| mipsisa32r2 | mipsisa32r2el \
+-	| mipsisa32r6 | mipsisa32r6el \
+-	| mipsisa64 | mipsisa64el \
+-	| mipsisa64r2 | mipsisa64r2el \
+-	| mipsisa64r6 | mipsisa64r6el \
+-	| mipsisa64sb1 | mipsisa64sb1el \
+-	| mipsisa64sr71k | mipsisa64sr71kel \
+-	| mipsr5900 | mipsr5900el \
+-	| mipstx39 | mipstx39el \
+-	| mn10200 | mn10300 \
+-	| moxie \
+-	| mt \
+-	| msp430 \
+-	| nds32 | nds32le | nds32be \
+-	| nios | nios2 | nios2eb | nios2el \
+-	| ns16k | ns32k \
+-	| open8 | or1k | or1knd | or32 \
+-	| pdp10 | pj | pjl \
+-	| powerpc | powerpc64 | powerpc64le | powerpcle \
+-	| pru \
+-	| pyramid \
+-	| riscv32 | riscv64 \
+-	| rl78 | rx \
+-	| score \
+-	| sh | sh[1234] | sh[24]a | sh[24]aeb | sh[23]e | sh[234]eb | sheb | shbe | shle | sh[1234]le | sh3ele \
+-	| sh64 | sh64le \
+-	| sparc | sparc64 | sparc64b | sparc64v | sparc86x | sparclet | sparclite \
+-	| sparcv8 | sparcv9 | sparcv9b | sparcv9v \
+-	| spu \
+-	| tahoe | tic4x | tic54x | tic55x | tic6x | tic80 | tron \
+-	| ubicom32 \
+-	| v850 | v850e | v850e1 | v850e2 | v850es | v850e2v3 \
+-	| visium \
+-	| wasm32 \
+-	| x86 | xc16x | xstormy16 | xtensa \
+-	| z8k | z80)
+-		basic_machine=$basic_machine-unknown
+-		;;
+-	c54x)
+-		basic_machine=tic54x-unknown
+-		;;
+-	c55x)
+-		basic_machine=tic55x-unknown
+-		;;
+-	c6x)
+-		basic_machine=tic6x-unknown
+-		;;
+-	leon|leon[3-9])
+-		basic_machine=sparc-$basic_machine
+-		;;
+-	m6811 | m68hc11 | m6812 | m68hc12 | m68hcs12x | nvptx | picochip)
+-		basic_machine=$basic_machine-unknown
+-		os=-none
+-		;;
+-	m88110 | m680[12346]0 | m683?2 | m68360 | m5200 | v70 | w65)
+-		;;
+-	ms1)
+-		basic_machine=mt-unknown
+-		;;
+-
+-	strongarm | thumb | xscale)
+-		basic_machine=arm-unknown
+-		;;
+-	xgate)
+-		basic_machine=$basic_machine-unknown
+-		os=-none
+-		;;
+-	xscaleeb)
+-		basic_machine=armeb-unknown
+-		;;
+-
+-	xscaleel)
+-		basic_machine=armel-unknown
+-		;;
+-
+-	# We use `pc' rather than `unknown'
+-	# because (1) that's what they normally are, and
+-	# (2) the word "unknown" tends to confuse beginning users.
+-	i*86 | x86_64)
+-	  basic_machine=$basic_machine-pc
+-	  ;;
+-	# Object if more than one company name word.
+ 	*-*-*)
+-		echo Invalid configuration \`"$1"\': machine \`"$basic_machine"\' not recognized 1>&2
+-		exit 1
++		# Ambiguous whether COMPANY is present, or skipped and KERNEL-OS is two
++		# parts
++		maybe_os=$field2-$field3
++		case $maybe_os in
++			nto-qnx* | linux-* | uclinux-uclibc* \
++			| uclinux-gnu* | kfreebsd*-gnu* | knetbsd*-gnu* | netbsd*-gnu* \
++			| netbsd*-eabi* | kopensolaris*-gnu* | cloudabi*-eabi* \
++			| storm-chaos* | os2-emx* | rtmk-nova*)
++				basic_machine=$field1
++				basic_os=$maybe_os
++				;;
++			android-linux)
++				basic_machine=$field1-unknown
++				basic_os=linux-android
++				;;
++			*)
++				basic_machine=$field1-$field2
++				basic_os=$field3
++				;;
++		esac
+ 		;;
+-	# Recognize the basic CPU types with company name.
+-	580-* \
+-	| a29k-* \
+-	| aarch64-* | aarch64_be-* \
+-	| alpha-* | alphaev[4-8]-* | alphaev56-* | alphaev6[78]-* \
+-	| alpha64-* | alpha64ev[4-8]-* | alpha64ev56-* | alpha64ev6[78]-* \
+-	| alphapca5[67]-* | alpha64pca5[67]-* | arc-* | arceb-* \
+-	| arm-*  | armbe-* | armle-* | armeb-* | armv*-* \
+-	| avr-* | avr32-* \
+-	| ba-* \
+-	| be32-* | be64-* \
+-	| bfin-* | bs2000-* \
+-	| c[123]* | c30-* | [cjt]90-* | c4x-* \
+-	| c8051-* | clipper-* | craynv-* | cydra-* \
+-	| d10v-* | d30v-* | dlx-* \
+-	| e2k-* | elxsi-* \
+-	| f30[01]-* | f700-* | fido-* | fr30-* | frv-* | fx80-* \
+-	| h8300-* | h8500-* \
+-	| hppa-* | hppa1.[01]-* | hppa2.0-* | hppa2.0[nw]-* | hppa64-* \
+-	| hexagon-* \
+-	| i*86-* | i860-* | i960-* | ia16-* | ia64-* \
+-	| ip2k-* | iq2000-* \
+-	| k1om-* \
+-	| le32-* | le64-* \
+-	| lm32-* \
+-	| m32c-* | m32r-* | m32rle-* \
+-	| m68000-* | m680[012346]0-* | m68360-* | m683?2-* | m68k-* \
+-	| m88110-* | m88k-* | maxq-* | mcore-* | metag-* \
+-	| microblaze-* | microblazeel-* \
+-	| mips-* | mipsbe-* | mipseb-* | mipsel-* | mipsle-* \
+-	| mips16-* \
+-	| mips64-* | mips64el-* \
+-	| mips64octeon-* | mips64octeonel-* \
+-	| mips64orion-* | mips64orionel-* \
+-	| mips64r5900-* | mips64r5900el-* \
+-	| mips64vr-* | mips64vrel-* \
+-	| mips64vr4100-* | mips64vr4100el-* \
+-	| mips64vr4300-* | mips64vr4300el-* \
+-	| mips64vr5000-* | mips64vr5000el-* \
+-	| mips64vr5900-* | mips64vr5900el-* \
+-	| mipsisa32-* | mipsisa32el-* \
+-	| mipsisa32r2-* | mipsisa32r2el-* \
+-	| mipsisa32r6-* | mipsisa32r6el-* \
+-	| mipsisa64-* | mipsisa64el-* \
+-	| mipsisa64r2-* | mipsisa64r2el-* \
+-	| mipsisa64r6-* | mipsisa64r6el-* \
+-	| mipsisa64sb1-* | mipsisa64sb1el-* \
+-	| mipsisa64sr71k-* | mipsisa64sr71kel-* \
+-	| mipsr5900-* | mipsr5900el-* \
+-	| mipstx39-* | mipstx39el-* \
+-	| mmix-* \
+-	| mt-* \
+-	| msp430-* \
+-	| nds32-* | nds32le-* | nds32be-* \
+-	| nios-* | nios2-* | nios2eb-* | nios2el-* \
+-	| none-* | np1-* | ns16k-* | ns32k-* \
+-	| open8-* \
+-	| or1k*-* \
+-	| orion-* \
+-	| pdp10-* | pdp11-* | pj-* | pjl-* | pn-* | power-* \
+-	| powerpc-* | powerpc64-* | powerpc64le-* | powerpcle-* \
+-	| pru-* \
+-	| pyramid-* \
+-	| riscv32-* | riscv64-* \
+-	| rl78-* | romp-* | rs6000-* | rx-* \
+-	| sh-* | sh[1234]-* | sh[24]a-* | sh[24]aeb-* | sh[23]e-* | sh[34]eb-* | sheb-* | shbe-* \
+-	| shle-* | sh[1234]le-* | sh3ele-* | sh64-* | sh64le-* \
+-	| sparc-* | sparc64-* | sparc64b-* | sparc64v-* | sparc86x-* | sparclet-* \
+-	| sparclite-* \
+-	| sparcv8-* | sparcv9-* | sparcv9b-* | sparcv9v-* | sv1-* | sx*-* \
+-	| tahoe-* \
+-	| tic30-* | tic4x-* | tic54x-* | tic55x-* | tic6x-* | tic80-* \
+-	| tile*-* \
+-	| tron-* \
+-	| ubicom32-* \
+-	| v850-* | v850e-* | v850e1-* | v850es-* | v850e2-* | v850e2v3-* \
+-	| vax-* \
+-	| visium-* \
+-	| wasm32-* \
+-	| we32k-* \
+-	| x86-* | x86_64-* | xc16x-* | xps100-* \
+-	| xstormy16-* | xtensa*-* \
+-	| ymp-* \
+-	| z8k-* | z80-*)
++	*-*)
++		# A lone config we happen to match not fitting any pattern
++		case $field1-$field2 in
++			decstation-3100)
++				basic_machine=mips-dec
++				basic_os=
++				;;
++			*-*)
++				# Second component is usually, but not always the OS
++				case $field2 in
++					# Prevent following clause from handling this valid os
++					sun*os*)
++						basic_machine=$field1
++						basic_os=$field2
++						;;
++					# Manufacturers
++					dec* | mips* | sequent* | encore* | pc533* | sgi* | sony* \
++					| att* | 7300* | 3300* | delta* | motorola* | sun[234]* \
++					| unicom* | ibm* | next | hp | isi* | apollo | altos* \
++					| convergent* | ncr* | news | 32* | 3600* | 3100* \
++					| hitachi* | c[123]* | convex* | sun | crds | omron* | dg \
++					| ultra | tti* | harris | dolphin | highlevel | gould \
++					| cbm | ns | masscomp | apple | axis | knuth | cray \
++					| microblaze* | sim | cisco \
++					| oki | wec | wrs | winbond)
++						basic_machine=$field1-$field2
++						basic_os=
++						;;
++					*)
++						basic_machine=$field1
++						basic_os=$field2
++						;;
++				esac
++			;;
++		esac
+ 		;;
+-	# Recognize the basic CPU types without company name, with glob match.
+-	xtensa*)
+-		basic_machine=$basic_machine-unknown
++	*)
++		# Convert single-component short-hands not valid as part of
++		# multi-component configurations.
++		case $field1 in
++			386bsd)
++				basic_machine=i386-pc
++				basic_os=bsd
++				;;
++			a29khif)
++				basic_machine=a29k-amd
++				basic_os=udi
++				;;
++			adobe68k)
++				basic_machine=m68010-adobe
++				basic_os=scout
++				;;
++			alliant)
++				basic_machine=fx80-alliant
++				basic_os=
++				;;
++			altos | altos3068)
++				basic_machine=m68k-altos
++				basic_os=
++				;;
++			am29k)
++				basic_machine=a29k-none
++				basic_os=bsd
++				;;
++			amdahl)
++				basic_machine=580-amdahl
++				basic_os=sysv
++				;;
++			amiga)
++				basic_machine=m68k-unknown
++				basic_os=
++				;;
++			amigaos | amigados)
++				basic_machine=m68k-unknown
++				basic_os=amigaos
++				;;
++			amigaunix | amix)
++				basic_machine=m68k-unknown
++				basic_os=sysv4
++				;;
++			apollo68)
++				basic_machine=m68k-apollo
++				basic_os=sysv
++				;;
++			apollo68bsd)
++				basic_machine=m68k-apollo
++				basic_os=bsd
++				;;
++			aros)
++				basic_machine=i386-pc
++				basic_os=aros
++				;;
++			aux)
++				basic_machine=m68k-apple
++				basic_os=aux
++				;;
++			balance)
++				basic_machine=ns32k-sequent
++				basic_os=dynix
++				;;
++			blackfin)
++				basic_machine=bfin-unknown
++				basic_os=linux
++				;;
++			cegcc)
++				basic_machine=arm-unknown
++				basic_os=cegcc
++				;;
++			convex-c1)
++				basic_machine=c1-convex
++				basic_os=bsd
++				;;
++			convex-c2)
++				basic_machine=c2-convex
++				basic_os=bsd
++				;;
++			convex-c32)
++				basic_machine=c32-convex
++				basic_os=bsd
++				;;
++			convex-c34)
++				basic_machine=c34-convex
++				basic_os=bsd
++				;;
++			convex-c38)
++				basic_machine=c38-convex
++				basic_os=bsd
++				;;
++			cray)
++				basic_machine=j90-cray
++				basic_os=unicos
++				;;
++			crds | unos)
++				basic_machine=m68k-crds
++				basic_os=
++				;;
++			da30)
++				basic_machine=m68k-da30
++				basic_os=
++				;;
++			decstation | pmax | pmin | dec3100 | decstatn)
++				basic_machine=mips-dec
++				basic_os=
++				;;
++			delta88)
++				basic_machine=m88k-motorola
++				basic_os=sysv3
++				;;
++			dicos)
++				basic_machine=i686-pc
++				basic_os=dicos
++				;;
++			djgpp)
++				basic_machine=i586-pc
++				basic_os=msdosdjgpp
++				;;
++			ebmon29k)
++				basic_machine=a29k-amd
++				basic_os=ebmon
++				;;
++			es1800 | OSE68k | ose68k | ose | OSE)
++				basic_machine=m68k-ericsson
++				basic_os=ose
++				;;
++			gmicro)
++				basic_machine=tron-gmicro
++				basic_os=sysv
++				;;
++			go32)
++				basic_machine=i386-pc
++				basic_os=go32
++				;;
++			h8300hms)
++				basic_machine=h8300-hitachi
++				basic_os=hms
++				;;
++			h8300xray)
++				basic_machine=h8300-hitachi
++				basic_os=xray
++				;;
++			h8500hms)
++				basic_machine=h8500-hitachi
++				basic_os=hms
++				;;
++			harris)
++				basic_machine=m88k-harris
++				basic_os=sysv3
++				;;
++			hp300 | hp300hpux)
++				basic_machine=m68k-hp
++				basic_os=hpux
++				;;
++			hp300bsd)
++				basic_machine=m68k-hp
++				basic_os=bsd
++				;;
++			hppaosf)
++				basic_machine=hppa1.1-hp
++				basic_os=osf
++				;;
++			hppro)
++				basic_machine=hppa1.1-hp
++				basic_os=proelf
++				;;
++			i386mach)
++				basic_machine=i386-mach
++				basic_os=mach
++				;;
++			isi68 | isi)
++				basic_machine=m68k-isi
++				basic_os=sysv
++				;;
++			m68knommu)
++				basic_machine=m68k-unknown
++				basic_os=linux
++				;;
++			magnum | m3230)
++				basic_machine=mips-mips
++				basic_os=sysv
++				;;
++			merlin)
++				basic_machine=ns32k-utek
++				basic_os=sysv
++				;;
++			mingw64)
++				basic_machine=x86_64-pc
++				basic_os=mingw64
++				;;
++			mingw32)
++				basic_machine=i686-pc
++				basic_os=mingw32
++				;;
++			mingw32ce)
++				basic_machine=arm-unknown
++				basic_os=mingw32ce
++				;;
++			monitor)
++				basic_machine=m68k-rom68k
++				basic_os=coff
++				;;
++			morphos)
++				basic_machine=powerpc-unknown
++				basic_os=morphos
++				;;
++			moxiebox)
++				basic_machine=moxie-unknown
++				basic_os=moxiebox
++				;;
++			msdos)
++				basic_machine=i386-pc
++				basic_os=msdos
++				;;
++			msys)
++				basic_machine=i686-pc
++				basic_os=msys
++				;;
++			mvs)
++				basic_machine=i370-ibm
++				basic_os=mvs
++				;;
++			nacl)
++				basic_machine=le32-unknown
++				basic_os=nacl
++				;;
++			ncr3000)
++				basic_machine=i486-ncr
++				basic_os=sysv4
++				;;
++			netbsd386)
++				basic_machine=i386-pc
++				basic_os=netbsd
++				;;
++			netwinder)
++				basic_machine=armv4l-rebel
++				basic_os=linux
++				;;
++			news | news700 | news800 | news900)
++				basic_machine=m68k-sony
++				basic_os=newsos
++				;;
++			news1000)
++				basic_machine=m68030-sony
++				basic_os=newsos
++				;;
++			necv70)
++				basic_machine=v70-nec
++				basic_os=sysv
++				;;
++			nh3000)
++				basic_machine=m68k-harris
++				basic_os=cxux
++				;;
++			nh[45]000)
++				basic_machine=m88k-harris
++				basic_os=cxux
++				;;
++			nindy960)
++				basic_machine=i960-intel
++				basic_os=nindy
++				;;
++			mon960)
++				basic_machine=i960-intel
++				basic_os=mon960
++				;;
++			nonstopux)
++				basic_machine=mips-compaq
++				basic_os=nonstopux
++				;;
++			os400)
++				basic_machine=powerpc-ibm
++				basic_os=os400
++				;;
++			OSE68000 | ose68000)
++				basic_machine=m68000-ericsson
++				basic_os=ose
++				;;
++			os68k)
++				basic_machine=m68k-none
++				basic_os=os68k
++				;;
++			paragon)
++				basic_machine=i860-intel
++				basic_os=osf
++				;;
++			parisc)
++				basic_machine=hppa-unknown
++				basic_os=linux
++				;;
++			psp)
++				basic_machine=mipsallegrexel-sony
++				basic_os=psp
++				;;
++			pw32)
++				basic_machine=i586-unknown
++				basic_os=pw32
++				;;
++			rdos | rdos64)
++				basic_machine=x86_64-pc
++				basic_os=rdos
++				;;
++			rdos32)
++				basic_machine=i386-pc
++				basic_os=rdos
++				;;
++			rom68k)
++				basic_machine=m68k-rom68k
++				basic_os=coff
++				;;
++			sa29200)
++				basic_machine=a29k-amd
++				basic_os=udi
++				;;
++			sei)
++				basic_machine=mips-sei
++				basic_os=seiux
++				;;
++			sequent)
++				basic_machine=i386-sequent
++				basic_os=
++				;;
++			sps7)
++				basic_machine=m68k-bull
++				basic_os=sysv2
++				;;
++			st2000)
++				basic_machine=m68k-tandem
++				basic_os=
++				;;
++			stratus)
++				basic_machine=i860-stratus
++				basic_os=sysv4
++				;;
++			sun2)
++				basic_machine=m68000-sun
++				basic_os=
++				;;
++			sun2os3)
++				basic_machine=m68000-sun
++				basic_os=sunos3
++				;;
++			sun2os4)
++				basic_machine=m68000-sun
++				basic_os=sunos4
++				;;
++			sun3)
++				basic_machine=m68k-sun
++				basic_os=
++				;;
++			sun3os3)
++				basic_machine=m68k-sun
++				basic_os=sunos3
++				;;
++			sun3os4)
++				basic_machine=m68k-sun
++				basic_os=sunos4
++				;;
++			sun4)
++				basic_machine=sparc-sun
++				basic_os=
++				;;
++			sun4os3)
++				basic_machine=sparc-sun
++				basic_os=sunos3
++				;;
++			sun4os4)
++				basic_machine=sparc-sun
++				basic_os=sunos4
++				;;
++			sun4sol2)
++				basic_machine=sparc-sun
++				basic_os=solaris2
++				;;
++			sun386 | sun386i | roadrunner)
++				basic_machine=i386-sun
++				basic_os=
++				;;
++			sv1)
++				basic_machine=sv1-cray
++				basic_os=unicos
++				;;
++			symmetry)
++				basic_machine=i386-sequent
++				basic_os=dynix
++				;;
++			t3e)
++				basic_machine=alphaev5-cray
++				basic_os=unicos
++				;;
++			t90)
++				basic_machine=t90-cray
++				basic_os=unicos
++				;;
++			toad1)
++				basic_machine=pdp10-xkl
++				basic_os=tops20
++				;;
++			tpf)
++				basic_machine=s390x-ibm
++				basic_os=tpf
++				;;
++			udi29k)
++				basic_machine=a29k-amd
++				basic_os=udi
++				;;
++			ultra3)
++				basic_machine=a29k-nyu
++				basic_os=sym1
++				;;
++			v810 | necv810)
++				basic_machine=v810-nec
++				basic_os=none
++				;;
++			vaxv)
++				basic_machine=vax-dec
++				basic_os=sysv
++				;;
++			vms)
++				basic_machine=vax-dec
++				basic_os=vms
++				;;
++			vsta)
++				basic_machine=i386-pc
++				basic_os=vsta
++				;;
++			vxworks960)
++				basic_machine=i960-wrs
++				basic_os=vxworks
++				;;
++			vxworks68)
++				basic_machine=m68k-wrs
++				basic_os=vxworks
++				;;
++			vxworks29k)
++				basic_machine=a29k-wrs
++				basic_os=vxworks
++				;;
++			xbox)
++				basic_machine=i686-pc
++				basic_os=mingw32
++				;;
++			ymp)
++				basic_machine=ymp-cray
++				basic_os=unicos
++				;;
++			*)
++				basic_machine=$1
++				basic_os=
++				;;
++		esac
+ 		;;
++esac
++
++# Decode 1-component or ad-hoc basic machines
++case $basic_machine in
++	# Here we handle the default manufacturer of certain CPU types.  It is in
++	# some cases the only manufacturer, in others, it is the most popular.
++	w89k)
++		cpu=hppa1.1
++		vendor=winbond
++		;;
++	op50n)
++		cpu=hppa1.1
++		vendor=oki
++		;;
++	op60c)
++		cpu=hppa1.1
++		vendor=oki
++		;;
++	ibm*)
++		cpu=i370
++		vendor=ibm
++		;;
++	orion105)
++		cpu=clipper
++		vendor=highlevel
++		;;
++	mac | mpw | mac-mpw)
++		cpu=m68k
++		vendor=apple
++		;;
++	pmac | pmac-mpw)
++		cpu=powerpc
++		vendor=apple
++		;;
++
+ 	# Recognize the various machine names and aliases which stand
+ 	# for a CPU type and a company and sometimes even an OS.
+-	386bsd)
+-		basic_machine=i386-pc
+-		os=-bsd
+-		;;
+ 	3b1 | 7300 | 7300-att | att-7300 | pc7300 | safari | unixpc)
+-		basic_machine=m68000-att
++		cpu=m68000
++		vendor=att
+ 		;;
+ 	3b*)
+-		basic_machine=we32k-att
+-		;;
+-	a29khif)
+-		basic_machine=a29k-amd
+-		os=-udi
+-		;;
+-	abacus)
+-		basic_machine=abacus-unknown
+-		;;
+-	adobe68k)
+-		basic_machine=m68010-adobe
+-		os=-scout
+-		;;
+-	alliant | fx80)
+-		basic_machine=fx80-alliant
+-		;;
+-	altos | altos3068)
+-		basic_machine=m68k-altos
+-		;;
+-	am29k)
+-		basic_machine=a29k-none
+-		os=-bsd
+-		;;
+-	amd64)
+-		basic_machine=x86_64-pc
+-		;;
+-	amd64-*)
+-		basic_machine=x86_64-`echo "$basic_machine" | sed 's/^[^-]*-//'`
+-		;;
+-	amdahl)
+-		basic_machine=580-amdahl
+-		os=-sysv
+-		;;
+-	amiga | amiga-*)
+-		basic_machine=m68k-unknown
+-		;;
+-	amigaos | amigados)
+-		basic_machine=m68k-unknown
+-		os=-amigaos
+-		;;
+-	amigaunix | amix)
+-		basic_machine=m68k-unknown
+-		os=-sysv4
+-		;;
+-	apollo68)
+-		basic_machine=m68k-apollo
+-		os=-sysv
+-		;;
+-	apollo68bsd)
+-		basic_machine=m68k-apollo
+-		os=-bsd
+-		;;
+-	aros)
+-		basic_machine=i386-pc
+-		os=-aros
+-		;;
+-	asmjs)
+-		basic_machine=asmjs-unknown
+-		;;
+-	aux)
+-		basic_machine=m68k-apple
+-		os=-aux
+-		;;
+-	balance)
+-		basic_machine=ns32k-sequent
+-		os=-dynix
+-		;;
+-	blackfin)
+-		basic_machine=bfin-unknown
+-		os=-linux
+-		;;
+-	blackfin-*)
+-		basic_machine=bfin-`echo "$basic_machine" | sed 's/^[^-]*-//'`
+-		os=-linux
++		cpu=we32k
++		vendor=att
+ 		;;
+ 	bluegene*)
+-		basic_machine=powerpc-ibm
+-		os=-cnk
+-		;;
+-	c54x-*)
+-		basic_machine=tic54x-`echo "$basic_machine" | sed 's/^[^-]*-//'`
+-		;;
+-	c55x-*)
+-		basic_machine=tic55x-`echo "$basic_machine" | sed 's/^[^-]*-//'`
+-		;;
+-	c6x-*)
+-		basic_machine=tic6x-`echo "$basic_machine" | sed 's/^[^-]*-//'`
+-		;;
+-	c90)
+-		basic_machine=c90-cray
+-		os=-unicos
+-		;;
+-	cegcc)
+-		basic_machine=arm-unknown
+-		os=-cegcc
+-		;;
+-	convex-c1)
+-		basic_machine=c1-convex
+-		os=-bsd
+-		;;
+-	convex-c2)
+-		basic_machine=c2-convex
+-		os=-bsd
+-		;;
+-	convex-c32)
+-		basic_machine=c32-convex
+-		os=-bsd
+-		;;
+-	convex-c34)
+-		basic_machine=c34-convex
+-		os=-bsd
+-		;;
+-	convex-c38)
+-		basic_machine=c38-convex
+-		os=-bsd
+-		;;
+-	cray | j90)
+-		basic_machine=j90-cray
+-		os=-unicos
+-		;;
+-	craynv)
+-		basic_machine=craynv-cray
+-		os=-unicosmp
+-		;;
+-	cr16 | cr16-*)
+-		basic_machine=cr16-unknown
+-		os=-elf
+-		;;
+-	crds | unos)
+-		basic_machine=m68k-crds
+-		;;
+-	crisv32 | crisv32-* | etraxfs*)
+-		basic_machine=crisv32-axis
+-		;;
+-	cris | cris-* | etrax*)
+-		basic_machine=cris-axis
+-		;;
+-	crx)
+-		basic_machine=crx-unknown
+-		os=-elf
+-		;;
+-	da30 | da30-*)
+-		basic_machine=m68k-da30
+-		;;
+-	decstation | decstation-3100 | pmax | pmax-* | pmin | dec3100 | decstatn)
+-		basic_machine=mips-dec
++		cpu=powerpc
++		vendor=ibm
++		basic_os=cnk
+ 		;;
+ 	decsystem10* | dec10*)
+-		basic_machine=pdp10-dec
+-		os=-tops10
++		cpu=pdp10
++		vendor=dec
++		basic_os=tops10
+ 		;;
+ 	decsystem20* | dec20*)
+-		basic_machine=pdp10-dec
+-		os=-tops20
++		cpu=pdp10
++		vendor=dec
++		basic_os=tops20
+ 		;;
+ 	delta | 3300 | motorola-3300 | motorola-delta \
+ 	      | 3300-motorola | delta-motorola)
+-		basic_machine=m68k-motorola
+-		;;
+-	delta88)
+-		basic_machine=m88k-motorola
+-		os=-sysv3
+-		;;
+-	dicos)
+-		basic_machine=i686-pc
+-		os=-dicos
+-		;;
+-	djgpp)
+-		basic_machine=i586-pc
+-		os=-msdosdjgpp
+-		;;
+-	dpx20 | dpx20-*)
+-		basic_machine=rs6000-bull
+-		os=-bosx
++		cpu=m68k
++		vendor=motorola
+ 		;;
+ 	dpx2*)
+-		basic_machine=m68k-bull
+-		os=-sysv3
+-		;;
+-	e500v[12])
+-		basic_machine=powerpc-unknown
+-		os=$os"spe"
+-		;;
+-	e500v[12]-*)
+-		basic_machine=powerpc-`echo "$basic_machine" | sed 's/^[^-]*-//'`
+-		os=$os"spe"
+-		;;
+-	ebmon29k)
+-		basic_machine=a29k-amd
+-		os=-ebmon
+-		;;
+-	elxsi)
+-		basic_machine=elxsi-elxsi
+-		os=-bsd
++		cpu=m68k
++		vendor=bull
++		basic_os=sysv3
+ 		;;
+ 	encore | umax | mmax)
+-		basic_machine=ns32k-encore
++		cpu=ns32k
++		vendor=encore
+ 		;;
+-	es1800 | OSE68k | ose68k | ose | OSE)
+-		basic_machine=m68k-ericsson
+-		os=-ose
++	elxsi)
++		cpu=elxsi
++		vendor=elxsi
++		basic_os=${basic_os:-bsd}
+ 		;;
+ 	fx2800)
+-		basic_machine=i860-alliant
++		cpu=i860
++		vendor=alliant
+ 		;;
+ 	genix)
+-		basic_machine=ns32k-ns
+-		;;
+-	gmicro)
+-		basic_machine=tron-gmicro
+-		os=-sysv
+-		;;
+-	go32)
+-		basic_machine=i386-pc
+-		os=-go32
++		cpu=ns32k
++		vendor=ns
+ 		;;
+ 	h3050r* | hiux*)
+-		basic_machine=hppa1.1-hitachi
+-		os=-hiuxwe2
+-		;;
+-	h8300hms)
+-		basic_machine=h8300-hitachi
+-		os=-hms
+-		;;
+-	h8300xray)
+-		basic_machine=h8300-hitachi
+-		os=-xray
+-		;;
+-	h8500hms)
+-		basic_machine=h8500-hitachi
+-		os=-hms
+-		;;
+-	harris)
+-		basic_machine=m88k-harris
+-		os=-sysv3
+-		;;
+-	hp300-*)
+-		basic_machine=m68k-hp
+-		;;
+-	hp300bsd)
+-		basic_machine=m68k-hp
+-		os=-bsd
+-		;;
+-	hp300hpux)
+-		basic_machine=m68k-hp
+-		os=-hpux
++		cpu=hppa1.1
++		vendor=hitachi
++		basic_os=hiuxwe2
+ 		;;
+ 	hp3k9[0-9][0-9] | hp9[0-9][0-9])
+-		basic_machine=hppa1.0-hp
++		cpu=hppa1.0
++		vendor=hp
+ 		;;
+ 	hp9k2[0-9][0-9] | hp9k31[0-9])
+-		basic_machine=m68000-hp
++		cpu=m68000
++		vendor=hp
+ 		;;
+ 	hp9k3[2-9][0-9])
+-		basic_machine=m68k-hp
++		cpu=m68k
++		vendor=hp
+ 		;;
+ 	hp9k6[0-9][0-9] | hp6[0-9][0-9])
+-		basic_machine=hppa1.0-hp
++		cpu=hppa1.0
++		vendor=hp
+ 		;;
+ 	hp9k7[0-79][0-9] | hp7[0-79][0-9])
+-		basic_machine=hppa1.1-hp
++		cpu=hppa1.1
++		vendor=hp
+ 		;;
+ 	hp9k78[0-9] | hp78[0-9])
+ 		# FIXME: really hppa2.0-hp
+-		basic_machine=hppa1.1-hp
++		cpu=hppa1.1
++		vendor=hp
+ 		;;
+ 	hp9k8[67]1 | hp8[67]1 | hp9k80[24] | hp80[24] | hp9k8[78]9 | hp8[78]9 | hp9k893 | hp893)
+ 		# FIXME: really hppa2.0-hp
+-		basic_machine=hppa1.1-hp
++		cpu=hppa1.1
++		vendor=hp
+ 		;;
+ 	hp9k8[0-9][13679] | hp8[0-9][13679])
+-		basic_machine=hppa1.1-hp
++		cpu=hppa1.1
++		vendor=hp
+ 		;;
+ 	hp9k8[0-9][0-9] | hp8[0-9][0-9])
+-		basic_machine=hppa1.0-hp
+-		;;
+-	hppaosf)
+-		basic_machine=hppa1.1-hp
+-		os=-osf
+-		;;
+-	hppro)
+-		basic_machine=hppa1.1-hp
+-		os=-proelf
+-		;;
+-	i370-ibm* | ibm*)
+-		basic_machine=i370-ibm
++		cpu=hppa1.0
++		vendor=hp
+ 		;;
+ 	i*86v32)
+-		basic_machine=`echo "$1" | sed -e 's/86.*/86-pc/'`
+-		os=-sysv32
++		cpu=`echo "$1" | sed -e 's/86.*/86/'`
++		vendor=pc
++		basic_os=sysv32
+ 		;;
+ 	i*86v4*)
+-		basic_machine=`echo "$1" | sed -e 's/86.*/86-pc/'`
+-		os=-sysv4
++		cpu=`echo "$1" | sed -e 's/86.*/86/'`
++		vendor=pc
++		basic_os=sysv4
+ 		;;
+ 	i*86v)
+-		basic_machine=`echo "$1" | sed -e 's/86.*/86-pc/'`
+-		os=-sysv
++		cpu=`echo "$1" | sed -e 's/86.*/86/'`
++		vendor=pc
++		basic_os=sysv
+ 		;;
+ 	i*86sol2)
+-		basic_machine=`echo "$1" | sed -e 's/86.*/86-pc/'`
+-		os=-solaris2
++		cpu=`echo "$1" | sed -e 's/86.*/86/'`
++		vendor=pc
++		basic_os=solaris2
+ 		;;
+-	i386mach)
+-		basic_machine=i386-mach
+-		os=-mach
+-		;;
+-	vsta)
+-		basic_machine=i386-unknown
+-		os=-vsta
++	j90 | j90-cray)
++		cpu=j90
++		vendor=cray
++		basic_os=${basic_os:-unicos}
+ 		;;
+ 	iris | iris4d)
+-		basic_machine=mips-sgi
+-		case $os in
+-		    -irix*)
++		cpu=mips
++		vendor=sgi
++		case $basic_os in
++		    irix*)
+ 			;;
+ 		    *)
+-			os=-irix4
++			basic_os=irix4
+ 			;;
+ 		esac
+ 		;;
+-	isi68 | isi)
+-		basic_machine=m68k-isi
+-		os=-sysv
+-		;;
+-	leon-*|leon[3-9]-*)
+-		basic_machine=sparc-`echo "$basic_machine" | sed 's/-.*//'`
+-		;;
+-	m68knommu)
+-		basic_machine=m68k-unknown
+-		os=-linux
+-		;;
+-	m68knommu-*)
+-		basic_machine=m68k-`echo "$basic_machine" | sed 's/^[^-]*-//'`
+-		os=-linux
+-		;;
+-	magnum | m3230)
+-		basic_machine=mips-mips
+-		os=-sysv
+-		;;
+-	merlin)
+-		basic_machine=ns32k-utek
+-		os=-sysv
+-		;;
+-	microblaze*)
+-		basic_machine=microblaze-xilinx
+-		;;
+-	mingw64)
+-		basic_machine=x86_64-pc
+-		os=-mingw64
+-		;;
+-	mingw32)
+-		basic_machine=i686-pc
+-		os=-mingw32
+-		;;
+-	mingw32ce)
+-		basic_machine=arm-unknown
+-		os=-mingw32ce
+-		;;
+ 	miniframe)
+-		basic_machine=m68000-convergent
++		cpu=m68000
++		vendor=convergent
+ 		;;
+-	*mint | -mint[0-9]* | *MiNT | *MiNT[0-9]*)
+-		basic_machine=m68k-atari
+-		os=-mint
+-		;;
+-	mips3*-*)
+-		basic_machine=`echo "$basic_machine" | sed -e 's/mips3/mips64/'`
+-		;;
+-	mips3*)
+-		basic_machine=`echo "$basic_machine" | sed -e 's/mips3/mips64/'`-unknown
+-		;;
+-	monitor)
+-		basic_machine=m68k-rom68k
+-		os=-coff
+-		;;
+-	morphos)
+-		basic_machine=powerpc-unknown
+-		os=-morphos
+-		;;
+-	moxiebox)
+-		basic_machine=moxie-unknown
+-		os=-moxiebox
+-		;;
+-	msdos)
+-		basic_machine=i386-pc
+-		os=-msdos
+-		;;
+-	ms1-*)
+-		basic_machine=`echo "$basic_machine" | sed -e 's/ms1-/mt-/'`
+-		;;
+-	msys)
+-		basic_machine=i686-pc
+-		os=-msys
+-		;;
+-	mvs)
+-		basic_machine=i370-ibm
+-		os=-mvs
+-		;;
+-	nacl)
+-		basic_machine=le32-unknown
+-		os=-nacl
+-		;;
+-	ncr3000)
+-		basic_machine=i486-ncr
+-		os=-sysv4
+-		;;
+-	netbsd386)
+-		basic_machine=i386-unknown
+-		os=-netbsd
+-		;;
+-	netwinder)
+-		basic_machine=armv4l-rebel
+-		os=-linux
+-		;;
+-	news | news700 | news800 | news900)
+-		basic_machine=m68k-sony
+-		os=-newsos
+-		;;
+-	news1000)
+-		basic_machine=m68030-sony
+-		os=-newsos
++	*mint | mint[0-9]* | *MiNT | *MiNT[0-9]*)
++		cpu=m68k
++		vendor=atari
++		basic_os=mint
+ 		;;
+ 	news-3600 | risc-news)
+-		basic_machine=mips-sony
+-		os=-newsos
+-		;;
+-	necv70)
+-		basic_machine=v70-nec
+-		os=-sysv
++		cpu=mips
++		vendor=sony
++		basic_os=newsos
+ 		;;
+ 	next | m*-next)
+-		basic_machine=m68k-next
+-		case $os in
+-		    -nextstep* )
++		cpu=m68k
++		vendor=next
++		case $basic_os in
++		    openstep*)
++		        ;;
++		    nextstep*)
+ 			;;
+-		    -ns2*)
+-		      os=-nextstep2
++		    ns2*)
++		      basic_os=nextstep2
+ 			;;
+ 		    *)
+-		      os=-nextstep3
++		      basic_os=nextstep3
+ 			;;
+ 		esac
+ 		;;
+-	nh3000)
+-		basic_machine=m68k-harris
+-		os=-cxux
+-		;;
+-	nh[45]000)
+-		basic_machine=m88k-harris
+-		os=-cxux
+-		;;
+-	nindy960)
+-		basic_machine=i960-intel
+-		os=-nindy
+-		;;
+-	mon960)
+-		basic_machine=i960-intel
+-		os=-mon960
+-		;;
+-	nonstopux)
+-		basic_machine=mips-compaq
+-		os=-nonstopux
+-		;;
+ 	np1)
+-		basic_machine=np1-gould
+-		;;
+-	neo-tandem)
+-		basic_machine=neo-tandem
+-		;;
+-	nse-tandem)
+-		basic_machine=nse-tandem
+-		;;
+-	nsr-tandem)
+-		basic_machine=nsr-tandem
+-		;;
+-	nsv-tandem)
+-		basic_machine=nsv-tandem
+-		;;
+-	nsx-tandem)
+-		basic_machine=nsx-tandem
++		cpu=np1
++		vendor=gould
+ 		;;
+ 	op50n-* | op60c-*)
+-		basic_machine=hppa1.1-oki
+-		os=-proelf
+-		;;
+-	openrisc | openrisc-*)
+-		basic_machine=or32-unknown
+-		;;
+-	os400)
+-		basic_machine=powerpc-ibm
+-		os=-os400
+-		;;
+-	OSE68000 | ose68000)
+-		basic_machine=m68000-ericsson
+-		os=-ose
+-		;;
+-	os68k)
+-		basic_machine=m68k-none
+-		os=-os68k
++		cpu=hppa1.1
++		vendor=oki
++		basic_os=proelf
+ 		;;
+ 	pa-hitachi)
+-		basic_machine=hppa1.1-hitachi
+-		os=-hiuxwe2
+-		;;
+-	paragon)
+-		basic_machine=i860-intel
+-		os=-osf
+-		;;
+-	parisc)
+-		basic_machine=hppa-unknown
+-		os=-linux
+-		;;
+-	parisc-*)
+-		basic_machine=hppa-`echo "$basic_machine" | sed 's/^[^-]*-//'`
+-		os=-linux
++		cpu=hppa1.1
++		vendor=hitachi
++		basic_os=hiuxwe2
+ 		;;
+ 	pbd)
+-		basic_machine=sparc-tti
++		cpu=sparc
++		vendor=tti
+ 		;;
+ 	pbb)
+-		basic_machine=m68k-tti
++		cpu=m68k
++		vendor=tti
+ 		;;
+-	pc532 | pc532-*)
+-		basic_machine=ns32k-pc532
+-		;;
+-	pc98)
+-		basic_machine=i386-pc
+-		;;
+-	pc98-*)
+-		basic_machine=i386-`echo "$basic_machine" | sed 's/^[^-]*-//'`
+-		;;
+-	pentium | p5 | k5 | k6 | nexgen | viac3)
+-		basic_machine=i586-pc
+-		;;
+-	pentiumpro | p6 | 6x86 | athlon | athlon_*)
+-		basic_machine=i686-pc
+-		;;
+-	pentiumii | pentium2 | pentiumiii | pentium3)
+-		basic_machine=i686-pc
+-		;;
+-	pentium4)
+-		basic_machine=i786-pc
+-		;;
+-	pentium-* | p5-* | k5-* | k6-* | nexgen-* | viac3-*)
+-		basic_machine=i586-`echo "$basic_machine" | sed 's/^[^-]*-//'`
+-		;;
+-	pentiumpro-* | p6-* | 6x86-* | athlon-*)
+-		basic_machine=i686-`echo "$basic_machine" | sed 's/^[^-]*-//'`
+-		;;
+-	pentiumii-* | pentium2-* | pentiumiii-* | pentium3-*)
+-		basic_machine=i686-`echo "$basic_machine" | sed 's/^[^-]*-//'`
+-		;;
+-	pentium4-*)
+-		basic_machine=i786-`echo "$basic_machine" | sed 's/^[^-]*-//'`
++	pc532)
++		cpu=ns32k
++		vendor=pc532
+ 		;;
+ 	pn)
+-		basic_machine=pn-gould
++		cpu=pn
++		vendor=gould
+ 		;;
+-	power)	basic_machine=power-ibm
+-		;;
+-	ppc | ppcbe)	basic_machine=powerpc-unknown
+-		;;
+-	ppc-* | ppcbe-*)
+-		basic_machine=powerpc-`echo "$basic_machine" | sed 's/^[^-]*-//'`
+-		;;
+-	ppcle | powerpclittle)
+-		basic_machine=powerpcle-unknown
+-		;;
+-	ppcle-* | powerpclittle-*)
+-		basic_machine=powerpcle-`echo "$basic_machine" | sed 's/^[^-]*-//'`
+-		;;
+-	ppc64)	basic_machine=powerpc64-unknown
+-		;;
+-	ppc64-*) basic_machine=powerpc64-`echo "$basic_machine" | sed 's/^[^-]*-//'`
+-		;;
+-	ppc64le | powerpc64little)
+-		basic_machine=powerpc64le-unknown
+-		;;
+-	ppc64le-* | powerpc64little-*)
+-		basic_machine=powerpc64le-`echo "$basic_machine" | sed 's/^[^-]*-//'`
++	power)
++		cpu=power
++		vendor=ibm
+ 		;;
+ 	ps2)
+-		basic_machine=i386-ibm
+-		;;
+-	pw32)
+-		basic_machine=i586-unknown
+-		os=-pw32
+-		;;
+-	rdos | rdos64)
+-		basic_machine=x86_64-pc
+-		os=-rdos
+-		;;
+-	rdos32)
+-		basic_machine=i386-pc
+-		os=-rdos
+-		;;
+-	rom68k)
+-		basic_machine=m68k-rom68k
+-		os=-coff
++		cpu=i386
++		vendor=ibm
+ 		;;
+ 	rm[46]00)
+-		basic_machine=mips-siemens
++		cpu=mips
++		vendor=siemens
+ 		;;
+ 	rtpc | rtpc-*)
+-		basic_machine=romp-ibm
+-		;;
+-	s390 | s390-*)
+-		basic_machine=s390-ibm
+-		;;
+-	s390x | s390x-*)
+-		basic_machine=s390x-ibm
+-		;;
+-	sa29200)
+-		basic_machine=a29k-amd
+-		os=-udi
+-		;;
+-	sb1)
+-		basic_machine=mipsisa64sb1-unknown
+-		;;
+-	sb1el)
+-		basic_machine=mipsisa64sb1el-unknown
++		cpu=romp
++		vendor=ibm
+ 		;;
+ 	sde)
+-		basic_machine=mipsisa32-sde
+-		os=-elf
+-		;;
+-	sei)
+-		basic_machine=mips-sei
+-		os=-seiux
+-		;;
+-	sequent)
+-		basic_machine=i386-sequent
+-		;;
+-	sh5el)
+-		basic_machine=sh5le-unknown
++		cpu=mipsisa32
++		vendor=sde
++		basic_os=${basic_os:-elf}
+ 		;;
+ 	simso-wrs)
+-		basic_machine=sparclite-wrs
+-		os=-vxworks
+-		;;
+-	sps7)
+-		basic_machine=m68k-bull
+-		os=-sysv2
+-		;;
+-	spur)
+-		basic_machine=spur-unknown
+-		;;
+-	st2000)
+-		basic_machine=m68k-tandem
+-		;;
+-	stratus)
+-		basic_machine=i860-stratus
+-		os=-sysv4
+-		;;
+-	strongarm-* | thumb-*)
+-		basic_machine=arm-`echo "$basic_machine" | sed 's/^[^-]*-//'`
+-		;;
+-	sun2)
+-		basic_machine=m68000-sun
+-		;;
+-	sun2os3)
+-		basic_machine=m68000-sun
+-		os=-sunos3
+-		;;
+-	sun2os4)
+-		basic_machine=m68000-sun
+-		os=-sunos4
+-		;;
+-	sun3os3)
+-		basic_machine=m68k-sun
+-		os=-sunos3
+-		;;
+-	sun3os4)
+-		basic_machine=m68k-sun
+-		os=-sunos4
+-		;;
+-	sun4os3)
+-		basic_machine=sparc-sun
+-		os=-sunos3
+-		;;
+-	sun4os4)
+-		basic_machine=sparc-sun
+-		os=-sunos4
+-		;;
+-	sun4sol2)
+-		basic_machine=sparc-sun
+-		os=-solaris2
+-		;;
+-	sun3 | sun3-*)
+-		basic_machine=m68k-sun
+-		;;
+-	sun4)
+-		basic_machine=sparc-sun
+-		;;
+-	sun386 | sun386i | roadrunner)
+-		basic_machine=i386-sun
+-		;;
+-	sv1)
+-		basic_machine=sv1-cray
+-		os=-unicos
+-		;;
+-	symmetry)
+-		basic_machine=i386-sequent
+-		os=-dynix
+-		;;
+-	t3e)
+-		basic_machine=alphaev5-cray
+-		os=-unicos
+-		;;
+-	t90)
+-		basic_machine=t90-cray
+-		os=-unicos
+-		;;
+-	tile*)
+-		basic_machine=$basic_machine-unknown
+-		os=-linux-gnu
+-		;;
+-	tx39)
+-		basic_machine=mipstx39-unknown
+-		;;
+-	tx39el)
+-		basic_machine=mipstx39el-unknown
+-		;;
+-	toad1)
+-		basic_machine=pdp10-xkl
+-		os=-tops20
++		cpu=sparclite
++		vendor=wrs
++		basic_os=vxworks
+ 		;;
+ 	tower | tower-32)
+-		basic_machine=m68k-ncr
+-		;;
+-	tpf)
+-		basic_machine=s390x-ibm
+-		os=-tpf
+-		;;
+-	udi29k)
+-		basic_machine=a29k-amd
+-		os=-udi
+-		;;
+-	ultra3)
+-		basic_machine=a29k-nyu
+-		os=-sym1
+-		;;
+-	v810 | necv810)
+-		basic_machine=v810-nec
+-		os=-none
+-		;;
+-	vaxv)
+-		basic_machine=vax-dec
+-		os=-sysv
+-		;;
+-	vms)
+-		basic_machine=vax-dec
+-		os=-vms
++		cpu=m68k
++		vendor=ncr
+ 		;;
+ 	vpp*|vx|vx-*)
+-		basic_machine=f301-fujitsu
++		cpu=f301
++		vendor=fujitsu
+ 		;;
+-	vxworks960)
+-		basic_machine=i960-wrs
+-		os=-vxworks
+-		;;
+-	vxworks68)
+-		basic_machine=m68k-wrs
+-		os=-vxworks
+-		;;
+-	vxworks29k)
+-		basic_machine=a29k-wrs
+-		os=-vxworks
+-		;;
+-	w65*)
+-		basic_machine=w65-wdc
+-		os=-none
++	w65)
++		cpu=w65
++		vendor=wdc
+ 		;;
+ 	w89k-*)
+-		basic_machine=hppa1.1-winbond
+-		os=-proelf
++		cpu=hppa1.1
++		vendor=winbond
++		basic_os=proelf
+ 		;;
+-	x64)
+-		basic_machine=x86_64-pc
++	none)
++		cpu=none
++		vendor=none
+ 		;;
+-	xbox)
+-		basic_machine=i686-pc
+-		os=-mingw32
++	leon|leon[3-9])
++		cpu=sparc
++		vendor=$basic_machine
+ 		;;
+-	xps | xps100)
+-		basic_machine=xps100-honeywell
++	leon-*|leon[3-9]-*)
++		cpu=sparc
++		vendor=`echo "$basic_machine" | sed 's/-.*//'`
++		;;
++
++	*-*)
++		# shellcheck disable=SC2162
++		IFS="-" read cpu vendor <<EOF
++$basic_machine
++EOF
++		;;
++	# We use `pc' rather than `unknown'
++	# because (1) that's what they normally are, and
++	# (2) the word "unknown" tends to confuse beginning users.
++	i*86 | x86_64)
++		cpu=$basic_machine
++		vendor=pc
++		;;
++	# These rules are duplicated from below for sake of the special case above;
++	# i.e. things that normalized to x86 arches should also default to "pc"
++	pc98)
++		cpu=i386
++		vendor=pc
++		;;
++	x64 | amd64)
++		cpu=x86_64
++		vendor=pc
++		;;
++	# Recognize the basic CPU types without company name.
++	*)
++		cpu=$basic_machine
++		vendor=unknown
++		;;
++esac
++
++unset -v basic_machine
++
++# Decode basic machines in the full and proper CPU-Company form.
++case $cpu-$vendor in
++	# Here we handle the default manufacturer of certain CPU types in canonical form. It is in
++	# some cases the only manufacturer, in others, it is the most popular.
++	craynv-unknown)
++		vendor=cray
++		basic_os=${basic_os:-unicosmp}
++		;;
++	c90-unknown | c90-cray)
++		vendor=cray
++		basic_os=${Basic_os:-unicos}
++		;;
++	fx80-unknown)
++		vendor=alliant
++		;;
++	romp-unknown)
++		vendor=ibm
++		;;
++	mmix-unknown)
++		vendor=knuth
++		;;
++	microblaze-unknown | microblazeel-unknown)
++		vendor=xilinx
++		;;
++	rs6000-unknown)
++		vendor=ibm
++		;;
++	vax-unknown)
++		vendor=dec
++		;;
++	pdp11-unknown)
++		vendor=dec
++		;;
++	we32k-unknown)
++		vendor=att
++		;;
++	cydra-unknown)
++		vendor=cydrome
++		;;
++	i370-ibm*)
++		vendor=ibm
++		;;
++	orion-unknown)
++		vendor=highlevel
++		;;
++	xps-unknown | xps100-unknown)
++		cpu=xps100
++		vendor=honeywell
++		;;
++
++	# Here we normalize CPU types with a missing or matching vendor
++	dpx20-unknown | dpx20-bull)
++		cpu=rs6000
++		vendor=bull
++		basic_os=${basic_os:-bosx}
++		;;
++
++	# Here we normalize CPU types irrespective of the vendor
++	amd64-*)
++		cpu=x86_64
++		;;
++	blackfin-*)
++		cpu=bfin
++		basic_os=linux
++		;;
++	c54x-*)
++		cpu=tic54x
++		;;
++	c55x-*)
++		cpu=tic55x
++		;;
++	c6x-*)
++		cpu=tic6x
++		;;
++	e500v[12]-*)
++		cpu=powerpc
++		basic_os=${basic_os}"spe"
++		;;
++	mips3*-*)
++		cpu=mips64
++		;;
++	ms1-*)
++		cpu=mt
++		;;
++	m68knommu-*)
++		cpu=m68k
++		basic_os=linux
++		;;
++	m9s12z-* | m68hcs12z-* | hcs12z-* | s12z-*)
++		cpu=s12z
++		;;
++	openrisc-*)
++		cpu=or32
++		;;
++	parisc-*)
++		cpu=hppa
++		basic_os=linux
++		;;
++	pentium-* | p5-* | k5-* | k6-* | nexgen-* | viac3-*)
++		cpu=i586
++		;;
++	pentiumpro-* | p6-* | 6x86-* | athlon-* | athalon_*-*)
++		cpu=i686
++		;;
++	pentiumii-* | pentium2-* | pentiumiii-* | pentium3-*)
++		cpu=i686
++		;;
++	pentium4-*)
++		cpu=i786
++		;;
++	pc98-*)
++		cpu=i386
++		;;
++	ppc-* | ppcbe-*)
++		cpu=powerpc
++		;;
++	ppcle-* | powerpclittle-*)
++		cpu=powerpcle
++		;;
++	ppc64-*)
++		cpu=powerpc64
++		;;
++	ppc64le-* | powerpc64little-*)
++		cpu=powerpc64le
++		;;
++	sb1-*)
++		cpu=mipsisa64sb1
++		;;
++	sb1el-*)
++		cpu=mipsisa64sb1el
++		;;
++	sh5e[lb]-*)
++		cpu=`echo "$cpu" | sed 's/^\(sh.\)e\(.\)$/\1\2e/'`
++		;;
++	spur-*)
++		cpu=spur
++		;;
++	strongarm-* | thumb-*)
++		cpu=arm
++		;;
++	tx39-*)
++		cpu=mipstx39
++		;;
++	tx39el-*)
++		cpu=mipstx39el
++		;;
++	x64-*)
++		cpu=x86_64
+ 		;;
+ 	xscale-* | xscalee[bl]-*)
+-		basic_machine=`echo "$basic_machine" | sed 's/^xscale/arm/'`
++		cpu=`echo "$cpu" | sed 's/^xscale/arm/'`
+ 		;;
+-	ymp)
+-		basic_machine=ymp-cray
+-		os=-unicos
+-		;;
+-	none)
+-		basic_machine=none-none
+-		os=-none
++	arm64-*)
++		cpu=aarch64
+ 		;;
+ 
+-# Here we handle the default manufacturer of certain CPU types.  It is in
+-# some cases the only manufacturer, in others, it is the most popular.
+-	w89k)
+-		basic_machine=hppa1.1-winbond
+-		;;
+-	op50n)
+-		basic_machine=hppa1.1-oki
+-		;;
+-	op60c)
+-		basic_machine=hppa1.1-oki
+-		;;
+-	romp)
+-		basic_machine=romp-ibm
++	# Recognize the canonical CPU Types that limit and/or modify the
++	# company names they are paired with.
++	cr16-*)
++		basic_os=${basic_os:-elf}
+ 		;;
+-	mmix)
+-		basic_machine=mmix-knuth
++	crisv32-* | etraxfs*-*)
++		cpu=crisv32
++		vendor=axis
+ 		;;
+-	rs6000)
+-		basic_machine=rs6000-ibm
++	cris-* | etrax*-*)
++		cpu=cris
++		vendor=axis
+ 		;;
+-	vax)
+-		basic_machine=vax-dec
++	crx-*)
++		basic_os=${basic_os:-elf}
+ 		;;
+-	pdp11)
+-		basic_machine=pdp11-dec
++	neo-tandem)
++		cpu=neo
++		vendor=tandem
+ 		;;
+-	we32k)
+-		basic_machine=we32k-att
++	nse-tandem)
++		cpu=nse
++		vendor=tandem
+ 		;;
+-	sh[1234] | sh[24]a | sh[24]aeb | sh[34]eb | sh[1234]le | sh[23]ele)
+-		basic_machine=sh-unknown
++	nsr-tandem)
++		cpu=nsr
++		vendor=tandem
+ 		;;
+-	cydra)
+-		basic_machine=cydra-cydrome
++	nsv-tandem)
++		cpu=nsv
++		vendor=tandem
+ 		;;
+-	orion)
+-		basic_machine=orion-highlevel
++	nsx-tandem)
++		cpu=nsx
++		vendor=tandem
+ 		;;
+-	orion105)
+-		basic_machine=clipper-highlevel
++	mipsallegrexel-sony)
++		cpu=mipsallegrexel
++		vendor=sony
+ 		;;
+-	mac | mpw | mac-mpw)
+-		basic_machine=m68k-apple
+-		;;
+-	pmac | pmac-mpw)
+-		basic_machine=powerpc-apple
+-		;;
+-	*-unknown)
+-		# Make sure to match an already-canonicalized machine name.
++	tile*-*)
++		basic_os=${basic_os:-linux-gnu}
+ 		;;
++
+ 	*)
+-		echo Invalid configuration \`"$1"\': machine \`"$basic_machine"\' not recognized 1>&2
+-		exit 1
++		# Recognize the canonical CPU types that are allowed with any
++		# company name.
++		case $cpu in
++			1750a | 580 \
++			| a29k \
++			| aarch64 | aarch64_be \
++			| abacus \
++			| alpha | alphaev[4-8] | alphaev56 | alphaev6[78] \
++			| alpha64 | alpha64ev[4-8] | alpha64ev56 | alpha64ev6[78] \
++			| alphapca5[67] | alpha64pca5[67] \
++			| am33_2.0 \
++			| amdgcn \
++			| arc | arceb \
++			| arm | arm[lb]e | arme[lb] | armv* \
++			| avr | avr32 \
++			| asmjs \
++			| ba \
++			| be32 | be64 \
++			| bfin | bpf | bs2000 \
++			| c[123]* | c30 | [cjt]90 | c4x \
++			| c8051 | clipper | craynv | csky | cydra \
++			| d10v | d30v | dlx | dsp16xx \
++			| e2k | elxsi | epiphany \
++			| f30[01] | f700 | fido | fr30 | frv | ft32 | fx80 \
++			| h8300 | h8500 \
++			| hppa | hppa1.[01] | hppa2.0 | hppa2.0[nw] | hppa64 \
++			| hexagon \
++			| i370 | i*86 | i860 | i960 | ia16 | ia64 \
++			| ip2k | iq2000 \
++			| k1om \
++			| le32 | le64 \
++			| lm32 \
++			| m32c | m32r | m32rle \
++			| m5200 | m68000 | m680[012346]0 | m68360 | m683?2 | m68k \
++			| m6811 | m68hc11 | m6812 | m68hc12 | m68hcs12x \
++			| m88110 | m88k | maxq | mb | mcore | mep | metag \
++			| microblaze | microblazeel \
++			| mips | mipsbe | mipseb | mipsel | mipsle \
++			| mips16 \
++			| mips64 | mips64eb | mips64el \
++			| mips64octeon | mips64octeonel \
++			| mips64orion | mips64orionel \
++			| mips64r5900 | mips64r5900el \
++			| mips64vr | mips64vrel \
++			| mips64vr4100 | mips64vr4100el \
++			| mips64vr4300 | mips64vr4300el \
++			| mips64vr5000 | mips64vr5000el \
++			| mips64vr5900 | mips64vr5900el \
++			| mipsisa32 | mipsisa32el \
++			| mipsisa32r2 | mipsisa32r2el \
++			| mipsisa32r6 | mipsisa32r6el \
++			| mipsisa64 | mipsisa64el \
++			| mipsisa64r2 | mipsisa64r2el \
++			| mipsisa64r6 | mipsisa64r6el \
++			| mipsisa64sb1 | mipsisa64sb1el \
++			| mipsisa64sr71k | mipsisa64sr71kel \
++			| mipsr5900 | mipsr5900el \
++			| mipstx39 | mipstx39el \
++			| mmix \
++			| mn10200 | mn10300 \
++			| moxie \
++			| mt \
++			| msp430 \
++			| nds32 | nds32le | nds32be \
++			| nfp \
++			| nios | nios2 | nios2eb | nios2el \
++			| none | np1 | ns16k | ns32k | nvptx \
++			| open8 \
++			| or1k* \
++			| or32 \
++			| orion \
++			| picochip \
++			| pdp10 | pdp11 | pj | pjl | pn | power \
++			| powerpc | powerpc64 | powerpc64le | powerpcle | powerpcspe \
++			| pru \
++			| pyramid \
++			| riscv | riscv32 | riscv64 \
++			| rl78 | romp | rs6000 | rx \
++			| s390 | s390x \
++			| score \
++			| sh | shl \
++			| sh[1234] | sh[24]a | sh[24]ae[lb] | sh[23]e | she[lb] | sh[lb]e \
++			| sh[1234]e[lb] |  sh[12345][lb]e | sh[23]ele | sh64 | sh64le \
++			| sparc | sparc64 | sparc64b | sparc64v | sparc86x | sparclet \
++			| sparclite \
++			| sparcv8 | sparcv9 | sparcv9b | sparcv9v | sv1 | sx* \
++			| spu \
++			| tahoe \
++			| tic30 | tic4x | tic54x | tic55x | tic6x | tic80 \
++			| tron \
++			| ubicom32 \
++			| v70 | v850 | v850e | v850e1 | v850es | v850e2 | v850e2v3 \
++			| vax \
++			| visium \
++			| w65 \
++			| wasm32 | wasm64 \
++			| we32k \
++			| x86 | x86_64 | xc16x | xgate | xps100 \
++			| xstormy16 | xtensa* \
++			| ymp \
++			| z8k | z80)
++				;;
++
++			*)
++				echo Invalid configuration \`"$1"\': machine \`"$cpu-$vendor"\' not recognized 1>&2
++				exit 1
++				;;
++		esac
+ 		;;
+ esac
+ 
+ # Here we canonicalize certain aliases for manufacturers.
+-case $basic_machine in
+-	*-digital*)
+-		basic_machine=`echo "$basic_machine" | sed 's/digital.*/dec/'`
++case $vendor in
++	digital*)
++		vendor=dec
+ 		;;
+-	*-commodore*)
+-		basic_machine=`echo "$basic_machine" | sed 's/commodore.*/cbm/'`
++	commodore*)
++		vendor=cbm
+ 		;;
+ 	*)
+ 		;;
+@@ -1334,203 +1278,215 @@ esac
+ 
+ # Decode manufacturer-specific aliases for certain operating systems.
+ 
+-if [ x"$os" != x"" ]
++if [ x$basic_os != x ]
+ then
++
++# First recognize some ad-hoc caes, or perhaps split kernel-os, or else just
++# set os.
++case $basic_os in
++	gnu/linux*)
++		kernel=linux
++		os=`echo $basic_os | sed -e 's|gnu/linux|gnu|'`
++		;;
++	nto-qnx*)
++		kernel=nto
++		os=`echo $basic_os | sed -e 's|nto-qnx|qnx|'`
++		;;
++	*-*)
++		# shellcheck disable=SC2162
++		IFS="-" read kernel os <<EOF
++$basic_os
++EOF
++		;;
++	# Default OS when just kernel was specified
++	nto*)
++		kernel=nto
++		os=`echo $basic_os | sed -e 's|nto|qnx|'`
++		;;
++	linux*)
++		kernel=linux
++		os=`echo $basic_os | sed -e 's|linux|gnu|'`
++		;;
++	*)
++		kernel=
++		os=$basic_os
++		;;
++esac
++
++# Now, normalize the OS (knowing we just have one component, it's not a kernel,
++# etc.)
+ case $os in
+ 	# First match some system type aliases that might get confused
+ 	# with valid system types.
+-	# -solaris* is a basic system type, with this one exception.
+-	-auroraux)
+-		os=-auroraux
++	# solaris* is a basic system type, with this one exception.
++	auroraux)
++		os=auroraux
+ 		;;
+-	-solaris1 | -solaris1.*)
++	bluegene*)
++		os=cnk
++		;;
++	solaris1 | solaris1.*)
+ 		os=`echo $os | sed -e 's|solaris1|sunos4|'`
+ 		;;
+-	-solaris)
+-		os=-solaris2
++	solaris)
++		os=solaris2
+ 		;;
+-	-unixware*)
+-		os=-sysv4.2uw
+-		;;
+-	-gnu/linux*)
+-		os=`echo $os | sed -e 's|gnu/linux|linux-gnu|'`
++	unixware*)
++		os=sysv4.2uw
+ 		;;
+ 	# es1800 is here to avoid being matched by es* (a different OS)
+-	-es1800*)
+-		os=-ose
+-		;;
+-	# Now accept the basic system types.
+-	# The portable systems comes first.
+-	# Each alternative MUST end in a * to match a version number.
+-	# -sysv* is not here because it comes later, after sysvr4.
+-	-gnu* | -bsd* | -mach* | -minix* | -genix* | -ultrix* | -irix* \
+-	      | -*vms* | -sco* | -esix* | -isc* | -aix* | -cnk* | -sunos | -sunos[34]*\
+-	      | -hpux* | -unos* | -osf* | -luna* | -dgux* | -auroraux* | -solaris* \
+-	      | -sym* | -kopensolaris* | -plan9* \
+-	      | -amigaos* | -amigados* | -msdos* | -newsos* | -unicos* | -aof* \
+-	      | -aos* | -aros* | -cloudabi* | -sortix* \
+-	      | -nindy* | -vxsim* | -vxworks* | -ebmon* | -hms* | -mvs* \
+-	      | -clix* | -riscos* | -uniplus* | -iris* | -rtu* | -xenix* \
+-	      | -hiux* | -knetbsd* | -mirbsd* | -netbsd* \
+-	      | -bitrig* | -openbsd* | -solidbsd* | -libertybsd* \
+-	      | -ekkobsd* | -kfreebsd* | -freebsd* | -riscix* | -lynxos* \
+-	      | -bosx* | -nextstep* | -cxux* | -aout* | -elf* | -oabi* \
+-	      | -ptx* | -coff* | -ecoff* | -winnt* | -domain* | -vsta* \
+-	      | -udi* | -eabi* | -lites* | -ieee* | -go32* | -aux* \
+-	      | -chorusos* | -chorusrdb* | -cegcc* | -glidix* \
+-	      | -cygwin* | -msys* | -pe* | -psos* | -moss* | -proelf* | -rtems* \
+-	      | -midipix* | -mingw32* | -mingw64* | -linux-gnu* | -linux-android* \
+-	      | -linux-newlib* | -linux-musl* | -linux-uclibc* \
+-	      | -uxpv* | -beos* | -mpeix* | -udk* | -moxiebox* \
+-	      | -interix* | -uwin* | -mks* | -rhapsody* | -darwin* \
+-	      | -openstep* | -oskit* | -conix* | -pw32* | -nonstopux* \
+-	      | -storm-chaos* | -tops10* | -tenex* | -tops20* | -its* \
+-	      | -os2* | -vos* | -palmos* | -uclinux* | -nucleus* \
+-	      | -morphos* | -superux* | -rtmk* | -windiss* \
+-	      | -powermax* | -dnix* | -nx6 | -nx7 | -sei* | -dragonfly* \
+-	      | -skyos* | -haiku* | -rdos* | -toppers* | -drops* | -es* \
+-	      | -onefs* | -tirtos* | -phoenix* | -fuchsia* | -redox* | -bme* \
+-	      | -midnightbsd*)
+-	# Remember, each alternative MUST END IN *, to match a version number.
+-		;;
+-	-qnx*)
+-		case $basic_machine in
+-		    x86-* | i*86-*)
++	es1800*)
++		os=ose
++		;;
++	# Some version numbers need modification
++	chorusos*)
++		os=chorusos
++		;;
++	isc)
++		os=isc2.2
++		;;
++	sco6)
++		os=sco5v6
++		;;
++	sco5)
++		os=sco3.2v5
++		;;
++	sco4)
++		os=sco3.2v4
++		;;
++	sco3.2.[4-9]*)
++		os=`echo $os | sed -e 's/sco3.2./sco3.2v/'`
++		;;
++	sco*v* | scout)
++		# Don't match below
++		;;
++	sco*)
++		os=sco3.2v2
++		;;
++	psos*)
++		os=psos
++		;;
++	qnx*)
++		case $cpu in
++		    x86 | i*86)
+ 			;;
+ 		    *)
+-			os=-nto$os
++			os=nto-$os
+ 			;;
+ 		esac
+ 		;;
+-	-nto-qnx*)
++	hiux*)
++		os=hiuxwe2
+ 		;;
+-	-nto*)
+-		os=`echo $os | sed -e 's|nto|nto-qnx|'`
++	lynx*178)
++		os=lynxos178
+ 		;;
+-	-sim | -xray | -os68k* | -v88r* \
+-	      | -windows* | -osx | -abug | -netware* | -os9* \
+-	      | -macos* | -mpw* | -magic* | -mmixware* | -mon960* | -lnews*)
++	lynx*5)
++		os=lynxos5
+ 		;;
+-	-mac*)
++	lynxos*)
++		# don't get caught up in next wildcard
++		;;
++	lynx*)
++		os=lynxos
++		;;
++	mac[0-9]*)
+ 		os=`echo "$os" | sed -e 's|mac|macos|'`
+ 		;;
+-	-linux-dietlibc)
+-		os=-linux-dietlibc
++	opened*)
++		os=openedition
+ 		;;
+-	-linux*)
+-		os=`echo $os | sed -e 's|linux|linux-gnu|'`
++	os400*)
++		os=os400
+ 		;;
+-	-sunos5*)
++	sunos5*)
+ 		os=`echo "$os" | sed -e 's|sunos5|solaris2|'`
+ 		;;
+-	-sunos6*)
++	sunos6*)
+ 		os=`echo "$os" | sed -e 's|sunos6|solaris3|'`
+ 		;;
+-	-opened*)
+-		os=-openedition
++	wince*)
++		os=wince
+ 		;;
+-	-os400*)
+-		os=-os400
++	utek*)
++		os=bsd
+ 		;;
+-	-wince*)
+-		os=-wince
++	dynix*)
++		os=bsd
+ 		;;
+-	-utek*)
+-		os=-bsd
++	acis*)
++		os=aos
+ 		;;
+-	-dynix*)
+-		os=-bsd
++	atheos*)
++		os=atheos
+ 		;;
+-	-acis*)
+-		os=-aos
++	syllable*)
++		os=syllable
+ 		;;
+-	-atheos*)
+-		os=-atheos
++	386bsd)
++		os=bsd
+ 		;;
+-	-syllable*)
+-		os=-syllable
++	ctix* | uts*)
++		os=sysv
+ 		;;
+-	-386bsd)
+-		os=-bsd
++	nova*)
++		os=rtmk-nova
+ 		;;
+-	-ctix* | -uts*)
+-		os=-sysv
+-		;;
+-	-nova*)
+-		os=-rtmk-nova
+-		;;
+-	-ns2)
+-		os=-nextstep2
+-		;;
+-	-nsk*)
+-		os=-nsk
++	ns2)
++		os=nextstep2
+ 		;;
+ 	# Preserve the version number of sinix5.
+-	-sinix5.*)
++	sinix5.*)
+ 		os=`echo $os | sed -e 's|sinix|sysv|'`
+ 		;;
+-	-sinix*)
+-		os=-sysv4
++	sinix*)
++		os=sysv4
+ 		;;
+-	-tpf*)
+-		os=-tpf
++	tpf*)
++		os=tpf
+ 		;;
+-	-triton*)
+-		os=-sysv3
++	triton*)
++		os=sysv3
+ 		;;
+-	-oss*)
+-		os=-sysv3
++	oss*)
++		os=sysv3
+ 		;;
+-	-svr4*)
+-		os=-sysv4
++	svr4*)
++		os=sysv4
+ 		;;
+-	-svr3)
+-		os=-sysv3
++	svr3)
++		os=sysv3
+ 		;;
+-	-sysvr4)
+-		os=-sysv4
++	sysvr4)
++		os=sysv4
+ 		;;
+-	# This must come after -sysvr4.
+-	-sysv*)
++	ose*)
++		os=ose
+ 		;;
+-	-ose*)
+-		os=-ose
++	*mint | mint[0-9]* | *MiNT | MiNT[0-9]*)
++		os=mint
+ 		;;
+-	-*mint | -mint[0-9]* | -*MiNT | -MiNT[0-9]*)
+-		os=-mint
++	dicos*)
++		os=dicos
+ 		;;
+-	-zvmoe)
+-		os=-zvmoe
+-		;;
+-	-dicos*)
+-		os=-dicos
+-		;;
+-	-pikeos*)
++	pikeos*)
+ 		# Until real need of OS specific support for
+ 		# particular features comes up, bare metal
+ 		# configurations are quite functional.
+-		case $basic_machine in
++		case $cpu in
+ 		    arm*)
+-			os=-eabi
++			os=eabi
+ 			;;
+ 		    *)
+-			os=-elf
++			os=elf
+ 			;;
+ 		esac
+ 		;;
+-	-nacl*)
+-		;;
+-	-ios)
+-		;;
+-	-none)
+-		;;
+ 	*)
+-		# Get rid of the `-' at the beginning of $os.
+-		os=`echo $os | sed 's/[^-]*-//'`
+-		echo Invalid configuration \`"$1"\': system \`"$os"\' not recognized 1>&2
+-		exit 1
++		# No normalization, but not necessarily accepted, that comes below.
+ 		;;
+ esac
++
+ else
+ 
+ # Here we handle the default operating systems that come with various machines.
+@@ -1543,258 +1499,352 @@ else
+ # will signal an error saying that MANUFACTURER isn't an operating
+ # system, and we'll never get to this point.
+ 
+-case $basic_machine in
++kernel=
++case $cpu-$vendor in
+ 	score-*)
+-		os=-elf
++		os=elf
+ 		;;
+ 	spu-*)
+-		os=-elf
++		os=elf
+ 		;;
+ 	*-acorn)
+-		os=-riscix1.2
++		os=riscix1.2
+ 		;;
+ 	arm*-rebel)
+-		os=-linux
++		kernel=linux
++		os=gnu
+ 		;;
+ 	arm*-semi)
+-		os=-aout
++		os=aout
+ 		;;
+ 	c4x-* | tic4x-*)
+-		os=-coff
++		os=coff
+ 		;;
+ 	c8051-*)
+-		os=-elf
++		os=elf
++		;;
++	clipper-intergraph)
++		os=clix
+ 		;;
+ 	hexagon-*)
+-		os=-elf
++		os=elf
+ 		;;
+ 	tic54x-*)
+-		os=-coff
++		os=coff
+ 		;;
+ 	tic55x-*)
+-		os=-coff
++		os=coff
+ 		;;
+ 	tic6x-*)
+-		os=-coff
++		os=coff
+ 		;;
+ 	# This must come before the *-dec entry.
+ 	pdp10-*)
+-		os=-tops20
++		os=tops20
+ 		;;
+ 	pdp11-*)
+-		os=-none
++		os=none
+ 		;;
+ 	*-dec | vax-*)
+-		os=-ultrix4.2
++		os=ultrix4.2
+ 		;;
+ 	m68*-apollo)
+-		os=-domain
++		os=domain
+ 		;;
+ 	i386-sun)
+-		os=-sunos4.0.2
++		os=sunos4.0.2
+ 		;;
+ 	m68000-sun)
+-		os=-sunos3
++		os=sunos3
+ 		;;
+ 	m68*-cisco)
+-		os=-aout
++		os=aout
+ 		;;
+ 	mep-*)
+-		os=-elf
++		os=elf
+ 		;;
+ 	mips*-cisco)
+-		os=-elf
++		os=elf
+ 		;;
+ 	mips*-*)
+-		os=-elf
++		os=elf
+ 		;;
+ 	or32-*)
+-		os=-coff
++		os=coff
+ 		;;
+ 	*-tti)	# must be before sparc entry or we get the wrong os.
+-		os=-sysv3
++		os=sysv3
+ 		;;
+ 	sparc-* | *-sun)
+-		os=-sunos4.1.1
++		os=sunos4.1.1
+ 		;;
+ 	pru-*)
+-		os=-elf
++		os=elf
+ 		;;
+ 	*-be)
+-		os=-beos
++		os=beos
+ 		;;
+ 	*-ibm)
+-		os=-aix
++		os=aix
+ 		;;
+ 	*-knuth)
+-		os=-mmixware
++		os=mmixware
+ 		;;
+ 	*-wec)
+-		os=-proelf
++		os=proelf
+ 		;;
+ 	*-winbond)
+-		os=-proelf
++		os=proelf
+ 		;;
+ 	*-oki)
+-		os=-proelf
++		os=proelf
+ 		;;
+ 	*-hp)
+-		os=-hpux
++		os=hpux
+ 		;;
+ 	*-hitachi)
+-		os=-hiux
++		os=hiux
+ 		;;
+ 	i860-* | *-att | *-ncr | *-altos | *-motorola | *-convergent)
+-		os=-sysv
++		os=sysv
+ 		;;
+ 	*-cbm)
+-		os=-amigaos
++		os=amigaos
+ 		;;
+ 	*-dg)
+-		os=-dgux
++		os=dgux
+ 		;;
+ 	*-dolphin)
+-		os=-sysv3
++		os=sysv3
+ 		;;
+ 	m68k-ccur)
+-		os=-rtu
++		os=rtu
+ 		;;
+ 	m88k-omron*)
+-		os=-luna
++		os=luna
+ 		;;
+ 	*-next)
+-		os=-nextstep
++		os=nextstep
+ 		;;
+ 	*-sequent)
+-		os=-ptx
++		os=ptx
+ 		;;
+ 	*-crds)
+-		os=-unos
++		os=unos
+ 		;;
+ 	*-ns)
+-		os=-genix
++		os=genix
+ 		;;
+ 	i370-*)
+-		os=-mvs
++		os=mvs
+ 		;;
+ 	*-gould)
+-		os=-sysv
++		os=sysv
+ 		;;
+ 	*-highlevel)
+-		os=-bsd
++		os=bsd
+ 		;;
+ 	*-encore)
+-		os=-bsd
++		os=bsd
+ 		;;
+ 	*-sgi)
+-		os=-irix
++		os=irix
+ 		;;
+ 	*-siemens)
+-		os=-sysv4
++		os=sysv4
+ 		;;
+ 	*-masscomp)
+-		os=-rtu
++		os=rtu
+ 		;;
+ 	f30[01]-fujitsu | f700-fujitsu)
+-		os=-uxpv
++		os=uxpv
+ 		;;
+ 	*-rom68k)
+-		os=-coff
++		os=coff
+ 		;;
+ 	*-*bug)
+-		os=-coff
++		os=coff
+ 		;;
+ 	*-apple)
+-		os=-macos
++		os=macos
+ 		;;
+ 	*-atari*)
+-		os=-mint
++		os=mint
++		;;
++	*-wrs)
++		os=vxworks
+ 		;;
+ 	*)
+-		os=-none
++		os=none
+ 		;;
+ esac
++
+ fi
+ 
++# Now, validate our (potentially fixed-up) OS.
++case $os in
++	# Sometimes we do "kernel-abi", so those need to count as OSes.
++	musl* | newlib* | uclibc*)
++		;;
++	# Likewise for "kernel-libc"
++	eabi | eabihf | gnueabi | gnueabihf)
++		;;
++	# Now accept the basic system types.
++	# The portable systems comes first.
++	# Each alternative MUST end in a * to match a version number.
++	gnu* | android* | bsd* | mach* | minix* | genix* | ultrix* | irix* \
++	     | *vms* | esix* | aix* | cnk* | sunos | sunos[34]* \
++	     | hpux* | unos* | osf* | luna* | dgux* | auroraux* | solaris* \
++	     | sym* |  plan9* | psp* | sim* | xray* | os68k* | v88r* \
++	     | hiux* | abug | nacl* | netware* | windows* \
++	     | os9* | macos* | osx* | ios* \
++	     | mpw* | magic* | mmixware* | mon960* | lnews* \
++	     | amigaos* | amigados* | msdos* | newsos* | unicos* | aof* \
++	     | aos* | aros* | cloudabi* | sortix* | twizzler* \
++	     | nindy* | vxsim* | vxworks* | ebmon* | hms* | mvs* \
++	     | clix* | riscos* | uniplus* | iris* | isc* | rtu* | xenix* \
++	     | mirbsd* | netbsd* | dicos* | openedition* | ose* \
++	     | bitrig* | openbsd* | solidbsd* | libertybsd* | os108* \
++	     | ekkobsd* | freebsd* | riscix* | lynxos* | os400* \
++	     | bosx* | nextstep* | cxux* | aout* | elf* | oabi* \
++	     | ptx* | coff* | ecoff* | winnt* | domain* | vsta* \
++	     | udi* | lites* | ieee* | go32* | aux* | hcos* \
++	     | chorusrdb* | cegcc* | glidix* \
++	     | cygwin* | msys* | pe* | moss* | proelf* | rtems* \
++	     | midipix* | mingw32* | mingw64* | mint* \
++	     | uxpv* | beos* | mpeix* | udk* | moxiebox* \
++	     | interix* | uwin* | mks* | rhapsody* | darwin* \
++	     | openstep* | oskit* | conix* | pw32* | nonstopux* \
++	     | storm-chaos* | tops10* | tenex* | tops20* | its* \
++	     | os2* | vos* | palmos* | uclinux* | nucleus* | morphos* \
++	     | scout* | superux* | sysv* | rtmk* | tpf* | windiss* \
++	     | powermax* | dnix* | nx6 | nx7 | sei* | dragonfly* \
++	     | skyos* | haiku* | rdos* | toppers* | drops* | es* \
++	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* \
++	     | midnightbsd* | amdhsa* | unleashed* | emscripten* | wasi* \
++	     | nsk* | powerunix* | genode* | zvmoe* )
++		;;
++	# This one is extra strict with allowed versions
++	sco3.2v2 | sco3.2v[4-9]* | sco5v6*)
++		# Don't forget version if it is 3.2v4 or newer.
++		;;
++	none)
++		;;
++	*)
++		echo Invalid configuration \`"$1"\': OS \`"$os"\' not recognized 1>&2
++		exit 1
++		;;
++esac
++
++# As a final step for OS-related things, validate the OS-kernel combination
++# (given a valid OS), if there is a kernel.
++case $kernel-$os in
++	linux-gnu* | linux-dietlibc* | linux-android* | linux-newlib* | linux-musl* | linux-uclibc* )
++		;;
++	-dietlibc* | -newlib* | -musl* | -uclibc* )
++		# These are just libc implementations, not actual OSes, and thus
++		# require a kernel.
++		echo "Invalid configuration \`$1': libc \`$os' needs explicit kernel." 1>&2
++		exit 1
++		;;
++	kfreebsd*-gnu* | kopensolaris*-gnu*)
++		;;
++	nto-qnx*)
++		;;
++	*-eabi* | *-gnueabi*)
++		;;
++	-*)
++		# Blank kernel with real OS is always fine.
++		;;
++	*-*)
++		echo "Invalid configuration \`$1': Kernel \`$kernel' not known to work with OS \`$os'." 1>&2
++		exit 1
++		;;
++esac
++
+ # Here we handle the case where we know the os, and the CPU type, but not the
+ # manufacturer.  We pick the logical manufacturer.
+-vendor=unknown
+-case $basic_machine in
+-	*-unknown)
+-		case $os in
+-			-riscix*)
++case $vendor in
++	unknown)
++		case $cpu-$os in
++			*-riscix*)
+ 				vendor=acorn
+ 				;;
+-			-sunos*)
++			*-sunos*)
+ 				vendor=sun
+ 				;;
+-			-cnk*|-aix*)
++			*-cnk* | *-aix*)
+ 				vendor=ibm
+ 				;;
+-			-beos*)
++			*-beos*)
+ 				vendor=be
+ 				;;
+-			-hpux*)
++			*-hpux*)
+ 				vendor=hp
+ 				;;
+-			-mpeix*)
++			*-mpeix*)
+ 				vendor=hp
+ 				;;
+-			-hiux*)
++			*-hiux*)
+ 				vendor=hitachi
+ 				;;
+-			-unos*)
++			*-unos*)
+ 				vendor=crds
+ 				;;
+-			-dgux*)
++			*-dgux*)
+ 				vendor=dg
+ 				;;
+-			-luna*)
++			*-luna*)
+ 				vendor=omron
+ 				;;
+-			-genix*)
++			*-genix*)
+ 				vendor=ns
+ 				;;
+-			-mvs* | -opened*)
++			*-clix*)
++				vendor=intergraph
++				;;
++			*-mvs* | *-opened*)
++				vendor=ibm
++				;;
++			*-os400*)
+ 				vendor=ibm
+ 				;;
+-			-os400*)
++			s390-* | s390x-*)
+ 				vendor=ibm
+ 				;;
+-			-ptx*)
++			*-ptx*)
+ 				vendor=sequent
+ 				;;
+-			-tpf*)
++			*-tpf*)
+ 				vendor=ibm
+ 				;;
+-			-vxsim* | -vxworks* | -windiss*)
++			*-vxsim* | *-vxworks* | *-windiss*)
+ 				vendor=wrs
+ 				;;
+-			-aux*)
++			*-aux*)
+ 				vendor=apple
+ 				;;
+-			-hms*)
++			*-hms*)
+ 				vendor=hitachi
+ 				;;
+-			-mpw* | -macos*)
++			*-mpw* | *-macos*)
+ 				vendor=apple
+ 				;;
+-			-*mint | -mint[0-9]* | -*MiNT | -MiNT[0-9]*)
++			*-*mint | *-mint[0-9]* | *-*MiNT | *-MiNT[0-9]*)
+ 				vendor=atari
+ 				;;
+-			-vos*)
++			*-vos*)
+ 				vendor=stratus
+ 				;;
+ 		esac
+-		basic_machine=`echo "$basic_machine" | sed "s/unknown/$vendor/"`
+ 		;;
+ esac
+ 
+-echo "$basic_machine$os"
++echo "$cpu-$vendor-${kernel:+$kernel-}$os"
+ exit
+ 
+ # Local variables:
+-# eval: (add-hook 'write-file-functions 'time-stamp)
++# eval: (add-hook 'before-save-hook 'time-stamp)
+ # time-stamp-start: "timestamp='"
+ # time-stamp-format: "%:y-%02m-%02d"
+ # time-stamp-end: "'"
+diff --git a/configure b/configure
+index b8f7472..1c75ec5 100755
+Binary files a/configure and b/configure differ
+diff --git a/configure.ac b/configure.ac
+index e3e28fb..d4d34f8 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -818,6 +818,8 @@ AS_IF([test x"$enable_shared" != "xno"],
+     [[i[3456]86-*-linux*]], [natdynlink=true],
+     [[i[3456]86-*-gnu*]], [natdynlink=true],
+     [[x86_64-*-linux*]], [natdynlink=true],
++    [arm64-*-darwin*], [natdynlink=true],
++    [aarch64-*-darwin*], [natdynlink=true],
+     [x86_64-*-darwin*], [natdynlink=true],
+     [s390x*-*-linux*], [natdynlink=true],
+     [powerpc*-*-linux*], [natdynlink=true],
+@@ -920,6 +922,10 @@ AS_CASE([$host],
+     [arch=amd64; system=netbsd],
+   [x86_64-*-openbsd*],
+     [arch=amd64; system=openbsd],
++  [arm64-*-darwin*],
++    [arch=arm64; system=macosx],
++  [aarch64-*-darwin*],
++    [arch=arm64; system=macosx],
+   [x86_64-*-darwin*],
+     [arch=amd64; system=macosx],
+   [x86_64-*-mingw32],
+@@ -1170,6 +1176,8 @@ AC_CHECK_FUNC([mkfifo], [AC_DEFINE([HAS_MKFIFO])])
+ 
+ AC_CHECK_FUNC([getcwd], [AC_DEFINE([HAS_GETCWD])])
+ 
++AC_CHECK_DECL([system], [AC_DEFINE([HAS_SYSTEM])], [], [[#include <stdlib.h>]])
++
+ ## utime
+ ## Note: this was defined in config/s-nt.h but the autoconf macros do not
+ # seem to detect it properly on Windows so we hardcode the definition
+diff --git a/runtime/arm64.S b/runtime/arm64.S
+index afcb379..4ac88aa 100644
+--- a/runtime/arm64.S
++++ b/runtime/arm64.S
+@@ -24,10 +24,9 @@
+ #define TRAP_PTR x26
+ #define ALLOC_PTR x27
+ #define ALLOC_LIMIT x28
+-#define ARG x15
++#define ADDITIONAL_ARG x8
+ #define TMP x16
+ #define TMP2 x17
+-#define ARG_DOMAIN_STATE_PTR x18
+ 
+ #define C_ARG_1 x0
+ #define C_ARG_2 x1
+@@ -51,24 +50,47 @@
+ #endif
+ 
+         .set    domain_curr_field, 0
++#if defined(SYS_macosx)
++#define DOMAIN_STATE(c_type, name) DOMAIN_STATE c_type, name
++        .macro DOMAIN_STATE c_type, name
++        .equ    domain_field_caml_\name, domain_curr_field
++        .set    domain_curr_field, domain_curr_field + 1
++        .endm
++#else
+ #define DOMAIN_STATE(c_type, name) \
+         .equ    domain_field_caml_##name, domain_curr_field ; \
+         .set    domain_curr_field, domain_curr_field + 1
++#endif
+ #include "../runtime/caml/domain_state.tbl"
+ #undef DOMAIN_STATE
+ 
+ #define Caml_state(var) [x25, 8*domain_field_caml_##var]
+ 
+-#if defined(__PIC__)
++/* Globals and labels */
++#if defined(SYS_macosx)
++#define G(sym) _##sym
++#define L(lbl) L##lbl
++#else
++#define G(sym) sym
++#define L(lbl) .L##lbl
++#endif
++
++#if defined(SYS_macosx)
+ 
++#define ADDRGLOBAL(reg,symb) ADDRGLOBAL reg, symb
++        .macro ADDRGLOBAL reg, symb
++        adrp        TMP2, G(\symb)@GOTPAGE
++        ldr         \reg, [TMP2, G(\symb)@GOTPAGEOFF]
++        .endm
++#elif defined(__PIC__)
+ #define ADDRGLOBAL(reg,symb) \
+-        adrp    TMP2, :got:symb; \
+-        ldr     reg, [TMP2, #:got_lo12:symb]
++        adrp    TMP2, :got:G(symb); \
++        ldr     reg, [TMP2, #:got_lo12:G(symb)]
+ #else
+ 
+ #define ADDRGLOBAL(reg,symb) \
+-        adrp    reg, symb; \
+-        add     reg, reg, #:lo12:symb
++        adrp    reg, G(symb); \
++        add     reg, reg, #:lo12:G(symb)
+ 
+ #endif
+ 
+@@ -80,24 +102,58 @@
+ 
+ #if defined(FUNCTION_SECTIONS)
+         TEXT_SECTION(caml_hot__code_begin)
+-        .globl  caml_hot__code_begin
+-caml_hot__code_begin:
++        .globl  G(caml_hot__code_begin)
++G(caml_hot__code_begin):
+ 
+         TEXT_SECTION(caml_hot__code_end)
+-        .globl  caml_hot__code_end
+-caml_hot__code_end:
++        .globl  G(caml_hot__code_end)
++G(caml_hot__code_end):
+ #endif
+ 
++#if defined(SYS_macosx)
++
++#define FUNCTION(name) FUNCTION name
++        .macro FUNCTION name
++        TEXT_SECTION(caml.##G(\name))
++        .align 2
++        .globl G(\name)
++G(\name):
++        .endm
++#define END_FUNCTION(name)
++
++#define OBJECT(name) OBJECT name
++        .macro OBJECT name
++        .data
++        .align  3
++        .globl  G(\name)
++G(\name):
++        .endm
++#define END_OBJECT(name)
++
++#else
++
+ #define FUNCTION(name) \
+         TEXT_SECTION(caml.##name); \
+-        .align 2; \
+-        .globl name; \
+-        .type name, %function; \
+-name:
++        .align  2; \
++        .globl  G(name); \
++        .type   G(name), %function; \
++G(name):
++#define END_FUNCTION(name) \
++        .size   G(name), .-G(name)
++
++#define OBJECT(name) \
++        .data; \
++        .align  3; \
++        .globl  G(name); \
++        .type   G(name), %object; \
++G(name):
++#define END_OBJECT(name) \
++        .size   G(name), .-G(name)
++#endif
+ 
+ /* Allocation functions and GC interface */
+-        .globl  caml_system__code_begin
+-caml_system__code_begin:
++        .globl  G(caml_system__code_begin)
++G(caml_system__code_begin):
+ 
+ FUNCTION(caml_call_gc)
+         CFI_STARTPROC
+@@ -106,7 +162,7 @@ FUNCTION(caml_call_gc)
+     /* Record lowest stack address */
+         mov     TMP, sp
+         str     TMP, Caml_state(bottom_of_stack)
+-.Lcaml_call_gc:
++L(caml_call_gc):
+     /* Set up stack space, saving return address and frame pointer */
+     /* (2 regs RA/GP, 24 allocatable int regs, 24 caller-save float regs) * 8 */
+         CFI_OFFSET(29, -400)
+@@ -150,7 +206,7 @@ FUNCTION(caml_call_gc)
+     /* Save trap pointer in case an exception is raised during GC */
+         str     TRAP_PTR, Caml_state(exception_pointer)
+     /* Call the garbage collector */
+-        bl      caml_garbage_collection
++        bl      G(caml_garbage_collection)
+     /* Restore registers */
+         ldp     x0, x1, [sp, 16]
+         ldp     x2, x3, [sp, 32]
+@@ -183,7 +239,7 @@ FUNCTION(caml_call_gc)
+         ldp     x29, x30, [sp], 400
+         ret
+         CFI_ENDPROC
+-        .size   caml_call_gc, .-caml_call_gc
++        END_FUNCTION(caml_call_gc)
+ 
+ FUNCTION(caml_alloc1)
+         CFI_STARTPROC
+@@ -206,19 +262,16 @@ FUNCTION(caml_alloc1)
+     /* Record return address */
+         str     x30, Caml_state(last_return_address)
+     /* Call GC */
+-        bl      .Lcaml_call_gc
++        bl      L(caml_call_gc)
+     /* Restore return address */
+         ldp     x29, x30, [sp], 16
+         CFI_ADJUST(-16)
+     /* Try again */
+         b       1b
+         CFI_ENDPROC
+-        .type   caml_alloc1, %function
+-        .size   caml_alloc1, .-caml_alloc1
++        END_FUNCTION(caml_alloc1)
+ 
+-        .align  2
+-        .globl  caml_alloc2
+-caml_alloc2:
++FUNCTION(caml_alloc2)
+         CFI_STARTPROC
+ 1:      sub     ALLOC_PTR, ALLOC_PTR, #24
+         cmp     ALLOC_PTR, ALLOC_LIMIT
+@@ -235,15 +288,14 @@ caml_alloc2:
+     /* Record return address */
+         str     x30, Caml_state(last_return_address)
+     /* Call GC */
+-        bl      .Lcaml_call_gc
++        bl      L(caml_call_gc)
+     /* Restore return address */
+         ldp     x29, x30, [sp], 16
+         CFI_ADJUST(-16)
+     /* Try again */
+         b       1b
+         CFI_ENDPROC
+-        .type   caml_alloc2, %function
+-        .size   caml_alloc2, .-caml_alloc2
++        END_FUNCTION(caml_alloc2)
+ 
+ FUNCTION(caml_alloc3)
+         CFI_STARTPROC
+@@ -262,26 +314,22 @@ FUNCTION(caml_alloc3)
+     /* Record return address */
+         str     x30, Caml_state(last_return_address)
+     /* Call GC */
+-        bl      .Lcaml_call_gc
++        bl      L(caml_call_gc)
+     /* Restore return address */
+         ldp     x29, x30, [sp], 16
+         CFI_ADJUST(-16)
+     /* Try again */
+         b       1b
+         CFI_ENDPROC
+-        .type   caml_alloc3, %function
+-        .size   caml_alloc3, .-caml_alloc3
++        END_FUNCTION(caml_alloc3)
+ 
+-        TEXT_SECTION(caml_allocN)
+-        .align  2
+-        .globl  caml_allocN
+-caml_allocN:
++FUNCTION(caml_allocN)
+         CFI_STARTPROC
+-1:      sub     ALLOC_PTR, ALLOC_PTR, ARG
++1:      sub     ALLOC_PTR, ALLOC_PTR, ADDITIONAL_ARG
+         cmp     ALLOC_PTR, ALLOC_LIMIT
+         b.lo    2f
+         ret
+-2:      add     ALLOC_PTR, ALLOC_PTR, ARG
++2:      add     ALLOC_PTR, ALLOC_PTR, ADDITIONAL_ARG
+         stp     x29, x30, [sp, -16]!
+         CFI_ADJUST(16)
+     /* Record the lowest address of the caller's stack frame.
+@@ -292,17 +340,17 @@ caml_allocN:
+     /* Record return address */
+         str     x30, Caml_state(last_return_address)
+     /* Call GC.  This preserves ARG */
+-        bl      .Lcaml_call_gc
++        bl      L(caml_call_gc)
+     /* Restore return address */
+         ldp     x29, x30, [sp], 16
+         CFI_ADJUST(-16)
+     /* Try again */
+         b       1b
+         CFI_ENDPROC
+-        .size   caml_allocN, .-caml_allocN
++        END_FUNCTION(caml_allocN)
+ 
+ /* Call a C function from OCaml */
+-/* Function to call is in ARG */
++/* Function to call is in ADDITIONAL_ARG */
+ 
+ FUNCTION(caml_c_call)
+         CFI_STARTPROC
+@@ -317,27 +365,28 @@ FUNCTION(caml_c_call)
+         str     ALLOC_PTR, Caml_state(young_ptr)
+         str     TRAP_PTR, Caml_state(exception_pointer)
+     /* Call the function */
+-        blr     ARG
++        blr     ADDITIONAL_ARG
+     /* Reload alloc ptr and alloc limit */
+         ldr     ALLOC_PTR, Caml_state(young_ptr)
+         ldr     ALLOC_LIMIT, Caml_state(young_limit)
+     /* Return */
+         ret     x19
+         CFI_ENDPROC
+-        .size   caml_c_call, .-caml_c_call
++        END_FUNCTION(caml_c_call)
+ 
+ /* Start the OCaml program */
+ 
+ FUNCTION(caml_start_program)
+         CFI_STARTPROC
+-        mov     ARG_DOMAIN_STATE_PTR, C_ARG_1
+-        ADDRGLOBAL(ARG, caml_program)
++        mov     TMP, C_ARG_1
++        ADDRGLOBAL(TMP2, caml_program)
+ 
+ /* Code shared with caml_callback* */
+-/* Address of OCaml code to call is in ARG */
++/* Address of domain state is in TMP */
++/* Address of OCaml code to call is in TMP2 */
+ /* Arguments to the OCaml code are in x0...x7 */
+ 
+-.Ljump_to_caml:
++L(jump_to_caml):
+     /* Set up stack frame and save callee-save registers */
+         CFI_OFFSET(29, -160)
+         CFI_OFFSET(30, -152)
+@@ -354,7 +403,7 @@ FUNCTION(caml_start_program)
+         stp     d12, d13, [sp, 128]
+         stp     d14, d15, [sp, 144]
+     /* Load domain state pointer from argument */
+-        mov     DOMAIN_STATE_PTR, ARG_DOMAIN_STATE_PTR
++        mov     DOMAIN_STATE_PTR, TMP
+     /* Setup a callback link on the stack */
+         ldr     x8, Caml_state(bottom_of_stack)
+         ldr     x9, Caml_state(last_return_address)
+@@ -364,7 +413,7 @@ FUNCTION(caml_start_program)
+         str     x10, [sp, 16]
+     /* Setup a trap frame to catch exceptions escaping the OCaml code */
+         ldr     x8, Caml_state(exception_pointer)
+-        adr     x9, .Ltrap_handler
++        adr     x9, L(trap_handler)
+         stp     x8, x9, [sp, -16]!
+         CFI_ADJUST(16)
+         add     TRAP_PTR, sp, #0
+@@ -372,14 +421,14 @@ FUNCTION(caml_start_program)
+         ldr     ALLOC_PTR, Caml_state(young_ptr)
+         ldr     ALLOC_LIMIT, Caml_state(young_limit)
+     /* Call the OCaml code */
+-        blr     ARG
+-.Lcaml_retaddr:
++        blr     TMP2
++L(caml_retaddr):
+     /* Pop the trap frame, restoring caml_exception_pointer */
+         ldr     x8, [sp], 16
+         CFI_ADJUST(-16)
+         str     x8, Caml_state(exception_pointer)
+     /* Pop the callback link, restoring the global variables */
+-.Lreturn_result:
++L(return_result):
+         ldr     x10, [sp, 16]
+         ldp     x8, x9, [sp], 32
+         CFI_ADJUST(-32)
+@@ -403,24 +452,20 @@ FUNCTION(caml_start_program)
+     /* Return to C caller */
+         ret
+         CFI_ENDPROC
+-        .type   .Lcaml_retaddr, %function
+-        .size   .Lcaml_retaddr, .-.Lcaml_retaddr
+-        .size   caml_start_program, .-caml_start_program
++        END_FUNCTION(caml_start_program)
+ 
+ /* The trap handler */
+ 
+         .align  2
+-.Ltrap_handler:
++L(trap_handler):
+         CFI_STARTPROC
+     /* Save exception pointer */
+         str     TRAP_PTR, Caml_state(exception_pointer)
+     /* Encode exception bucket as an exception result */
+         orr     x0, x0, #2
+     /* Return it */
+-        b       .Lreturn_result
++        b       L(return_result)
+         CFI_ENDPROC
+-        .type   .Ltrap_handler, %function
+-        .size   .Ltrap_handler, .-.Ltrap_handler
+ 
+ /* Raise an exception from OCaml */
+ 
+@@ -442,12 +487,12 @@ FUNCTION(caml_raise_exn)
+         mov     x1, x30        /* arg2: pc of raise */
+         add     x2, sp, #0     /* arg3: sp of raise */
+         mov     x3, TRAP_PTR   /* arg4: sp of handler */
+-        bl      caml_stash_backtrace
++        bl      G(caml_stash_backtrace)
+     /* Restore exception bucket and raise */
+         mov     x0, x19
+         b       1b
+         CFI_ENDPROC
+-        .size   caml_raise_exn, .-caml_raise_exn
++        END_FUNCTION(caml_raise_exn)
+ 
+ /* Raise an exception from C */
+ 
+@@ -477,12 +522,12 @@ FUNCTION(caml_raise_exception)
+         ldr     x1, Caml_state(last_return_address)   /* arg2: pc of raise */
+         ldr     x2, Caml_state(bottom_of_stack)       /* arg3: sp of raise */
+         mov     x3, TRAP_PTR   /* arg4: sp of handler */
+-        bl      caml_stash_backtrace
++        bl      G(caml_stash_backtrace)
+     /* Restore exception bucket and raise */
+         mov     x0, x19
+         b       1b
+         CFI_ENDPROC
+-        .size   caml_raise_exception, .-caml_raise_exception
++        END_FUNCTION(caml_raise_exception)
+ 
+ /* Callback from C to OCaml */
+ 
+@@ -490,74 +535,64 @@ FUNCTION(caml_callback_asm)
+         CFI_STARTPROC
+     /* Initial shuffling of arguments */
+     /* (x0 = Caml_state, x1 = closure, [x2] = first arg) */
+-        mov     ARG_DOMAIN_STATE_PTR, x0
++        mov     TMP, x0
+         ldr     x0, [x2]        /* x0 = first arg */
+                                 /* x1 = closure environment */
+-        ldr     ARG, [x1]       /* code pointer */
+-        b       .Ljump_to_caml
++        ldr     TMP2, [x1]       /* code pointer */
++        b       L(jump_to_caml)
+         CFI_ENDPROC
+-        .type   caml_callback_asm, %function
+-        .size   caml_callback_asm, .-caml_callback_asm
++        END_FUNCTION(caml_callback_asm)
+ 
+-        TEXT_SECTION(caml_callback2_asm)
+-        .align  2
+-        .globl  caml_callback2_asm
+-caml_callback2_asm:
++FUNCTION(caml_callback2_asm)
+         CFI_STARTPROC
+     /* Initial shuffling of arguments */
+     /* (x0 = Caml_state, x1 = closure, [x2] = arg1, [x2,8] = arg2) */
+-        mov     ARG_DOMAIN_STATE_PTR, x0
+-        mov     TMP, x1
++        mov     TMP, x0
++        mov     TMP2, x1
+         ldp     x0, x1, [x2, 0] /* x0 = first arg, x1 = second arg */
+-        mov     x2, TMP         /* x2 = closure environment */
+-        ADDRGLOBAL(ARG, caml_apply2)
+-        b       .Ljump_to_caml
++        mov     x2, TMP2         /* x2 = closure environment */
++        ADDRGLOBAL(TMP2, caml_apply2)
++        b       L(jump_to_caml)
+         CFI_ENDPROC
+-        .type   caml_callback2_asm, %function
+-        .size   caml_callback2_asm, .-caml_callback2_asm
++        END_FUNCTION(caml_callback2_asm)
+ 
+-        TEXT_SECTION(caml_callback3_asm)
+-        .align  2
+-        .globl  caml_callback3_asm
+-caml_callback3_asm:
++FUNCTION(caml_callback3_asm)
+         CFI_STARTPROC
+     /* Initial shuffling of arguments */
+     /* (x0 = Caml_state, x1 = closure, [x2] = arg1, [x2,8] = arg2,
+         [x2,16] = arg3) */
+-        mov     ARG_DOMAIN_STATE_PTR, x0
++        mov     TMP, x0
+         mov     x3, x1          /* x3 = closure environment */
+         ldp     x0, x1, [x2, 0] /* x0 = first arg, x1 = second arg */
+         ldr     x2, [x2, 16]    /* x2 = third arg */
+-        ADDRGLOBAL(ARG, caml_apply3)
+-        b       .Ljump_to_caml
++        ADDRGLOBAL(TMP2, caml_apply3)
++        b       L(jump_to_caml)
+         CFI_ENDPROC
+-        .size   caml_callback3_asm, .-caml_callback3_asm
++        END_FUNCTION(caml_callback3_asm)
+ 
+ FUNCTION(caml_ml_array_bound_error)
+         CFI_STARTPROC
+-    /* Load address of [caml_array_bound_error] in ARG */
+-        ADDRGLOBAL(ARG, caml_array_bound_error)
++    /* Load address of [caml_array_bound_error] in ADDITIONAL_ARG */
++        ADDRGLOBAL(ADDITIONAL_ARG, caml_array_bound_error)
+     /* Call that function */
+-        b       caml_c_call
++        b       G(caml_c_call)
+         CFI_ENDPROC
+-        .size   caml_ml_array_bound_error, .-caml_ml_array_bound_error
++        END_FUNCTION(caml_ml_array_bound_error)
+ 
+-        .globl  caml_system__code_end
+-caml_system__code_end:
++        .globl  G(caml_system__code_end)
++G(caml_system__code_end):
+ 
+ /* GC roots for callback */
+ 
+-        .data
+-        .align  3
+-        .globl  caml_system__frametable
+-caml_system__frametable:
++OBJECT(caml_system__frametable)
+         .quad   1               /* one descriptor */
+-        .quad   .Lcaml_retaddr  /* return address into callback */
++        .quad   L(caml_retaddr) /* return address into callback */
+         .short  -1              /* negative frame size => use callback link */
+         .short  0               /* no roots */
+         .align  3
+-        .type   caml_system__frametable, %object
+-        .size   caml_system__frametable, .-caml_system__frametable
++        END_OBJECT(caml_system__frametable)
+ 
++#if !defined(SYS_macosx)
+ /* Mark stack as non-executable */
+         .section .note.GNU-stack,"",%progbits
++#endif
+diff --git a/runtime/caml/s.h.in b/runtime/caml/s.h.in
+index b618309..8cd0e18 100644
+--- a/runtime/caml/s.h.in
++++ b/runtime/caml/s.h.in
+@@ -106,6 +106,10 @@
+ 
+ /* Define HAS_GETCWD if the library provides the getcwd() function. */
+ 
++#undef HAS_SYSTEM
++
++/* Define HAS_SYSTEM if the library provides the system() function. */
++
+ #undef HAS_UTIME
+ #undef HAS_UTIMES
+ 
+diff --git a/runtime/memprof.c b/runtime/memprof.c
+index 4aba3ef..b76ba1a 100644
+--- a/runtime/memprof.c
++++ b/runtime/memprof.c
+@@ -98,7 +98,7 @@ static uintnat mt_generate_geom()
+      bounded by the entropy provided by [mt_generate_uniform], which
+      is 32bits. */
+   double res = 1 + logf(mt_generate_uniform()) * one_log1m_lambda;
+-  if (res > Max_long) return Max_long;
++  if (res > (double)Max_long) return Max_long;
+   return (uintnat)res;
+ }
+ 
+diff --git a/runtime/signals_osdep.h b/runtime/signals_osdep.h
+index d507d5a..4cdf923 100644
+--- a/runtime/signals_osdep.h
++++ b/runtime/signals_osdep.h
+@@ -47,8 +47,9 @@
+   #include <sys/ucontext.h>
+   #include <AvailabilityMacros.h>
+ 
+-  #if !defined(MAC_OS_X_VERSION_10_5) \
+-      || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
++  #if (!defined(MAC_OS_X_VERSION_10_5)                            \
++       || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5)  \
++      && !defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
+     #define CONTEXT_REG(r) r
+   #else
+     #define CONTEXT_REG(r) __##r
+@@ -249,8 +250,9 @@
+   #include <sys/ucontext.h>
+   #include <AvailabilityMacros.h>
+ 
+-  #if !defined(MAC_OS_X_VERSION_10_5) \
+-      || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
++  #if (!defined(MAC_OS_X_VERSION_10_5)                            \
++       || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5)  \
++      && !defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
+     #define CONTEXT_REG(r) r
+   #else
+     #define CONTEXT_REG(r) __##r
+diff --git a/runtime/sys.c b/runtime/sys.c
+index ab4704e..d563619 100644
+--- a/runtime/sys.c
++++ b/runtime/sys.c
+@@ -428,6 +428,7 @@ void caml_sys_init(char_os * exe_name, char_os **argv)
+ #endif
+ #endif
+ 
++#ifdef HAS_SYSTEM
+ CAMLprim value caml_sys_system_command(value command)
+ {
+   CAMLparam1 (command);
+@@ -450,6 +451,12 @@ CAMLprim value caml_sys_system_command(value command)
+     retcode = 255;
+   CAMLreturn (Val_int(retcode));
+ }
++#else
++CAMLprim value caml_sys_system_command(value command)
++{
++  caml_invalid_argument("Sys.command not implemented");
++}
++#endif
+ 
+ double caml_sys_time_include_children_unboxed(value include_children)
+ {
+diff --git a/testsuite/tools/asmgen_arm64.S b/testsuite/tools/asmgen_arm64.S
+index 4b803d2..6a06f8d 100644
+--- a/testsuite/tools/asmgen_arm64.S
++++ b/testsuite/tools/asmgen_arm64.S
+@@ -13,9 +13,15 @@
+ /*                                                                        */
+ /**************************************************************************/
+ 
+-        .globl  call_gen_code
++#if defined(SYS_macosx)
++#define G(sym) _##sym
++#else
++#define G(sym) sym
++#endif
++
++        .globl  G(call_gen_code)
+         .align  2
+-call_gen_code:
++G(call_gen_code):
+     /* Set up stack frame and save callee-save registers */
+         stp     x29, x30, [sp, -160]!
+         add     x29, sp, #0
+@@ -51,8 +57,10 @@ call_gen_code:
+ 
+         .globl  caml_c_call
+         .align  2
+-caml_c_call:
++G(caml_c_call):
+         br      x15
+ 
++#if !defined(SYS_macosx)
+ /* Mark stack as non-executable */
+         .section .note.GNU-stack,"",%progbits
++#endif
+diff --git a/testsuite/tools/parsecmm.mly b/testsuite/tools/parsecmm.mly
+index bb24f51..be903c8 100644
+--- a/testsuite/tools/parsecmm.mly
++++ b/testsuite/tools/parsecmm.mly
+@@ -211,7 +211,8 @@ expr:
+   | LPAREN APPLY location expr exprlist machtype RPAREN
+                 { Cop(Capply $6, $4 :: List.rev $5, debuginfo ?loc:$3 ()) }
+   | LPAREN EXTCALL STRING exprlist machtype RPAREN
+-               {Cop(Cextcall($3, $5, false, None), List.rev $4, debuginfo ())}
++               {Cop(Cextcall($3, $5, [], false, None),
++                    List.rev $4, debuginfo ())}
+   | LPAREN ALLOC exprlist RPAREN { Cop(Calloc, List.rev $3, debuginfo ()) }
+   | LPAREN SUBF expr RPAREN { Cop(Cnegf, [$3], debuginfo ()) }
+   | LPAREN SUBF expr expr RPAREN { Cop(Csubf, [$3; $4], debuginfo ()) }
