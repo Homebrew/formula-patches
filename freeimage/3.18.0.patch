@@ -1,7 +1,5 @@
 diff --git a/Makefile.fip b/Makefile.fip
-old mode 100755
-new mode 100644
-index b59c419..6e177fc
+index b59c419..6e177fc 100644
 --- a/Makefile.fip
 +++ b/Makefile.fip
 @@ -5,8 +5,9 @@ include fipMakefile.srcs
@@ -31,13 +29,13 @@ index b59c419..6e177fc
  
 @@ -49,7 +50,7 @@ all: dist
  dist: FreeImage
-	mkdir -p Dist
-	cp *.a Dist/
+ 	mkdir -p Dist
+ 	cp *.a Dist/
 -	cp *.so Dist/
 +	cp *.dylib Dist/
-	cp Source/FreeImage.h Dist/
-	cp Wrapper/FreeImagePlus/FreeImagePlus.h Dist/
-
+ 	cp Source/FreeImage.h Dist/
+ 	cp Wrapper/FreeImagePlus/FreeImagePlus.h Dist/
+ 
 @@ -68,14 +69,15 @@ $(STATICLIB): $(MODULES)
  	$(AR) r $@ $(MODULES)
  
@@ -56,13 +54,11 @@ index b59c419..6e177fc
 +	install -m 644 $(STATICLIB) $(INSTALLDIR)
 +	install -m 755 $(SHAREDLIB) $(INSTALLDIR)
 +	ln -s $(SHAREDLIB) $(INSTALLDIR)/$(LIBNAME)
-	ln -sf $(SHAREDLIB) $(INSTALLDIR)/$(VERLIBNAME)
-	ln -sf $(VERLIBNAME) $(INSTALLDIR)/$(LIBNAME)
-
+ 	ln -sf $(SHAREDLIB) $(INSTALLDIR)/$(VERLIBNAME)
+ 	ln -sf $(VERLIBNAME) $(INSTALLDIR)/$(LIBNAME)	
+ 
 diff --git a/Makefile.gnu b/Makefile.gnu
-old mode 100755
-new mode 100644
-index 92f6358..264b70f
+index 92f6358..bc3c767 100644
 --- a/Makefile.gnu
 +++ b/Makefile.gnu
 @@ -5,8 +5,9 @@ include Makefile.srcs
@@ -77,7 +73,17 @@ index 92f6358..264b70f
  
  # Converts cr/lf to just lf
  DOS2UNIX = dos2unix
-@@ -35,9 +36,9 @@ endif
+@@ -27,7 +28,8 @@ CXXFLAGS ?= -O3 -fPIC -fexceptions -fvisibility=hidden -Wno-ctor-dtor-privacy
+ # LibJXR
+ CXXFLAGS += -D__ANSI__
+ CXXFLAGS += $(INCLUDE)
+-
++# Disable NEON on ARM
++CFLAGS += -DPNG_ARM_NEON_OPT=0
+ ifeq ($(shell sh -c 'uname -m 2>/dev/null || echo not'),x86_64)
+ 	CFLAGS += -fPIC
+ 	CXXFLAGS += -fPIC
+@@ -35,9 +37,9 @@ endif
  
  TARGET  = freeimage
  STATICLIB = lib$(TARGET).a
@@ -90,16 +96,16 @@ index 92f6358..264b70f
  HEADER = Source/FreeImage.h
  
  
-@@ -49,7 +50,7 @@ all: dist
+@@ -49,7 +51,7 @@ all: dist
  dist: FreeImage
-	mkdir -p Dist
-	cp *.a Dist/
+ 	mkdir -p Dist
+ 	cp *.a Dist/
 -	cp *.so Dist/
 +	cp *.dylib Dist/
-	cp Source/FreeImage.h Dist/
+ 	cp Source/FreeImage.h Dist/
  
  dos2unix:
-@@ -67,13 +68,13 @@ $(STATICLIB): $(MODULES)
+@@ -67,13 +69,13 @@ $(STATICLIB): $(MODULES)
  	$(AR) r $@ $(MODULES)
  
  $(SHAREDLIB): $(MODULES)
@@ -117,3 +123,7 @@ index 92f6358..264b70f
  	ln -sf $(SHAREDLIB) $(INSTALLDIR)/$(VERLIBNAME)
  	ln -sf $(VERLIBNAME) $(INSTALLDIR)/$(LIBNAME)	
  #	ldconfig
+diff --git a/Source/LibPNG/.pngpriv.h.swp b/Source/LibPNG/.pngpriv.h.swp
+deleted file mode 100644
+index 74ce38c..0000000
+Binary files a/Source/LibPNG/.pngpriv.h.swp and /dev/null differ
