@@ -2,7 +2,7 @@ diff --git a/configure.ac b/configure.ac
 index 405766333..9824609b4 100644
 --- a/configure.ac
 +++ b/configure.ac
-@@ -66,21 +66,27 @@ AM_CONDITIONAL([SUPPORTS_GNU_PLUS_PLUS_11], [test "x$ac_cv_gnu_plus_plus_11" = x
+@@ -66,27 +66,32 @@ AM_CONDITIONAL([SUPPORTS_GNU_PLUS_PLUS_11], [test "x$ac_cv_gnu_plus_plus_11" = x
  
  # force us into gnu++98 mode if necessary
  # If gnu++11 and gnu++98 then
