@@ -1,5 +1,7 @@
 diff --git a/configure.ac b/configure.ac
 index 405766333..9824609b4 100644
+--- a/configure.ac
++++ b/configure.ac
 @@ -103,23 +103,29 @@
  # force us into gnu++98 mode if necessary
  # If gnu++11 and gnu++98 then
