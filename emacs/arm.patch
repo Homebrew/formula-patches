@@ -1,0 +1,24 @@
+diff -ur a/configure b/configure
+--- a/configure	2020-08-04 13:43:32.000000000 -0600
++++ b/configure	2020-11-25 12:08:44.000000000 -0700
+@@ -4978,7 +4978,7 @@
+   *-apple-darwin* )
+     case "${canonical}" in
+       *-apple-darwin[0-9].*) unported=yes ;;
+-      i[3456]86-* | x86_64-* )  ;;
++      i[3456]86-* | x86_64-* | arm-* ) ;;
+       * )            unported=yes ;;
+     esac
+     opsys=darwin
+diff -ur a/configure.ac b/configure.ac
+--- a/configure.ac	2020-07-29 15:40:41.000000000 -0600
++++ b/configure.ac	2020-11-25 12:04:56.000000000 -0700
+@@ -703,7 +703,7 @@
+   *-apple-darwin* )
+     case "${canonical}" in
+       *-apple-darwin[0-9].*) unported=yes ;;
+-      i[3456]86-* | x86_64-* )  ;;
++      i[3456]86-* | x86_64-* | arm-* ) ;;
+       * )            unported=yes ;;
+     esac
+     opsys=darwin
