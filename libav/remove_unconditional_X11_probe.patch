@@ -1,0 +1,11 @@
+--- a/configure.orig	2018-02-13 05:25:59.000000000 +0800
++++ a/configure	2020-11-21 19:26:30.000000000 +0800
+@@ -4767,8 +4767,6 @@
+     die "ERROR: No usable libcdio/cdparanoia found"
+ fi
+ 
+-check_lib X11/Xlib.h XOpenDisplay -lX11 && enable xlib
+-
+ if enabled libxcb; then
+     require_pkg_config xcb xcb/xcb.h xcb_connect
+     require_pkg_config xcb-shape xcb/shape.h xcb_shape_rectangles
