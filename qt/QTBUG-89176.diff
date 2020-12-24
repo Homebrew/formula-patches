@@ -1,0 +1,83 @@
+From b97001aa1cbd21008ebc48fe61b15fbcacb14875 Mon Sep 17 00:00:00 2001
+From: =?utf8?q?M=C3=A5rten=20Nordheim?= <marten.nordheim@qt.io>
+Date: Tue, 8 Dec 2020 15:47:47 +0100
+Subject: [PATCH] QCache: fix updating entries breaking the internal chain
+
+After f08492c6fd9818c7d80b1725355453e179b4d85b was
+merged this bug would manifest as an entry appearing twice
+in the chain when a updating an existing entry (insert with
+an existing key). This could sometimes result in crashes later
+as the list filled up and the list was used in trim() to remove
+various entries.
+
+Fixes: QTBUG-89176
+Change-Id: Ide80160fb4317dc0aefe79eec5dce7ec6813e790
+Reviewed-by: Thiago Macieira <thiago.macieira@intel.com>
+(cherry picked from commit 0ca46358321f2244386b0b6558a915cda8c6c006)
+Reviewed-by: Qt Cherry-pick Bot <cherrypick_bot@qt-project.org>
+---
+ src/corelib/tools/qcache.h                     |  9 +++++----
+ tests/auto/corelib/tools/qcache/tst_qcache.cpp | 17 +++++++++++++++++
+ 2 files changed, 22 insertions(+), 4 deletions(-)
+
+diff --git a/src/corelib/tools/qcache.h b/src/corelib/tools/qcache.h
+index 74784af1212..41cf9abc467 100644
+--- a/src/corelib/tools/qcache.h
++++ b/src/corelib/tools/qcache.h
+@@ -247,14 +247,15 @@ public:
+         if (result.initialized) {
+             cost -= n->value.cost;
+             result.it.node()->emplace(object, cost);
++            relink(key);
+         } else {
+             Node::createInPlace(n, key, object, cost);
++            n->prev = &chain;
++            n->next = chain.next;
++            chain.next->prev = n;
++            chain.next = n;
+         }
+         total += cost;
+-        n->prev = &chain;
+-        n->next = chain.next;
+-        chain.next->prev = n;
+-        chain.next = n;
+         return true;
+     }
+     T *object(const Key &key) const noexcept
+diff --git a/tests/auto/corelib/tools/qcache/tst_qcache.cpp b/tests/auto/corelib/tools/qcache/tst_qcache.cpp
+index f122e45e876..54cf00f9da5 100644
+--- a/tests/auto/corelib/tools/qcache/tst_qcache.cpp
++++ b/tests/auto/corelib/tools/qcache/tst_qcache.cpp
+@@ -48,6 +48,7 @@ private slots:
+     void take();
+     void axioms_on_key_type();
+     void largeCache();
++    void internalChainOrderAfterEntryUpdate();
+ };
+ 
+ 
+@@ -414,5 +415,21 @@ void tst_QCache::largeCache()
+     QVERIFY(cache.size() == 0);
+ }
+ 
++// The internal chain could lose track of some objects.
++// Make sure it doesn't happen again.
++void tst_QCache::internalChainOrderAfterEntryUpdate()
++{
++    QCache<QString, int> cache;
++    cache.setMaxCost(20);
++    cache.insert(QString::number(1), new int, 1);
++    cache.insert(QString::number(2), new int, 1);
++    cache.insert(QString::number(1), new int, 1);
++    // If the chain is still 'in order' then setting maxCost == 0 should
++    // a. not crash, and
++    // b. remove all the elements in the QHash
++    cache.setMaxCost(0);
++    QCOMPARE(cache.size(), 0);
++}
++
+ QTEST_APPLESS_MAIN(tst_QCache)
+ #include "tst_qcache.moc"
+-- 
+2.16.3
+
