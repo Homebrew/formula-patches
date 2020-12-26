@@ -65,7 +65,7 @@ new mode 100644
 index 92f6358..264b70f
 --- a/Makefile.gnu
 +++ b/Makefile.gnu
-@@ -5,8 +5,9 @@ include Makefile.srcs
+@@ -5,8 +5,9 @@
  
  # General configuration variables:
  DESTDIR ?= /
@@ -77,7 +77,19 @@ index 92f6358..264b70f
  
  # Converts cr/lf to just lf
  DOS2UNIX = dos2unix
-@@ -35,9 +36,9 @@ endif
+@@ -28,6 +29,11 @@
+ CXXFLAGS += -D__ANSI__
+ CXXFLAGS += $(INCLUDE)
+ 
++ifeq ($(shell sh -c 'uname -m 2>/dev/null || echo not'),arm64)
++# LibPNG disable neon
++CFLAGS += -DPNG_ARM_NEON_OPT=0
++endif
++
+ ifeq ($(shell sh -c 'uname -m 2>/dev/null || echo not'),x86_64)
+ 	CFLAGS += -fPIC
+ 	CXXFLAGS += -fPIC
+@@ -35,9 +41,9 @@
  
  TARGET  = freeimage
  STATICLIB = lib$(TARGET).a
@@ -90,16 +102,16 @@ index 92f6358..264b70f
  HEADER = Source/FreeImage.h
  
  
-@@ -49,7 +50,7 @@ all: dist
+@@ -49,7 +55,7 @@
  dist: FreeImage
-	mkdir -p Dist
-	cp *.a Dist/
+ 	mkdir -p Dist
+ 	cp *.a Dist/
 -	cp *.so Dist/
 +	cp *.dylib Dist/
-	cp Source/FreeImage.h Dist/
+ 	cp Source/FreeImage.h Dist/
  
  dos2unix:
-@@ -67,13 +68,13 @@ $(STATICLIB): $(MODULES)
+@@ -67,13 +73,13 @@
  	$(AR) r $@ $(MODULES)
  
  $(SHAREDLIB): $(MODULES)
