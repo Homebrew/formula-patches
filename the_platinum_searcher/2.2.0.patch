@@ -1,0 +1,170 @@
+From 763f368fe26fa44a12e1a37598185322aa30ba8f Mon Sep 17 00:00:00 2001
+From: loyalsoldier <10487845+Loyalsoldier@users.noreply.github.com>
+Date: Sat, 12 Dec 2020 02:23:40 +0800
+Subject: [PATCH] Comply with semantic import versioning
+
+---
+ Godeps/Godeps.json | 61 ----------------------------------------------
+ README.md          |  3 +--
+ cmd/pt/main.go     |  2 +-
+ go.mod             | 16 ++++++++++++
+ go.sum             | 25 +++++++++++++++++++
+ 5 files changed, 43 insertions(+), 64 deletions(-)
+ delete mode 100644 Godeps/Godeps.json
+ create mode 100644 go.mod
+ create mode 100644 go.sum
+
+diff --git a/Godeps/Godeps.json b/Godeps/Godeps.json
+deleted file mode 100644
+index 04bffe25a4f5e12d9a4cc730c87412bb2685d9a0..0000000000000000000000000000000000000000
+--- a/Godeps/Godeps.json
++++ /dev/null
+@@ -1,61 +0,0 @@
+-{
+-	"ImportPath": "github.com/monochromegane/the_platinum_searcher",
+-	"GoVersion": "go1.11",
+-	"GodepVersion": "v80",
+-	"Deps": [
+-		{
+-			"ImportPath": "github.com/BurntSushi/toml",
+-			"Comment": "v0.3.0-7-ga368813",
+-			"Rev": "a368813c5e648fee92e5f6c30e3944ff9d5e8895"
+-		},
+-		{
+-			"ImportPath": "github.com/jessevdk/go-flags",
+-			"Comment": "v1.3.0-5-gf88afde",
+-			"Rev": "f88afde2fa19a30cf50ba4b05b3d13bc6bae3079"
+-		},
+-		{
+-			"ImportPath": "github.com/monochromegane/conflag",
+-			"Rev": "6d68c9aa4183844ddc1655481798fe4d90d483e9"
+-		},
+-		{
+-			"ImportPath": "github.com/monochromegane/go-gitignore",
+-			"Rev": "38717d0a108ca0e5af632cd6845ca77d45b50729"
+-		},
+-		{
+-			"ImportPath": "github.com/monochromegane/go-home",
+-			"Rev": "25d9dda593924a11ea52e4ffbc8abdb0dbe96401"
+-		},
+-		{
+-			"ImportPath": "github.com/monochromegane/terminal",
+-			"Rev": "9bc47e2707d92a50f0d8f96e644e7a864851a00e"
+-		},
+-		{
+-			"ImportPath": "github.com/shiena/ansicolor",
+-			"Rev": "a422bbe96644373c5753384a59d678f7d261ff10"
+-		},
+-		{
+-			"ImportPath": "golang.org/x/text/encoding",
+-			"Rev": "c01e4764d870b77f8abe5096ee19ad20d80e8075"
+-		},
+-		{
+-			"ImportPath": "golang.org/x/text/encoding/internal",
+-			"Rev": "c01e4764d870b77f8abe5096ee19ad20d80e8075"
+-		},
+-		{
+-			"ImportPath": "golang.org/x/text/encoding/internal/identifier",
+-			"Rev": "c01e4764d870b77f8abe5096ee19ad20d80e8075"
+-		},
+-		{
+-			"ImportPath": "golang.org/x/text/encoding/japanese",
+-			"Rev": "c01e4764d870b77f8abe5096ee19ad20d80e8075"
+-		},
+-		{
+-			"ImportPath": "golang.org/x/text/transform",
+-			"Rev": "c01e4764d870b77f8abe5096ee19ad20d80e8075"
+-		},
+-		{
+-			"ImportPath": "gopkg.in/yaml.v2",
+-			"Rev": "eb3733d160e74a9c7e442f435eb3bea458e1d19f"
+-		}
+-	]
+-}
+diff --git a/README.md b/README.md
+index f2915f8173de724ea37df9302c2d80d85a9bfbe2..04e5870ce59d4af8261ec27ee5035be5626fbd0d 100644
+--- a/README.md
++++ b/README.md
+@@ -74,7 +74,7 @@ You can use pt with [pt.el](https://github.com/bling/pt.el), which can be instal
+ ### Developer
+ 
+ ```sh
+-$ go get -u github.com/monochromegane/the_platinum_searcher/...
++$ go get github.com/monochromegane/the_platinum_searcher/v2/...
+ ```
+ 
+ ### User
+@@ -108,4 +108,3 @@ $ brew install pt
+ ## Author
+ 
+ [monochromegane](https://github.com/monochromegane)
+-
+diff --git a/cmd/pt/main.go b/cmd/pt/main.go
+index 89c5a0f96af090cedef39ea5d8b75d3b6147a2f6..112637dbe00991d8a6d5937fe892966a75572f52 100644
+--- a/cmd/pt/main.go
++++ b/cmd/pt/main.go
+@@ -4,7 +4,7 @@ import (
+ 	"os"
+ 	"runtime"
+ 
+-	pt "github.com/monochromegane/the_platinum_searcher"
++	pt "github.com/monochromegane/the_platinum_searcher/v2"
+ )
+ 
+ func init() {
+diff --git a/go.mod b/go.mod
+new file mode 100644
+index 0000000000000000000000000000000000000000..fcb4fa3b00b1dcc0ac322e6b07cb50807ecb5362
+--- /dev/null
++++ b/go.mod
+@@ -0,0 +1,16 @@
++module github.com/monochromegane/the_platinum_searcher/v2
++
++go 1.15
++
++require (
++	github.com/BurntSushi/toml v0.3.1-0.20170626110600-a368813c5e64 // indirect
++	github.com/jessevdk/go-flags v1.3.1-0.20170926144705-f88afde2fa19
++	github.com/monochromegane/conflag v0.0.0-20151130130520-6d68c9aa4183
++	github.com/monochromegane/go-gitignore v0.0.0-20160105113617-38717d0a108c
++	github.com/monochromegane/go-home v0.0.0-20151024104835-25d9dda59392
++	github.com/monochromegane/terminal v0.0.0-20161222050454-9bc47e2707d9
++	github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644
++	golang.org/x/text v0.1.1-0.20171013141220-c01e4764d870
++	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
++	gopkg.in/yaml.v2 v2.0.0-20170812160011-eb3733d160e7 // indirect
++)
+diff --git a/go.sum b/go.sum
+new file mode 100644
+index 0000000000000000000000000000000000000000..70a10936772b8e308c698293384497f8151e3e75
+--- /dev/null
++++ b/go.sum
+@@ -0,0 +1,25 @@
++github.com/BurntSushi/toml v0.3.1-0.20170626110600-a368813c5e64 h1:Qe/XfSxGMmeTFfxjzmp7w++HA+ia7Rve7ey/dzDZQNM=
++github.com/BurntSushi/toml v0.3.1-0.20170626110600-a368813c5e64/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
++github.com/jessevdk/go-flags v1.3.1-0.20170926144705-f88afde2fa19 h1:V362cshe8GxfPffWDeDUG9vylQzw3UP0okKLLC2g7Xg=
++github.com/jessevdk/go-flags v1.3.1-0.20170926144705-f88afde2fa19/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
++github.com/kr/pretty v0.2.1 h1:Fmg33tUaq4/8ym9TJN1x7sLJnHVwhP33CNkpYV/7rwI=
++github.com/kr/pretty v0.2.1/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfnI=
++github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
++github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
++github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
++github.com/monochromegane/conflag v0.0.0-20151130130520-6d68c9aa4183 h1:qiYr4zwNwHMPoaW4TF+h0ceJz5yKh4M4TSn9oXp8wpk=
++github.com/monochromegane/conflag v0.0.0-20151130130520-6d68c9aa4183/go.mod h1:f2UvyfKK/li28p14QMUetMUN5wkePmmqIJjCKS+P5XA=
++github.com/monochromegane/go-gitignore v0.0.0-20160105113617-38717d0a108c h1:RRUev95N3Gq4Aog4avFzXJA2V8fgXmND+cvcH7KLMyk=
++github.com/monochromegane/go-gitignore v0.0.0-20160105113617-38717d0a108c/go.mod h1:Pm3mSP3c5uWn86xMLZ5Sa7JB9GsEZySvHYXCTK4E9q4=
++github.com/monochromegane/go-home v0.0.0-20151024104835-25d9dda59392 h1:i6k/bWUvcuw4Vw1/blRyF8dxN0RzVxaW3HbJTrxxwoc=
++github.com/monochromegane/go-home v0.0.0-20151024104835-25d9dda59392/go.mod h1:42nFNO3S4k1xLW0O+npAiSU9mCRArKFq3Pt8sBSllLc=
++github.com/monochromegane/terminal v0.0.0-20161222050454-9bc47e2707d9 h1:YhsMshmD0JlqM4ss3JBY6Ul4QLigGvBtShFYHkb3JGg=
++github.com/monochromegane/terminal v0.0.0-20161222050454-9bc47e2707d9/go.mod h1:9N3QHEQ4Ov/dAnHmOIJ8ffm8O1iQfCPfso+PpakXPsY=
++github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644 h1:X+yvsM2yrEktyI+b2qND5gpH8YhURn0k8OCaeRnkINo=
++github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644/go.mod h1:nkxAfR/5quYxwPZhyDxgasBMnRtBZd0FCEpawpjMUFg=
++golang.org/x/text v0.1.1-0.20171013141220-c01e4764d870 h1:9j48xgtCqD3qZlEBdUhu982SQOGaB0F4VPmPgoV2rMc=
++golang.org/x/text v0.1.1-0.20171013141220-c01e4764d870/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c h1:Hei/4ADfdWqJk1ZMxUNpqntNwaWcugrBjAiHlqqRiVk=
++gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c/go.mod h1:JHkPIbrfpd72SG/EVd6muEfDQjcINNoR0C8j2r3qZ4Q=
++gopkg.in/yaml.v2 v2.0.0-20170812160011-eb3733d160e7 h1:+t9dhfO+GNOIGJof6kPOAenx7YgrZMTdRPV+EsnPabk=
++gopkg.in/yaml.v2 v2.0.0-20170812160011-eb3733d160e7/go.mod h1:JAlM8MvJe8wmxCU4Bli9HhUf9+ttbYbLASfIpnQbh74=
+-- 
+2.29.2
+
