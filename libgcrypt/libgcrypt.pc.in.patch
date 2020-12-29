@@ -1,0 +1,29 @@
+From 761d12f140b77b907087590646651d9578b68a54 Mon Sep 17 00:00:00 2001
+From: NIIBE Yutaka <gniibe@fsij.org>
+Date: Tue, 20 Aug 2019 10:59:35 +0900
+Subject: [PATCH] pkgconfig: Fix libgcrypt.pc.
+
+* src/libgcrypt.pc.in (Cflags, Libs): Have flags.
+
+GnuPG-bug-id: 4678
+Signed-off-by: NIIBE Yutaka <gniibe@fsij.org>
+---
+ src/libgcrypt.pc.in | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/libgcrypt.pc.in b/src/libgcrypt.pc.in
+index ec68fa2d..7c1030f9 100644
+--- a/src/libgcrypt.pc.in
++++ b/src/libgcrypt.pc.in
+@@ -12,6 +12,6 @@ Name: libgcrypt
+ Description: General purpose cryptographic library
+ Requires: gpg-error
+ Version: @PACKAGE_VERSION@
+-Cflags: @LIBGCRYPT_CONFIG_CFLAGS@
+-Libs: @LIBGCRYPT_CONFIG_LIBS@
++Cflags: -I${includedir} @LIBGCRYPT_CONFIG_CFLAGS@
++Libs: -L${libdir} @LIBGCRYPT_CONFIG_LIBS@
+ URL: https://www.gnupg.org/software/libgcrypt/index.html
+-- 
+2.11.0
+
