@@ -340,7 +340,7 @@ index 6f20605..546fb48 100644
 +    if MACOS:
 +        dep_target = sysconfig.get_config_var('MACOSX_DEPLOYMENT_TARGET')
 +        if dep_target:
-+            return tuple(map(int, dep_target.split('.'))) >= vers
++            return tuple(map(int, str(dep_target).split('.'))) >= vers
 +    return False
 +
  
