@@ -1,0 +1,4181 @@
+From 147ff636fe8eb9915dc1efb1ce196ffee7ba01b3 Mon Sep 17 00:00:00 2001
+From: Moritz Angermann <angerman@m1-mini.local>
+Date: Mon, 28 Dec 2020 20:59:06 +0800
+Subject: [PATCH 1/8] [macOS/arm64] fixup
+
+---
+ llvm-targets       | 45 +++++++++++++++++++++++++--------------------
+ rts/StgCRun.c      |  4 ++--
+ rts/linker/MachO.c |  8 ++++----
+ 3 files changed, 31 insertions(+), 26 deletions(-)
+
+diff --git a/llvm-targets b/llvm-targets
+index bb146465c4..4d97d90b63 100644
+--- a/llvm-targets
++++ b/llvm-targets
+@@ -1,6 +1,7 @@
+-[("i386-unknown-windows", ("e-m:x-p:32:32-i64:64-f80:32-n8:16:32-a:0:32-S32", "pentium4", ""))
+-,("i686-unknown-windows", ("e-m:x-p:32:32-i64:64-f80:32-n8:16:32-a:0:32-S32", "pentium4", ""))
+-,("x86_64-unknown-windows", ("e-m:w-i64:64-f80:128-n8:16:32:64-S128", "x86-64", ""))
++[("i386-unknown-windows", ("e-m:x-p:32:32-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:32-n8:16:32-a:0:32-S32", "pentium4", ""))
++,("i686-unknown-windows", ("e-m:x-p:32:32-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:32-n8:16:32-a:0:32-S32", "pentium4", ""))
++,("x86_64-unknown-windows", ("e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128", "x86-64", ""))
++,("arm-unknown-linux-gnueabi", ("e-m:e-p:32:32-Fi8-i64:64-v128:64:128-a:0:32-n32-S64", "arm7tdmi", "+strict-align"))
+ ,("arm-unknown-linux-gnueabihf", ("e-m:e-p:32:32-Fi8-i64:64-v128:64:128-a:0:32-n32-S64", "arm1176jzf-s", "+strict-align"))
+ ,("arm-unknown-linux-musleabihf", ("e-m:e-p:32:32-Fi8-i64:64-v128:64:128-a:0:32-n32-S64", "arm1176jzf-s", "+strict-align"))
+ ,("armv6-unknown-linux-gnueabihf", ("e-m:e-p:32:32-Fi8-i64:64-v128:64:128-a:0:32-n32-S64", "arm1136jf-s", "+strict-align"))
+@@ -20,28 +21,32 @@
+ ,("aarch64-unknown-linux-gnu", ("e-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128", "generic", "+neon"))
+ ,("aarch64-unknown-linux-musl", ("e-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128", "generic", "+neon"))
+ ,("aarch64-unknown-linux", ("e-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128", "generic", "+neon"))
+-,("i386-unknown-linux-gnu", ("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128", "pentium4", ""))
+-,("i386-unknown-linux-musl", ("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128", "pentium4", ""))
+-,("i386-unknown-linux", ("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128", "pentium4", ""))
+-,("x86_64-unknown-linux-gnu", ("e-m:e-i64:64-f80:128-n8:16:32:64-S128", "x86-64", ""))
+-,("x86_64-unknown-linux-musl", ("e-m:e-i64:64-f80:128-n8:16:32:64-S128", "x86-64", ""))
+-,("x86_64-unknown-linux", ("e-m:e-i64:64-f80:128-n8:16:32:64-S128", "x86-64", ""))
+-,("x86_64-unknown-linux-android", ("e-m:e-i64:64-f80:128-n8:16:32:64-S128", "x86-64", "+sse4.2 +popcnt +cx16"))
+-,("armv7-unknown-linux-androideabi", ("e-m:e-p:32:32-Fi8-i64:64-v128:64:128-a:0:32-n32-S64", "generic", "+fpregs +vfp2 +vfp2d16 +vfp2d16sp +vfp2sp +vfp3 +vfp3d16 +vfp3d16sp +vfp3sp -fp16 -vfp4 -vfp4d16 -vfp4d16sp -vfp4sp -fp-armv8 -fp-armv8d16 -fp-armv8d16sp -fp-armv8sp -fullfp16 +fp64 +d32 +neon -crypto -fp16fml"))
++,("i386-unknown-linux-gnu", ("e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-f64:32:64-f80:32-n8:16:32-S128", "pentium4", ""))
++,("i386-unknown-linux-musl", ("e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-f64:32:64-f80:32-n8:16:32-S128", "pentium4", ""))
++,("i386-unknown-linux", ("e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-f64:32:64-f80:32-n8:16:32-S128", "pentium4", ""))
++,("i686-unknown-linux-gnu", ("e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-f64:32:64-f80:32-n8:16:32-S128", "pentium4", ""))
++,("i686-unknown-linux-musl", ("e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-f64:32:64-f80:32-n8:16:32-S128", "pentium4", ""))
++,("i686-unknown-linux", ("e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-f64:32:64-f80:32-n8:16:32-S128", "pentium4", ""))
++,("x86_64-unknown-linux-gnu", ("e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128", "x86-64", ""))
++,("x86_64-unknown-linux-musl", ("e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128", "x86-64", ""))
++,("x86_64-unknown-linux", ("e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128", "x86-64", ""))
++,("x86_64-unknown-linux-android", ("e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128", "x86-64", "+sse4.2 +popcnt +cx16"))
++,("armv7-unknown-linux-androideabi", ("e-m:e-p:32:32-Fi8-i64:64-v128:64:128-a:0:32-n32-S64", "generic", "+fpregs +vfp2 +vfp2sp +vfp3 +vfp3d16 +vfp3d16sp +vfp3sp -fp16 -vfp4 -vfp4d16 -vfp4d16sp -vfp4sp -fp-armv8 -fp-armv8d16 -fp-armv8d16sp -fp-armv8sp -fullfp16 +fp64 +d32 +neon -crypto -fp16fml"))
+ ,("aarch64-unknown-linux-android", ("e-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128", "generic", "+neon"))
+-,("armv7a-unknown-linux-androideabi", ("e-m:e-p:32:32-Fi8-i64:64-v128:64:128-a:0:32-n32-S64", "generic", "+fpregs +vfp2 +vfp2d16 +vfp2d16sp +vfp2sp +vfp3 +vfp3d16 +vfp3d16sp +vfp3sp -fp16 -vfp4 -vfp4d16 -vfp4d16sp -vfp4sp -fp-armv8 -fp-armv8d16 -fp-armv8d16sp -fp-armv8sp -fullfp16 +fp64 +d32 +neon -crypto -fp16fml"))
++,("armv7a-unknown-linux-androideabi", ("e-m:e-p:32:32-Fi8-i64:64-v128:64:128-a:0:32-n32-S64", "generic", "+fpregs +vfp2 +vfp2sp +vfp3 +vfp3d16 +vfp3d16sp +vfp3sp -fp16 -vfp4 -vfp4d16 -vfp4d16sp -vfp4sp -fp-armv8 -fp-armv8d16 -fp-armv8d16sp -fp-armv8sp -fullfp16 +fp64 +d32 +neon -crypto -fp16fml"))
+ ,("powerpc64le-unknown-linux-gnu", ("e-m:e-i64:64-n32:64", "ppc64le", ""))
+ ,("powerpc64le-unknown-linux-musl", ("e-m:e-i64:64-n32:64", "ppc64le", "+secure-plt"))
+ ,("powerpc64le-unknown-linux", ("e-m:e-i64:64-n32:64", "ppc64le", ""))
+ ,("s390x-ibm-linux", ("E-m:e-i1:8:16-i8:8:16-i64:64-f128:64-a:8:16-n32:64", "z10", ""))
+-,("i386-apple-darwin", ("e-m:o-p:32:32-f64:32:64-f80:128-n8:16:32-S128", "yonah", ""))
+-,("x86_64-apple-darwin", ("e-m:o-i64:64-f80:128-n8:16:32:64-S128", "core2", ""))
+-,("armv7-apple-ios", ("e-m:o-p:32:32-f64:32:64-v64:32:64-v128:32:128-a:0:32-n32-S32", "generic", ""))
+-,("aarch64-apple-ios", ("e-m:o-i64:64-i128:128-n32:64-S128", "generic", "+neon"))
+-,("i386-apple-ios", ("e-m:o-p:32:32-f64:32:64-f80:128-n8:16:32-S128", "yonah", ""))
+-,("x86_64-apple-ios", ("e-m:o-i64:64-f80:128-n8:16:32:64-S128", "core2", ""))
+-,("amd64-portbld-freebsd", ("e-m:e-i64:64-f80:128-n8:16:32:64-S128", "x86-64", ""))
+-,("x86_64-unknown-freebsd", ("e-m:e-i64:64-f80:128-n8:16:32:64-S128", "x86-64", ""))
++,("i386-apple-darwin", ("e-m:o-p:32:32-p270:32:32-p271:32:32-p272:64:64-f64:32:64-f80:128-n8:16:32-S128", "penryn", ""))
++,("x86_64-apple-darwin", ("e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128", "penryn", ""))
++,("arm64-apple-darwin", ("e-m:o-i64:64-i128:128-n32:64-S128", "", "+fp-armv8 +neon +crc +crypto +fullfp16 +ras +rdm +rcpc +zcm +zcz +sha2 +aes"))
++,("armv7-apple-ios", ("e-m:o-p:32:32-Fi8-f64:32:64-v64:32:64-v128:32:128-a:0:32-n32-S32", "generic", ""))
++,("aarch64-apple-ios", ("e-m:o-i64:64-i128:128-n32:64-S128", "apple-a7", "+fp-armv8 +neon +crypto +zcm +zcz +sha2 +aes"))
++,("i386-apple-ios", ("e-m:o-p:32:32-p270:32:32-p271:32:32-p272:64:64-f64:32:64-f80:128-n8:16:32-S128", "yonah", ""))
++,("x86_64-apple-ios", ("e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128", "core2", ""))
++,("amd64-portbld-freebsd", ("e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128", "x86-64", ""))
++,("x86_64-unknown-freebsd", ("e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128", "x86-64", ""))
+ ,("aarch64-unknown-freebsd", ("e-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128", "generic", "+neon"))
+ ,("armv6-unknown-freebsd-gnueabihf", ("e-m:e-p:32:32-Fi8-i64:64-v128:64:128-a:0:32-n32-S64", "arm1176jzf-s", "+strict-align"))
+ ,("armv7-unknown-freebsd-gnueabihf", ("e-m:e-p:32:32-Fi8-i64:64-v128:64:128-a:0:32-n32-S64", "generic", "+strict-align"))
+diff --git a/rts/StgCRun.c b/rts/StgCRun.c
+index ddb19b468b..05f65d874a 100644
+--- a/rts/StgCRun.c
++++ b/rts/StgCRun.c
+@@ -899,7 +899,7 @@ StgRun(StgFunPtr f, StgRegTable *basereg) {
+ 
+         ".globl " STG_RETURN "\n\t"
+         THUMB_FUNC
+-#if !defined(ios_HOST_OS)
++#if !(defined(ios_HOST_OS) || defined(darwin_HOST_OS))
+         ".type " STG_RETURN ", %%function\n"
+ #endif
+         STG_RETURN ":\n\t"
+@@ -982,7 +982,7 @@ StgRun(StgFunPtr f, StgRegTable *basereg) {
+         "br %1\n\t"
+ 
+         ".globl " STG_RETURN "\n\t"
+-#if !defined(ios_HOST_OS)
++#if !(defined(ios_HOST_OS) || defined(darwin_HOST_OS))
+         ".type " STG_RETURN ", %%function\n"
+ #endif
+         STG_RETURN ":\n\t"
+diff --git a/rts/linker/MachO.c b/rts/linker/MachO.c
+index 2d069a37c7..f0eccd6fac 100644
+--- a/rts/linker/MachO.c
++++ b/rts/linker/MachO.c
+@@ -49,7 +49,7 @@
+  */
+ int64_t signExtend(uint64_t val, uint8_t bits);
+ /* Helper functions to check some instruction properties */
+-bool isVectorPp(uint32_t *p);
++bool isVectorOp(uint32_t *p);
+ bool isLoadStore(uint32_t *p);
+ 
+ /* aarch64 relocations may contain an addend alreay in the position
+@@ -272,12 +272,12 @@ signExtend(uint64_t val, uint8_t bits) {
+     return (int64_t)(val << (64-bits)) >> (64-bits);
+ }
+ 
+-bool
++inline bool
+ isVectorOp(uint32_t *p) {
+     return (*p & 0x04800000) == 0x04800000;
+ }
+ 
+-bool
++inline bool
+ isLoadStore(uint32_t *p) {
+     return (*p & 0x3B000000) == 0x39000000;
+ }
+@@ -345,7 +345,7 @@ decodeAddend(ObjectCode * oc, Section * section, MachORelocationInfo * ri) {
+ inline bool
+ fitsBits(size_t bits, int64_t value) {
+     if(bits == 64) return true;
+-    if(bits > 64) barf("fits_bits with %d bits and an 64bit integer!", bits);
++    if(bits > 64) barf("fits_bits with %zu bits and an 64bit integer!", bits);
+     return  0 == (value >> bits)   // All bits off: 0
+         || -1 == (value >> bits);  // All bits on: -1
+ }
+-- 
+GitLab
+
+
+From 36ace64749fcc19478ff30675bda78d1d2ade70f Mon Sep 17 00:00:00 2001
+From: Moritz Angermann <angerman@m1-mini.local>
+Date: Tue, 5 Jan 2021 18:47:47 +0800
+Subject: [PATCH 2/8] add aarch64-apple-darwin
+
+---
+ llvm-targets | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/llvm-targets b/llvm-targets
+index 4d97d90b63..fa71f61d4b 100644
+--- a/llvm-targets
++++ b/llvm-targets
+@@ -41,6 +41,7 @@
+ ,("i386-apple-darwin", ("e-m:o-p:32:32-p270:32:32-p271:32:32-p272:64:64-f64:32:64-f80:128-n8:16:32-S128", "penryn", ""))
+ ,("x86_64-apple-darwin", ("e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128", "penryn", ""))
+ ,("arm64-apple-darwin", ("e-m:o-i64:64-i128:128-n32:64-S128", "", "+fp-armv8 +neon +crc +crypto +fullfp16 +ras +rdm +rcpc +zcm +zcz +sha2 +aes"))
++,("aarch64-apple-darwin", ("e-m:o-i64:64-i128:128-n32:64-S128", "", "+fp-armv8 +neon +crypto +zcm +zcz +sha2 +aes"))
+ ,("armv7-apple-ios", ("e-m:o-p:32:32-Fi8-f64:32:64-v64:32:64-v128:32:128-a:0:32-n32-S32", "generic", ""))
+ ,("aarch64-apple-ios", ("e-m:o-i64:64-i128:128-n32:64-S128", "apple-a7", "+fp-armv8 +neon +crypto +zcm +zcz +sha2 +aes"))
+ ,("i386-apple-ios", ("e-m:o-p:32:32-p270:32:32-p271:32:32-p272:64:64-f64:32:64-f80:128-n8:16:32-S128", "yonah", ""))
+-- 
+GitLab
+
+
+From c185abb8c751affaa489db5b8ea4a7bf57ec5ab3 Mon Sep 17 00:00:00 2001
+From: Moritz Angermann <angerman@m1-mini.local>
+Date: Tue, 5 Jan 2021 18:48:35 +0800
+Subject: [PATCH 3/8] Add boot curses logic
+
+---
+ aclocal.m4                  |  8 ++++++++
+ mk/config.mk.in             |  1 +
+ rules/build-package-data.mk | 10 ++++++++++
+ 3 files changed, 19 insertions(+)
+
+diff --git a/aclocal.m4 b/aclocal.m4
+index a874d4ff66..fa28b73604 100644
+--- a/aclocal.m4
++++ b/aclocal.m4
+@@ -1903,6 +1903,14 @@ AC_DEFUN([FP_CURSES],
+ 
+   AC_SUBST(CURSES_INCLUDE_DIRS)
+   AC_SUBST(CURSES_LIB_DIRS)
++
++  AC_ARG_WITH([curses-libraries-stage0],
++    [AC_HELP_STRING([--with-curses-libraries-stage0],
++       [directory containing curses lirbaries (for stage0: boot)])],
++       [CURSES_LIB_DIRS_STAGE0=$withval])
++
++  AC_SUBST(CURSES_LIB_DIRS_STAGE0)
++
+ ])# FP_CURSES
+ 
+ # --------------------------------------------------------------
+diff --git a/mk/config.mk.in b/mk/config.mk.in
+index 7a5993eedd..92d552fc35 100644
+--- a/mk/config.mk.in
++++ b/mk/config.mk.in
+@@ -911,6 +911,7 @@ GMP_PREFER_FRAMEWORK = @GMP_PREFER_FRAMEWORK@
+ GMP_FORCE_INTREE = @GMP_FORCE_INTREE@
+ 
+ CURSES_LIB_DIRS = @CURSES_LIB_DIRS@
++CURSES_LIB_DIRS_STAGE0 = @CURSES_LIB_DIRS_STAGE0@
+ 
+ # See Note [Disable -O2 in unregisterised mode]
+ # Be careful: 'GhcUnregisterised' should be defined earlier in this file.
+diff --git a/rules/build-package-data.mk b/rules/build-package-data.mk
+index 1c5987e63d..364c2ef2e1 100644
+--- a/rules/build-package-data.mk
++++ b/rules/build-package-data.mk
+@@ -100,9 +100,19 @@ ifeq "$$(GMP_FORCE_INTREE)" "YES"
+ $1_$2_CONFIGURE_OPTS += --configure-option=--with-intree-gmp
+ endif
+ 
++ifeq "$3" "0"
++ifneq "$$(CURSES_LIB_DIRS_STAGE0)" ""
++$1_$2_CONFIGURE_OPTS += --configure-option=--with-curses-libraries="$$(CURSES_LIB_DIRS_STAGE0)"
++else
++ifneq "$$(CURSES_LIB_DIRS)" ""
++$1_$2_CONFIGURE_OPTS += --configure-option=--with-curses-libraries="$$(CURSES_LIB_DIRS)"
++endif
++endif
++else
+ ifneq "$$(CURSES_LIB_DIRS)" ""
+ $1_$2_CONFIGURE_OPTS += --configure-option=--with-curses-libraries="$$(CURSES_LIB_DIRS)"
+ endif
++endif
+ 
+ ifeq "$$(CrossCompiling)" "YES"
+ $1_$2_CONFIGURE_OPTS += --configure-option=--host=$(TargetPlatformFull)
+-- 
+GitLab
+
+
+From 464faf90126f30e44d4f1c8a0907877821e900da Mon Sep 17 00:00:00 2001
+From: Moritz Angermann <moritz.angermann@gmail.com>
+Date: Fri, 9 Oct 2020 18:47:00 +0800
+Subject: [PATCH 4/8] Various fixes for arm64 compatibility
+
+This adds specifically logic to carry types from foreign
+imports all the way to the codegen.  This is essentail
+for the calling convention on darwin/arm64.
+
+- [linker:MachO] split PLT logic out.
+- AArch64/arm64 adjustments
+- Fixup Target. It's all ArchAArch64 now.
+- Bump integer-gmp, now with arm64 support
+- fix ghci adjustors on aarch64/arm (infotables)
+- [aarch64/rts] fix missing prototypes
+- Make sure _DARWIN_C_SOURCE is defined prior to importing sys/mman.h
+- [AArch64] Aarch64 Always PIC
+---
+ aclocal.m4                                    |  44 ++--
+ .../GHC/Platform/{ARM64.hs => AArch64.hs}     |   3 +-
+ compiler/GHC/Platform/Regs.hs                 |  64 +++---
+ compiler/GHC/StgToCmm/Bind.hs                 |   8 +-
+ compiler/GHC/StgToCmm/DataCon.hs              |  17 +-
+ compiler/GHC/StgToCmm/Expr.hs                 |   2 +-
+ compiler/GHC/StgToCmm/Foreign.hs              |  20 +-
+ compiler/GHC/StgToCmm/Prim.hs                 |  15 +-
+ compiler/GHC/StgToCmm/Prof.hs                 |  12 +-
+ compiler/GHC/StgToCmm/Utils.hs                |  32 +--
+ compiler/basicTypes/Literal.hs                | 195 ++++++++++++++++--
+ compiler/cmm/CmmLayoutStack.hs                |   7 +-
+ compiler/cmm/CmmMachOp.hs                     |  90 +++++++-
+ compiler/cmm/CmmNode.hs                       |  16 +-
+ compiler/cmm/CmmParse.y                       |  24 ++-
+ compiler/cmm/CmmType.hs                       |   6 +-
+ compiler/cmm/CmmUtils.hs                      |  44 ++--
+ compiler/cmm/PprC.hs                          |  16 +-
+ compiler/cmm/PprCmm.hs                        |   2 +-
+ compiler/cmm/PprCmmDecl.hs                    |   2 +-
+ compiler/deSugar/DsCCall.hs                   |  38 ++--
+ compiler/deSugar/DsForeign.hs                 |  28 ++-
+ compiler/ghc.cabal.in                         |   2 +-
+ compiler/ghci/ByteCodeGen.hs                  |  61 ++++--
+ compiler/llvmGen/LlvmCodeGen.hs               |  10 +-
+ compiler/llvmGen/LlvmCodeGen/CodeGen.hs       | 120 +++++++++--
+ compiler/main/DriverPipeline.hs               |   2 +-
+ compiler/main/DynFlags.hs                     |  29 ++-
+ compiler/main/SysTools.hs                     |   2 +-
+ compiler/nativeGen/AsmCodeGen.hs              |   2 +-
+ compiler/nativeGen/PPC/CodeGen.hs             |   2 +-
+ .../nativeGen/RegAlloc/Graph/TrivColorable.hs |   6 +-
+ .../nativeGen/RegAlloc/Linear/FreeRegs.hs     |   2 +-
+ compiler/nativeGen/RegAlloc/Linear/Main.hs    |   2 +-
+ compiler/nativeGen/TargetReg.hs               |  10 +-
+ compiler/nativeGen/X86/CodeGen.hs             |  14 +-
+ compiler/prelude/ForeignCall.hs               |  18 +-
+ compiler/prelude/TysWiredIn.hs-boot           |   3 +
+ compiler/simplStg/RepType.hs                  |  57 ++++-
+ compiler/stgSyn/CoreToStg.hs                  |   2 +-
+ compiler/stgSyn/StgSyn.hs                     |   4 +-
+ compiler/typecheck/TcType.hs-boot             |   4 +
+ compiler/types/TyCon.hs                       |  65 +++++-
+ compiler/types/TyCon.hs-boot                  |   6 +
+ compiler/types/Type.hs-boot                   |   2 +-
+ compiler/utils/FastString.hs                  |  10 +-
+ config.sub                                    |   2 +-
+ docs/users_guide/runtime_control.rst          |   6 +-
+ includes/CodeGen.Platform.hs                  |   3 +-
+ includes/Rts.h                                |   6 +
+ includes/rts/Flags.h                          |   4 +-
+ includes/rts/storage/GC.h                     |   7 +-
+ libraries/base/config.sub                     |   2 +-
+ libraries/ghc-boot/GHC/Platform.hs            |   6 +-
+ libraries/ghci/GHCi/InfoTable.hsc             |  24 ++-
+ libraries/integer-gmp/config.sub              |   2 +-
+ libraries/integer-gmp/gmp/gmp-tarballs        |   2 +-
+ libraries/integer-gmp/gmp/gmpsrc.patch        |  62 +++---
+ rts/Adjustor.c                                |   2 +-
+ rts/Interpreter.c                             |   2 +-
+ rts/Libdw.c                                   |   3 +-
+ rts/Linker.c                                  |  42 +---
+ rts/LinkerInternals.h                         |   6 +-
+ rts/StgCRun.c                                 |   4 +-
+ rts/ghc.mk                                    |  11 +-
+ rts/linker/MachO.c                            | 168 +++++++--------
+ rts/linker/MachOTypes.h                       |   5 +
+ rts/linker/elf_plt_aarch64.c                  |   4 +-
+ rts/linker/elf_reloc.c                        |   2 +-
+ rts/linker/macho/plt.c                        |  94 +++++++++
+ rts/linker/macho/plt.h                        |  35 ++++
+ rts/linker/macho/plt_aarch64.c                |  62 ++++++
+ rts/linker/macho/plt_aarch64.h                |  23 +++
+ rts/package.conf.in                           |   2 +-
+ rts/rts.cabal.in                              |   4 +-
+ rts/sm/Storage.c                              |  31 ++-
+ testsuite/driver/testlib.py                   |  10 +
+ utils/llvm-targets/gen-data-layout.sh         |   7 +-
+ 78 files changed, 1300 insertions(+), 463 deletions(-)
+ rename compiler/GHC/Platform/{ARM64.hs => AArch64.hs} (81%)
+ create mode 100644 rts/linker/macho/plt.c
+ create mode 100644 rts/linker/macho/plt.h
+ create mode 100644 rts/linker/macho/plt_aarch64.c
+ create mode 100644 rts/linker/macho/plt_aarch64.h
+
+diff --git a/aclocal.m4 b/aclocal.m4
+index fa28b73604..cbe2e73cf1 100644
+--- a/aclocal.m4
++++ b/aclocal.m4
+@@ -118,7 +118,7 @@ AC_DEFUN([FPTOOLS_SET_PLATFORM_VARS],
+         GHC_CONVERT_OS([$target_os], [$TargetArch], [TargetOS])
+     fi
+ 
+-    GHC_LLVM_TARGET([$target_cpu],[$target_vendor],[$target_os],[LlvmTarget])
++    GHC_LLVM_TARGET([$target],[$target_cpu],[$target_vendor],[$target_os],[LlvmTarget])
+ 
+     GHC_SELECT_FILE_EXTENSIONS([$host], [exeext_host], [soext_host])
+     GHC_SELECT_FILE_EXTENSIONS([$target], [exeext_target], [soext_target])
+@@ -218,7 +218,7 @@ AC_DEFUN([FPTOOLS_SET_HASKELL_PLATFORM_VARS],
+             test -z "[$]2" || eval "[$]2=\"ArchARM {armISA = \$ARM_ISA, armISAExt = \$ARM_ISA_EXT, armABI = \$ARM_ABI}\""
+             ;;
+         aarch64)
+-            test -z "[$]2" || eval "[$]2=ArchARM64"
++            test -z "[$]2" || eval "[$]2=ArchAArch64"
+             ;;
+         alpha)
+             test -z "[$]2" || eval "[$]2=ArchAlpha"
+@@ -327,9 +327,14 @@ AC_DEFUN([FPTOOLS_SET_HASKELL_PLATFORM_VARS],
+     AC_LINK_IFELSE(
+         [AC_LANG_PROGRAM([], [__asm__ (".subsections_via_symbols");])],
+         [AC_MSG_RESULT(yes)
+-         TargetHasSubsectionsViaSymbols=YES
+-         AC_DEFINE([HAVE_SUBSECTIONS_VIA_SYMBOLS],[1],
++         if test x"$TargetArch" = xaarch64; then
++            dnl subsections via symbols is busted on arm64
++            TargetHasSubsectionsViaSymbols=NO
++         else
++            TargetHasSubsectionsViaSymbols=YES
++            AC_DEFINE([HAVE_SUBSECTIONS_VIA_SYMBOLS],[1],
+                    [Define to 1 if Apple-style dead-stripping is supported.])
++         fi
+         ],
+         [TargetHasSubsectionsViaSymbols=NO
+          AC_MSG_RESULT(no)])
+@@ -1956,7 +1961,7 @@ AC_MSG_CHECKING(for path to top of build tree)
+ # converts cpu from gnu to ghc naming, and assigns the result to $target_var
+ AC_DEFUN([GHC_CONVERT_CPU],[
+ case "$1" in
+-  aarch64*)
++  aarch64*|arm64*)
+     $2="aarch64"
+     ;;
+   alpha*)
+@@ -2038,18 +2043,19 @@ case "$1" in
+   esac
+ ])
+ 
+-# GHC_LLVM_TARGET(target_cpu, target_vendor, target_os, llvm_target_var)
++# GHC_LLVM_TARGET(target, target_cpu, target_vendor, target_os, llvm_target_var)
+ # --------------------------------
+ # converts the canonicalized target into someting llvm can understand
+ AC_DEFUN([GHC_LLVM_TARGET], [
+-  case "$2-$3" in
++  llvm_target_cpu=$2
++  case "$1" in
+     *-freebsd*-gnueabihf)
+       llvm_target_vendor="unknown"
+       llvm_target_os="freebsd-gnueabihf"
+       ;;
+-    hardfloat-*eabi)
++    *-hardfloat-*eabi)
+       llvm_target_vendor="unknown"
+-      llvm_target_os="$3""hf"
++      llvm_target_os="$4""hf"
+       ;;
+     *-mingw32|*-mingw64|*-msys)
+       llvm_target_vendor="unknown"
+@@ -2060,15 +2066,25 @@ AC_DEFUN([GHC_LLVM_TARGET], [
+     # turned into just `-linux` and fail to be found
+     # in the `llvm-targets` file.
+     *-android*|*-gnueabi*|*-musleabi*)
+-      GHC_CONVERT_VENDOR([$2],[llvm_target_vendor])
+-      llvm_target_os="$3"
++      GHC_CONVERT_VENDOR([$3],[llvm_target_vendor])
++      llvm_target_os="$4"
++      ;;
++    # apple is a bit about their naming scheme for
++    # aarch64; and clang on macOS doesn't know that
++    # aarch64 would be arm64. So for LLVM we'll need
++    # to call it arm64; while we'll refer to it internally
++    # as aarch64 for consistency and sanity.
++    aarch64-apple-*|arm64-apple-*)
++      llvm_target_cpu="arm64"
++      GHC_CONVERT_VENDOR([$3],[llvm_target_vendor])
++      GHC_CONVERT_OS([$4],[$2],[llvm_target_os])
+       ;;
+     *)
+-      GHC_CONVERT_VENDOR([$2],[llvm_target_vendor])
+-      GHC_CONVERT_OS([$3],[$1],[llvm_target_os])
++      GHC_CONVERT_VENDOR([$3],[llvm_target_vendor])
++      GHC_CONVERT_OS([$4],[$2],[llvm_target_os])
+       ;;
+   esac
+-  $4="$1-$llvm_target_vendor-$llvm_target_os"
++  $5="$llvm_target_cpu-$llvm_target_vendor-$llvm_target_os"
+ ])
+ 
+ 
+diff --git a/compiler/GHC/Platform/ARM64.hs b/compiler/GHC/Platform/AArch64.hs
+similarity index 81%
+rename from compiler/GHC/Platform/ARM64.hs
+rename to compiler/GHC/Platform/AArch64.hs
+index ebd66b92c5..94b5158d4a 100644
+--- a/compiler/GHC/Platform/ARM64.hs
++++ b/compiler/GHC/Platform/AArch64.hs
+@@ -1,10 +1,9 @@
+ {-# LANGUAGE CPP #-}
+ 
+-module GHC.Platform.ARM64 where
++module GHC.Platform.AArch64 where
+ 
+ import GhcPrelude
+ 
+ #define MACHREGS_NO_REGS 0
+ #define MACHREGS_aarch64 1
+ #include "../../../includes/CodeGen.Platform.hs"
+-
+diff --git a/compiler/GHC/Platform/Regs.hs b/compiler/GHC/Platform/Regs.hs
+index fe6588d067..6e1891d0b7 100644
+--- a/compiler/GHC/Platform/Regs.hs
++++ b/compiler/GHC/Platform/Regs.hs
+@@ -1,4 +1,3 @@
+-
+ module GHC.Platform.Regs
+        (callerSaves, activeStgRegs, haveRegBase, globalRegMaybe, freeReg)
+        where
+@@ -10,7 +9,7 @@ import GHC.Platform
+ import Reg
+ 
+ import qualified GHC.Platform.ARM        as ARM
+-import qualified GHC.Platform.ARM64      as ARM64
++import qualified GHC.Platform.AArch64    as AArch64
+ import qualified GHC.Platform.PPC        as PPC
+ import qualified GHC.Platform.S390X      as S390X
+ import qualified GHC.Platform.SPARC      as SPARC
+@@ -26,12 +25,12 @@ callerSaves platform
+  | platformUnregisterised platform = NoRegs.callerSaves
+  | otherwise
+  = case platformArch platform of
+-   ArchX86    -> X86.callerSaves
+-   ArchX86_64 -> X86_64.callerSaves
+-   ArchS390X  -> S390X.callerSaves
+-   ArchSPARC  -> SPARC.callerSaves
+-   ArchARM {} -> ARM.callerSaves
+-   ArchARM64  -> ARM64.callerSaves
++   ArchX86     -> X86.callerSaves
++   ArchX86_64  -> X86_64.callerSaves
++   ArchS390X   -> S390X.callerSaves
++   ArchSPARC   -> SPARC.callerSaves
++   ArchARM {}  -> ARM.callerSaves
++   ArchAArch64 -> AArch64.callerSaves
+    arch
+     | arch `elem` [ArchPPC, ArchPPC_64 ELF_V1, ArchPPC_64 ELF_V2] ->
+         PPC.callerSaves
+@@ -48,12 +47,12 @@ activeStgRegs platform
+  | platformUnregisterised platform = NoRegs.activeStgRegs
+  | otherwise
+  = case platformArch platform of
+-   ArchX86    -> X86.activeStgRegs
+-   ArchX86_64 -> X86_64.activeStgRegs
+-   ArchS390X  -> S390X.activeStgRegs
+-   ArchSPARC  -> SPARC.activeStgRegs
+-   ArchARM {} -> ARM.activeStgRegs
+-   ArchARM64  -> ARM64.activeStgRegs
++   ArchX86     -> X86.activeStgRegs
++   ArchX86_64  -> X86_64.activeStgRegs
++   ArchS390X   -> S390X.activeStgRegs
++   ArchSPARC   -> SPARC.activeStgRegs
++   ArchARM {}  -> ARM.activeStgRegs
++   ArchAArch64 -> AArch64.activeStgRegs
+    arch
+     | arch `elem` [ArchPPC, ArchPPC_64 ELF_V1, ArchPPC_64 ELF_V2] ->
+         PPC.activeStgRegs
+@@ -65,12 +64,12 @@ haveRegBase platform
+  | platformUnregisterised platform = NoRegs.haveRegBase
+  | otherwise
+  = case platformArch platform of
+-   ArchX86    -> X86.haveRegBase
+-   ArchX86_64 -> X86_64.haveRegBase
+-   ArchS390X  -> S390X.haveRegBase
+-   ArchSPARC  -> SPARC.haveRegBase
+-   ArchARM {} -> ARM.haveRegBase
+-   ArchARM64  -> ARM64.haveRegBase
++   ArchX86     -> X86.haveRegBase
++   ArchX86_64  -> X86_64.haveRegBase
++   ArchS390X   -> S390X.haveRegBase
++   ArchSPARC   -> SPARC.haveRegBase
++   ArchARM {}  -> ARM.haveRegBase
++   ArchAArch64 -> AArch64.haveRegBase
+    arch
+     | arch `elem` [ArchPPC, ArchPPC_64 ELF_V1, ArchPPC_64 ELF_V2] ->
+         PPC.haveRegBase
+@@ -82,12 +81,12 @@ globalRegMaybe platform
+  | platformUnregisterised platform = NoRegs.globalRegMaybe
+  | otherwise
+  = case platformArch platform of
+-   ArchX86    -> X86.globalRegMaybe
+-   ArchX86_64 -> X86_64.globalRegMaybe
+-   ArchS390X  -> S390X.globalRegMaybe
+-   ArchSPARC  -> SPARC.globalRegMaybe
+-   ArchARM {} -> ARM.globalRegMaybe
+-   ArchARM64  -> ARM64.globalRegMaybe
++   ArchX86     -> X86.globalRegMaybe
++   ArchX86_64  -> X86_64.globalRegMaybe
++   ArchS390X   -> S390X.globalRegMaybe
++   ArchSPARC   -> SPARC.globalRegMaybe
++   ArchARM {}  -> ARM.globalRegMaybe
++   ArchAArch64 -> AArch64.globalRegMaybe
+    arch
+     | arch `elem` [ArchPPC, ArchPPC_64 ELF_V1, ArchPPC_64 ELF_V2] ->
+         PPC.globalRegMaybe
+@@ -99,15 +98,14 @@ freeReg platform
+  | platformUnregisterised platform = NoRegs.freeReg
+  | otherwise
+  = case platformArch platform of
+-   ArchX86    -> X86.freeReg
+-   ArchX86_64 -> X86_64.freeReg
+-   ArchS390X  -> S390X.freeReg
+-   ArchSPARC  -> SPARC.freeReg
+-   ArchARM {} -> ARM.freeReg
+-   ArchARM64  -> ARM64.freeReg
++   ArchX86     -> X86.freeReg
++   ArchX86_64  -> X86_64.freeReg
++   ArchS390X   -> S390X.freeReg
++   ArchSPARC   -> SPARC.freeReg
++   ArchARM {}  -> ARM.freeReg
++   ArchAArch64 -> AArch64.freeReg
+    arch
+     | arch `elem` [ArchPPC, ArchPPC_64 ELF_V1, ArchPPC_64 ELF_V2] ->
+         PPC.freeReg
+ 
+     | otherwise -> NoRegs.freeReg
+-
+diff --git a/compiler/GHC/StgToCmm/Bind.hs b/compiler/GHC/StgToCmm/Bind.hs
+index 9e192a0ac8..325686aaa8 100644
+--- a/compiler/GHC/StgToCmm/Bind.hs
++++ b/compiler/GHC/StgToCmm/Bind.hs
+@@ -52,6 +52,8 @@ import DynFlags
+ 
+ import Control.Monad
+ 
++import TyCon (PrimRep (..))
++
+ ------------------------------------------------------------------------
+ --              Top-level bindings
+ ------------------------------------------------------------------------
+@@ -716,9 +718,9 @@ link_caf node = do
+   ; let newCAF_lbl = mkForeignLabel (fsLit "newCAF") Nothing
+                                     ForeignLabelInExternalPackage IsFunction
+   ; bh <- newTemp (bWord dflags)
+-  ; emitRtsCallGen [(bh,AddrHint)] newCAF_lbl
+-      [ (baseExpr,  AddrHint),
+-        (CmmReg (CmmLocal node), AddrHint) ]
++  ; emitRtsCallGen [(bh, AddrRep, AddrHint)] newCAF_lbl
++      [ (baseExpr, AddrRep, AddrHint),
++        (CmmReg (CmmLocal node), AddrRep, AddrHint) ]
+       False
+ 
+   -- see Note [atomic CAF entry] in rts/sm/Storage.c
+diff --git a/compiler/GHC/StgToCmm/DataCon.hs b/compiler/GHC/StgToCmm/DataCon.hs
+index c7ad444e41..55ea3f6963 100644
+--- a/compiler/GHC/StgToCmm/DataCon.hs
++++ b/compiler/GHC/StgToCmm/DataCon.hs
+@@ -84,6 +84,21 @@ cgTopRhsCon dflags id con args =
+              nv_args_w_offsets) =
+                  mkVirtHeapOffsetsWithPadding dflags StdHeader (addArgReps args)
+ 
++        ; let
++            -- Decompose padding into units of length 8, 4, 2, or 1 bytes to
++            -- allow the implementation of mk_payload to use widthFromBytes,
++            -- which only handles these cases.
++            fix_padding (x@(Padding n off) : rest)
++              | n == 0                 = fix_padding rest
++              | n `elem` [1,2,4,8]     = x : fix_padding rest
++              | n > 8                  = add_pad 8
++              | n > 4                  = add_pad 4
++              | n > 2                  = add_pad 2
++              | otherwise              = add_pad 1
++              where add_pad m = Padding m off : fix_padding (Padding (n-m) (off+m) : rest)
++            fix_padding (x : rest)     = x : fix_padding rest
++            fix_padding []             = []
++
+             mk_payload (Padding len _) = return (CmmInt 0 (widthFromBytes len))
+             mk_payload (FieldOff arg _) = do
+                 amode <- getArgAmode arg
+@@ -99,7 +114,7 @@ cgTopRhsCon dflags id con args =
+             info_tbl = mkDataConInfoTable dflags con True ptr_wds nonptr_wds
+ 
+ 
+-        ; payload <- mapM mk_payload nv_args_w_offsets
++        ; payload <- mapM mk_payload (fix_padding nv_args_w_offsets)
+                 -- NB1: nv_args_w_offsets is sorted into ptrs then non-ptrs
+                 -- NB2: all the amodes should be Lits!
+                 --      TODO (osa): Why?
+diff --git a/compiler/GHC/StgToCmm/Expr.hs b/compiler/GHC/StgToCmm/Expr.hs
+index 07113a4e82..c2d466d7d8 100644
+--- a/compiler/GHC/StgToCmm/Expr.hs
++++ b/compiler/GHC/StgToCmm/Expr.hs
+@@ -571,7 +571,7 @@ isSimpleScrut _                _           = return False
+ 
+ isSimpleOp :: StgOp -> [StgArg] -> FCode Bool
+ -- True iff the op cannot block or allocate
+-isSimpleOp (StgFCallOp (CCall (CCallSpec _ _ safe)) _) _ = return $! not (playSafe safe)
++isSimpleOp (StgFCallOp (CCall (CCallSpec _ _ safe _ _)) _) _ = return $! not (playSafe safe)
+ -- dataToTag# evalautes its argument, see Note [dataToTag#] in primops.txt.pp
+ isSimpleOp (StgPrimOp DataToTagOp) _ = return False
+ isSimpleOp (StgPrimOp op) stg_args                  = do
+diff --git a/compiler/GHC/StgToCmm/Foreign.hs b/compiler/GHC/StgToCmm/Foreign.hs
+index 37eb7c5021..9c61b22c63 100644
+--- a/compiler/GHC/StgToCmm/Foreign.hs
++++ b/compiler/GHC/StgToCmm/Foreign.hs
+@@ -65,7 +65,7 @@ cgForeignCall :: ForeignCall            -- the op
+               -> Type                   -- result type
+               -> FCode ReturnKind
+ 
+-cgForeignCall (CCall (CCallSpec target cconv safety)) typ stg_args res_ty
++cgForeignCall (CCall (CCallSpec target cconv safety ret_rep arg_reps)) typ stg_args res_ty
+   = do  { dflags <- getDynFlags
+         ; let -- in the stdcall calling convention, the symbol needs @size appended
+               -- to it, where size is the total number of bytes of arguments.  We
+@@ -97,7 +97,7 @@ cgForeignCall (CCall (CCallSpec target cconv safety)) typ stg_args res_ty
+                    DynamicTarget    ->  case cmm_args of
+                                            (fn,_):rest -> (unzip rest, fn)
+                                            [] -> panic "cgForeignCall []"
+-              fc = ForeignConvention cconv arg_hints res_hints CmmMayReturn
++              fc = ForeignConvention cconv arg_hints res_hints CmmMayReturn ret_rep arg_reps
+               call_target = ForeignTarget cmm_target fc
+ 
+         -- we want to emit code for the call, and then emitReturn.
+@@ -188,17 +188,22 @@ continuation, resulting in just one proc point instead of two. Yay!
+ -}
+ 
+ 
+-emitCCall :: [(CmmFormal,ForeignHint)]
++emitCCall :: [(CmmFormal, PrimRep, ForeignHint)]
+           -> CmmExpr
+-          -> [(CmmActual,ForeignHint)]
++          -> [(CmmActual, PrimRep, ForeignHint)]
+           -> FCode ()
+ emitCCall hinted_results fn hinted_args
+   = void $ emitForeignCall PlayRisky results target args
+   where
+-    (args, arg_hints) = unzip hinted_args
+-    (results, result_hints) = unzip hinted_results
++    (args, arg_reps, arg_hints) = unzip3 hinted_args
++    (results, result_reps, result_hints) = unzip3 hinted_results
++    -- extract result, we can only deal with 0 or 1 result types.
++    res_rep = case result_reps of
++      []  -> VoidRep
++      [r] -> r
++      _   -> error "can not deal with multiple return values in emitCCall"
+     target = ForeignTarget fn fc
+-    fc = ForeignConvention CCallConv arg_hints result_hints CmmMayReturn
++    fc = ForeignConvention CCallConv arg_hints result_hints CmmMayReturn res_rep arg_reps
+ 
+ 
+ emitPrimCall :: [CmmFormal] -> CallishMachOp -> [CmmActual] -> FCode ()
+@@ -653,4 +658,3 @@ typeToStgFArgType typ
+   -- a type in a foreign function signature with a representationally
+   -- equivalent newtype.
+   tycon = tyConAppTyCon (unwrapType typ)
+-
+diff --git a/compiler/GHC/StgToCmm/Prim.hs b/compiler/GHC/StgToCmm/Prim.hs
+index 09eb8bae47..f6689ff979 100644
+--- a/compiler/GHC/StgToCmm/Prim.hs
++++ b/compiler/GHC/StgToCmm/Prim.hs
+@@ -290,15 +290,16 @@ emitPrimOp dflags = \case
+       -> opAllDone $ \ [res] -> emitCloneSmallArray mkSMAP_DIRTY_infoLabel res src src_off (fromInteger n)
+     _ -> PrimopCmmEmit_External
+ 
+--- First we handle various awkward cases specially.
+-
++  -- First we handle various awkward cases specially.
++  -- Note: StgInt newSpark (StgRegTable *reg, StgClosure *p)
++  --       StgInt is Int_64 on 64bit platforms, Int_32 on others
+   ParOp -> \[arg] -> opAllDone $ \[res] -> do
+     -- for now, just implement this in a C function
+     -- later, we might want to inline it.
+     emitCCall
+-        [(res,NoHint)]
++        [(res, Int64Rep, SignedHint)]
+         (CmmLit (CmmLabel (mkForeignLabel (fsLit "newSpark") Nothing ForeignLabelInExternalPackage IsFunction)))
+-        [(baseExpr, AddrHint), (arg,AddrHint)]
++        [(baseExpr, AddrRep, AddrHint), (arg, AddrRep, AddrHint)]
+ 
+   SparkOp -> \[arg] -> opAllDone $ \[res] -> do
+     -- returns the value of arg in res.  We're going to therefore
+@@ -307,9 +308,9 @@ emitPrimOp dflags = \case
+     tmp <- assignTemp arg
+     tmp2 <- newTemp (bWord dflags)
+     emitCCall
+-        [(tmp2,NoHint)]
++        [(tmp2, Int64Rep, SignedHint)]
+         (CmmLit (CmmLabel (mkForeignLabel (fsLit "newSpark") Nothing ForeignLabelInExternalPackage IsFunction)))
+-        [(baseExpr, AddrHint), ((CmmReg (CmmLocal tmp)), AddrHint)]
++        [(baseExpr, AddrRep, AddrHint), ((CmmReg (CmmLocal tmp)), AddrRep, AddrHint)]
+     emitAssign (CmmLocal res) (CmmReg (CmmLocal tmp))
+ 
+   GetCCSOfOp -> \[arg] -> opAllDone $ \[res] -> do
+@@ -342,7 +343,7 @@ emitPrimOp dflags = \case
+     emitCCall
+             [{-no results-}]
+             (CmmLit (CmmLabel mkDirty_MUT_VAR_Label))
+-            [(baseExpr, AddrHint), (mutv, AddrHint), (CmmReg old_val, AddrHint)]
++            [(baseExpr, AddrRep, AddrHint), (mutv, AddrRep, AddrHint), (CmmReg old_val, AddrRep, AddrHint)]
+ 
+ --  #define sizzeofByteArrayzh(r,a) \
+ --     r = ((StgArrBytes *)(a))->bytes
+diff --git a/compiler/GHC/StgToCmm/Prof.hs b/compiler/GHC/StgToCmm/Prof.hs
+index 984c371360..c1cb023d89 100644
+--- a/compiler/GHC/StgToCmm/Prof.hs
++++ b/compiler/GHC/StgToCmm/Prof.hs
+@@ -44,6 +44,8 @@ import Outputable
+ import Control.Monad
+ import Data.Char (ord)
+ 
++import TyCon (PrimRep (..))
++
+ -----------------------------------------------------------------------------
+ --
+ -- Cost-centre-stack Profiling
+@@ -178,8 +180,8 @@ enterCostCentreFun ccs closure =
+     if isCurrentCCS ccs
+        then do dflags <- getDynFlags
+                emitRtsCall rtsUnitId (fsLit "enterFunCCS")
+-                   [(baseExpr, AddrHint),
+-                    (costCentreFrom dflags closure, AddrHint)] False
++                   [(baseExpr, AddrRep, AddrHint),
++                    (costCentreFrom dflags closure, AddrRep, AddrHint)] False
+        else return () -- top-level function, nothing to do
+ 
+ ifProfiling :: FCode () -> FCode ()
+@@ -278,10 +280,10 @@ emitSetCCC cc tick push
+ 
+ pushCostCentre :: LocalReg -> CmmExpr -> CostCentre -> FCode ()
+ pushCostCentre result ccs cc
+-  = emitRtsCallWithResult result AddrHint
++  = emitRtsCallWithResult result AddrRep AddrHint
+         rtsUnitId
+-        (fsLit "pushCostCentre") [(ccs,AddrHint),
+-                                (CmmLit (mkCCostCentre cc), AddrHint)]
++        (fsLit "pushCostCentre") [(ccs, AddrRep, AddrHint),
++                                (CmmLit (mkCCostCentre cc), AddrRep, AddrHint)]
+         False
+ 
+ bumpSccCount :: DynFlags -> CmmExpr -> CmmAGraph
+diff --git a/compiler/GHC/StgToCmm/Utils.hs b/compiler/GHC/StgToCmm/Utils.hs
+index 3b145b5441..d7b95bc9aa 100644
+--- a/compiler/GHC/StgToCmm/Utils.hs
++++ b/compiler/GHC/StgToCmm/Utils.hs
+@@ -179,19 +179,19 @@ tagToClosure dflags tycon tag
+ --
+ -------------------------------------------------------------------------
+ 
+-emitRtsCall :: UnitId -> FastString -> [(CmmExpr,ForeignHint)] -> Bool -> FCode ()
++emitRtsCall :: UnitId -> FastString -> [(CmmExpr, PrimRep, ForeignHint)] -> Bool -> FCode ()
+ emitRtsCall pkg fun args safe = emitRtsCallGen [] (mkCmmCodeLabel pkg fun) args safe
+ 
+-emitRtsCallWithResult :: LocalReg -> ForeignHint -> UnitId -> FastString
+-        -> [(CmmExpr,ForeignHint)] -> Bool -> FCode ()
+-emitRtsCallWithResult res hint pkg fun args safe
+-   = emitRtsCallGen [(res,hint)] (mkCmmCodeLabel pkg fun) args safe
++emitRtsCallWithResult :: LocalReg -> PrimRep -> ForeignHint -> UnitId -> FastString
++        -> [(CmmExpr, PrimRep, ForeignHint)] -> Bool -> FCode ()
++emitRtsCallWithResult res rep hint pkg fun args safe
++   = emitRtsCallGen [(res, rep, hint)] (mkCmmCodeLabel pkg fun) args safe
+ 
+ -- Make a call to an RTS C procedure
+ emitRtsCallGen
+-   :: [(LocalReg,ForeignHint)]
++   :: [(LocalReg, PrimRep, ForeignHint)]
+    -> CLabel
+-   -> [(CmmExpr,ForeignHint)]
++   -> [(CmmExpr, PrimRep, ForeignHint)]
+    -> Bool -- True <=> CmmSafe call
+    -> FCode ()
+ emitRtsCallGen res lbl args safe
+@@ -206,10 +206,14 @@ emitRtsCallGen res lbl args safe
+       if safe then
+         emit =<< mkCmmCall fun_expr res' args' updfr_off
+       else do
+-        let conv = ForeignConvention CCallConv arg_hints res_hints CmmMayReturn
++        let conv = ForeignConvention CCallConv arg_hints res_hints CmmMayReturn res_rep arg_reps
+         emit $ mkUnsafeCall (ForeignTarget fun_expr conv) res' args'
+-    (args', arg_hints) = unzip args
+-    (res',  res_hints) = unzip res
++    (args', arg_reps, arg_hints) = unzip3 args
++    (res',  res_reps, res_hints) = unzip3 res
++    res_rep = case res_reps of
++      []  -> VoidRep
++      [r] -> r
++      _   -> error "can not deal with multiple return values"
+     fun_expr = mkLblExpr lbl
+ 
+ 
+@@ -608,8 +612,8 @@ emitUpdRemSetPush ptr = do
+     emitRtsCall
+       rtsUnitId
+       (fsLit "updateRemembSetPushClosure_")
+-      [(CmmReg (CmmGlobal BaseReg), AddrHint),
+-       (ptr, AddrHint)]
++      [(CmmReg (CmmGlobal BaseReg), AddrRep, AddrHint),
++       (ptr, AddrRep, AddrHint)]
+       False
+ 
+ emitUpdRemSetPushThunk :: CmmExpr -- ^ the thunk
+@@ -618,6 +622,6 @@ emitUpdRemSetPushThunk ptr = do
+     emitRtsCall
+       rtsUnitId
+       (fsLit "updateRemembSetPushThunk_")
+-      [(CmmReg (CmmGlobal BaseReg), AddrHint),
+-       (ptr, AddrHint)]
++      [(CmmReg (CmmGlobal BaseReg), AddrRep, AddrHint),
++       (ptr, AddrRep, AddrHint)]
+       False
+diff --git a/compiler/basicTypes/Literal.hs b/compiler/basicTypes/Literal.hs
+index 338095566c..1e077a2ec8 100644
+--- a/compiler/basicTypes/Literal.hs
++++ b/compiler/basicTypes/Literal.hs
+@@ -16,6 +16,12 @@ module Literal
+         -- ** Creating Literals
+         , mkLitInt, mkLitIntWrap, mkLitIntWrapC
+         , mkLitWord, mkLitWordWrap, mkLitWordWrapC
++        , mkLitInt8, mkLitInt8Wrap
++        , mkLitWord8, mkLitWord8Wrap
++        , mkLitInt16, mkLitInt16Wrap
++        , mkLitWord16, mkLitWord16Wrap
++        , mkLitInt32, mkLitInt32Wrap
++        , mkLitWord32, mkLitWord32Wrap
+         , mkLitInt64, mkLitInt64Wrap
+         , mkLitWord64, mkLitWord64Wrap
+         , mkLitFloat, mkLitDouble
+@@ -39,7 +45,7 @@ module Literal
+ 
+         -- ** Coercions
+         , word2IntLit, int2WordLit
+-        , narrowLit
++--        , narrowLit
+         , narrow8IntLit, narrow16IntLit, narrow32IntLit
+         , narrow8WordLit, narrow16WordLit, narrow32WordLit
+         , char2IntLit, int2CharLit
+@@ -153,8 +159,14 @@ data LitNumType
+   = LitNumInteger -- ^ @Integer@ (see Note [Integer literals])
+   | LitNumNatural -- ^ @Natural@ (see Note [Natural literals])
+   | LitNumInt     -- ^ @Int#@ - according to target machine
++  | LitNumInt8    -- ^ @Int8#@ - exactly 8 bits
++  | LitNumInt16   -- ^ @Int16#@ - exactly 16 bits
++  | LitNumInt32   -- ^ @Int32#@ - exactly 32 bits
+   | LitNumInt64   -- ^ @Int64#@ - exactly 64 bits
+   | LitNumWord    -- ^ @Word#@ - according to target machine
++  | LitNumWord8   -- ^ @Word8#@ - exactly 8 bits
++  | LitNumWord16  -- ^ @Word16#@ - exactly 16 bits
++  | LitNumWord32  -- ^ @Word32#@ - exactly 32 bits
+   | LitNumWord64  -- ^ @Word64#@ - exactly 64 bits
+   deriving (Data,Enum,Eq,Ord)
+ 
+@@ -164,8 +176,14 @@ litNumIsSigned nt = case nt of
+   LitNumInteger -> True
+   LitNumNatural -> False
+   LitNumInt     -> True
++  LitNumInt8    -> True
++  LitNumInt16   -> True
++  LitNumInt32   -> True
+   LitNumInt64   -> True
+   LitNumWord    -> False
++  LitNumWord8   -> False
++  LitNumWord16  -> False
++  LitNumWord32  -> False
+   LitNumWord64  -> False
+ 
+ {-
+@@ -312,6 +330,12 @@ wrapLitNumber dflags v@(LitNumber nt i t) = case nt of
+   LitNumWord -> case platformWordSize (targetPlatform dflags) of
+     PW4 -> LitNumber nt (toInteger (fromIntegral i :: Word32)) t
+     PW8 -> LitNumber nt (toInteger (fromIntegral i :: Word64)) t
++  LitNumInt8    -> LitNumber nt (toInteger (fromIntegral i :: Int8)) t
++  LitNumWord8   -> LitNumber nt (toInteger (fromIntegral i :: Word8)) t
++  LitNumInt16   -> LitNumber nt (toInteger (fromIntegral i :: Int16)) t
++  LitNumWord16  -> LitNumber nt (toInteger (fromIntegral i :: Word16)) t
++  LitNumInt32   -> LitNumber nt (toInteger (fromIntegral i :: Int32)) t
++  LitNumWord32  -> LitNumber nt (toInteger (fromIntegral i :: Word32)) t
+   LitNumInt64   -> LitNumber nt (toInteger (fromIntegral i :: Int64)) t
+   LitNumWord64  -> LitNumber nt (toInteger (fromIntegral i :: Word64)) t
+   LitNumInteger -> v
+@@ -327,7 +351,13 @@ litNumCheckRange :: DynFlags -> LitNumType -> Integer -> Bool
+ litNumCheckRange dflags nt i = case nt of
+      LitNumInt     -> inIntRange dflags i
+      LitNumWord    -> inWordRange dflags i
++     LitNumInt8    -> inInt8Range i
++     LitNumInt16   -> inInt16Range i
++     LitNumInt32   -> inInt32Range i
+      LitNumInt64   -> inInt64Range i
++     LitNumWord8   -> inWord8Range i
++     LitNumWord16  -> inWord16Range i
++     LitNumWord32  -> inWord32Range i
+      LitNumWord64  -> inWord64Range i
+      LitNumNatural -> i >= 0
+      LitNumInteger -> True
+@@ -386,6 +416,84 @@ mkLitWordWrapC dflags i = (n, i /= i')
+   where
+     n@(LitNumber _ i' _) = mkLitWordWrap dflags i
+ 
++-- | Creates a 'Literal' of type @Int8#@
++mkLitInt8 :: Integer -> Literal
++mkLitInt8  x = ASSERT2( inInt8Range x, integer x ) (mkLitInt8Unchecked x)
++
++-- | Creates a 'Literal' of type @Int8#@.
++--   If the argument is out of the range, it is wrapped.
++mkLitInt8Wrap :: DynFlags -> Integer -> Literal
++mkLitInt8Wrap platform i = wrapLitNumber platform $ mkLitInt8Unchecked i
++
++-- | Creates a 'Literal' of type @Int8#@ without checking its range.
++mkLitInt8Unchecked :: Integer -> Literal
++mkLitInt8Unchecked i = LitNumber LitNumInt8 i intPrimTy
++
++-- | Creates a 'Literal' of type @Word8#@
++mkLitWord8 :: Integer -> Literal
++mkLitWord8 x = ASSERT2( inWord8Range x, integer x ) (mkLitWord8Unchecked x)
++
++-- | Creates a 'Literal' of type @Word8#@.
++--   If the argument is out of the range, it is wrapped.
++mkLitWord8Wrap :: DynFlags -> Integer -> Literal
++mkLitWord8Wrap platform i = wrapLitNumber platform $ mkLitWord8Unchecked i
++
++-- | Creates a 'Literal' of type @Word8#@ without checking its range.
++mkLitWord8Unchecked :: Integer -> Literal
++mkLitWord8Unchecked i = LitNumber LitNumWord8 i wordPrimTy
++
++-- | Creates a 'Literal' of type @Int16#@
++mkLitInt16 :: Integer -> Literal
++mkLitInt16  x = ASSERT2( inInt16Range x, integer x ) (mkLitInt16Unchecked x)
++
++-- | Creates a 'Literal' of type @Int16#@.
++--   If the argument is out of the range, it is wrapped.
++mkLitInt16Wrap :: DynFlags -> Integer -> Literal
++mkLitInt16Wrap platform i = wrapLitNumber platform $ mkLitInt16Unchecked i
++
++-- | Creates a 'Literal' of type @Int16#@ without checking its range.
++mkLitInt16Unchecked :: Integer -> Literal
++mkLitInt16Unchecked i = LitNumber LitNumInt16 i intPrimTy
++
++-- | Creates a 'Literal' of type @Word16#@
++mkLitWord16 :: Integer -> Literal
++mkLitWord16 x = ASSERT2( inWord16Range x, integer x ) (mkLitWord16Unchecked x)
++
++-- | Creates a 'Literal' of type @Word16#@.
++--   If the argument is out of the range, it is wrapped.
++mkLitWord16Wrap :: DynFlags -> Integer -> Literal
++mkLitWord16Wrap platform i = wrapLitNumber platform $ mkLitWord16Unchecked i
++
++-- | Creates a 'Literal' of type @Word16#@ without checking its range.
++mkLitWord16Unchecked :: Integer -> Literal
++mkLitWord16Unchecked i = LitNumber LitNumWord16 i wordPrimTy
++
++-- | Creates a 'Literal' of type @Int32#@
++mkLitInt32 :: Integer -> Literal
++mkLitInt32  x = ASSERT2( inInt32Range x, integer x ) (mkLitInt32Unchecked x)
++
++-- | Creates a 'Literal' of type @Int32#@.
++--   If the argument is out of the range, it is wrapped.
++mkLitInt32Wrap :: DynFlags -> Integer -> Literal
++mkLitInt32Wrap platform i = wrapLitNumber platform $ mkLitInt32Unchecked i
++
++-- | Creates a 'Literal' of type @Int32#@ without checking its range.
++mkLitInt32Unchecked :: Integer -> Literal
++mkLitInt32Unchecked i = LitNumber LitNumInt32 i intPrimTy
++
++-- | Creates a 'Literal' of type @Word32#@
++mkLitWord32 :: Integer -> Literal
++mkLitWord32 x = ASSERT2( inWord32Range x, integer x ) (mkLitWord32Unchecked x)
++
++-- | Creates a 'Literal' of type @Word32#@.
++--   If the argument is out of the range, it is wrapped.
++mkLitWord32Wrap :: DynFlags -> Integer -> Literal
++mkLitWord32Wrap platform i = wrapLitNumber platform $ mkLitWord32Unchecked i
++
++-- | Creates a 'Literal' of type @Word32#@ without checking its range.
++mkLitWord32Unchecked :: Integer -> Literal
++mkLitWord32Unchecked i = LitNumber LitNumWord32 i wordPrimTy
++
+ -- | Creates a 'Literal' of type @Int64#@
+ mkLitInt64 :: Integer -> Literal
+ mkLitInt64  x = ASSERT2( inInt64Range x, integer x ) (mkLitInt64Unchecked x)
+@@ -444,7 +552,20 @@ inWordRange dflags x = x >= 0                     && x <= tARGET_MAX_WORD dflags
+ inNaturalRange :: Integer -> Bool
+ inNaturalRange x = x >= 0
+ 
+-inInt64Range, inWord64Range :: Integer -> Bool
++inInt8Range,  inWord8Range,  inInt16Range, inWord16Range :: Integer -> Bool
++inInt32Range, inWord32Range, inInt64Range, inWord64Range :: Integer -> Bool
++inInt8Range  x  = x >= toInteger (minBound :: Int8) &&
++                  x <= toInteger (maxBound :: Int8)
++inWord8Range  x = x >= toInteger (minBound :: Word8) &&
++                  x <= toInteger (maxBound :: Word8)
++inInt16Range x  = x >= toInteger (minBound :: Int16) &&
++                  x <= toInteger (maxBound :: Int16)
++inWord16Range x = x >= toInteger (minBound :: Word16) &&
++                  x <= toInteger (maxBound :: Word16)
++inInt32Range x  = x >= toInteger (minBound :: Int32) &&
++                  x <= toInteger (maxBound :: Int32)
++inWord32Range x = x >= toInteger (minBound :: Word32) &&
++                  x <= toInteger (maxBound :: Word32)
+ inInt64Range x  = x >= toInteger (minBound :: Int64) &&
+                   x <= toInteger (maxBound :: Int64)
+ inWord64Range x = x >= toInteger (minBound :: Word64) &&
+@@ -498,6 +619,8 @@ isLitValue = isJust . isLitValue_maybe
+ 
+ narrow8IntLit, narrow16IntLit, narrow32IntLit,
+   narrow8WordLit, narrow16WordLit, narrow32WordLit,
++  int8Lit, int16Lit, int32Lit,
++  word8Lit, word16Lit, word32Lit,
+   char2IntLit, int2CharLit,
+   float2IntLit, int2FloatLit, double2IntLit, int2DoubleLit,
+   float2DoubleLit, double2FloatLit
+@@ -521,16 +644,46 @@ int2WordLit dflags (LitNumber LitNumInt i _)
+ int2WordLit _ l = pprPanic "int2WordLit" (ppr l)
+ 
+ -- | Narrow a literal number (unchecked result range)
+-narrowLit :: forall a. Integral a => Proxy a -> Literal -> Literal
+-narrowLit _ (LitNumber nt i t) = LitNumber nt (toInteger (fromInteger i :: a)) t
+-narrowLit _ l                  = pprPanic "narrowLit" (ppr l)
+-
+-narrow8IntLit   = narrowLit (Proxy :: Proxy Int8)
+-narrow16IntLit  = narrowLit (Proxy :: Proxy Int16)
+-narrow32IntLit  = narrowLit (Proxy :: Proxy Int32)
+-narrow8WordLit  = narrowLit (Proxy :: Proxy Word8)
+-narrow16WordLit = narrowLit (Proxy :: Proxy Word16)
+-narrow32WordLit = narrowLit (Proxy :: Proxy Word32)
++narrowLit' :: forall a. Integral a => Proxy a -> LitNumType -> Literal -> Literal
++narrowLit' _ nt' (LitNumber _ i t)  = LitNumber nt' (toInteger (fromInteger i :: a)) t
++narrowLit' _ _   l                  = pprPanic "narrowLit" (ppr l)
++
++narrow8IntLit   = narrowLit' (Proxy :: Proxy Int8)   LitNumInt
++narrow16IntLit  = narrowLit' (Proxy :: Proxy Int16)  LitNumInt
++narrow32IntLit  = narrowLit' (Proxy :: Proxy Int32)  LitNumInt
++narrow8WordLit  = narrowLit' (Proxy :: Proxy Word8)  LitNumWord
++narrow16WordLit = narrowLit' (Proxy :: Proxy Word16) LitNumWord
++narrow32WordLit = narrowLit' (Proxy :: Proxy Word32) LitNumWord
++
++narrowInt8Lit, narrowInt16Lit, narrowInt32Lit,
++  narrowWord8Lit, narrowWord16Lit, narrowWord32Lit :: Literal -> Literal
++narrowInt8Lit   = narrowLit' (Proxy :: Proxy Int8)   LitNumInt8
++narrowInt16Lit  = narrowLit' (Proxy :: Proxy Int16)  LitNumInt16
++narrowInt32Lit  = narrowLit' (Proxy :: Proxy Int32)  LitNumInt32
++narrowWord8Lit  = narrowLit' (Proxy :: Proxy Word8)  LitNumWord8
++narrowWord16Lit = narrowLit' (Proxy :: Proxy Word16) LitNumWord16
++narrowWord32Lit = narrowLit' (Proxy :: Proxy Word32) LitNumWord32
++
++-- | Extend a fixed-width literal (e.g. 'Int16#') to a word-sized literal (e.g.
++-- 'Int#').
++-- extendWordLit, extendIntLit :: Platform -> Literal -> Literal
++-- extendWordLit platform (LitNumber _nt i _)  = mkLitWord platform i
++-- extendWordLit _platform l                   = pprPanic "extendWordLit" (ppr l)
++-- extendIntLit  platform (LitNumber _nt i _)  = mkLitInt platform i
++-- extendIntLit  _platform l                   = pprPanic "extendIntLit" (ppr l)
++
++int8Lit (LitNumber _ i _)   = mkLitInt8 i
++int8Lit l                   = pprPanic "int8Lit" (ppr l)
++int16Lit (LitNumber _ i _)  = mkLitInt16 i
++int16Lit l                  = pprPanic "int16Lit" (ppr l)
++int32Lit (LitNumber _ i _)  = mkLitInt32 i
++int32Lit l                  = pprPanic "int32Lit" (ppr l)
++word8Lit (LitNumber _ i _)  = mkLitWord8 i
++word8Lit l                  = pprPanic "word8Lit" (ppr l)
++word16Lit (LitNumber _ i _) = mkLitWord16 i
++word16Lit l                 = pprPanic "word16Lit" (ppr l)
++word32Lit (LitNumber _ i _) = mkLitWord32 i
++word32Lit l                 = pprPanic "word32Lit" (ppr l)
+ 
+ char2IntLit (LitChar c)       = mkLitIntUnchecked (toInteger (ord c))
+ char2IntLit l                 = pprPanic "char2IntLit" (ppr l)
+@@ -604,8 +757,14 @@ litIsTrivial (LitNumber nt _ _) = case nt of
+   LitNumInteger -> False
+   LitNumNatural -> False
+   LitNumInt     -> True
++  LitNumInt8    -> True
++  LitNumInt16   -> True
++  LitNumInt32   -> True
+   LitNumInt64   -> True
+   LitNumWord    -> True
++  LitNumWord8   -> True
++  LitNumWord16  -> True
++  LitNumWord32  -> True
+   LitNumWord64  -> True
+ litIsTrivial _                  = True
+ 
+@@ -617,8 +776,14 @@ litIsDupable dflags (LitNumber nt i _) = case nt of
+   LitNumInteger -> inIntRange dflags i
+   LitNumNatural -> inIntRange dflags i
+   LitNumInt     -> True
++  LitNumInt8    -> True
++  LitNumInt16   -> True
++  LitNumInt32   -> True
+   LitNumInt64   -> True
+   LitNumWord    -> True
++  LitNumWord8   -> True
++  LitNumWord16  -> True
++  LitNumWord32  -> True
+   LitNumWord64  -> True
+ litIsDupable _      _                  = True
+ 
+@@ -632,8 +797,14 @@ litIsLifted (LitNumber nt _ _) = case nt of
+   LitNumInteger -> True
+   LitNumNatural -> True
+   LitNumInt     -> False
++  LitNumInt8    -> False
++  LitNumInt16   -> False
++  LitNumInt32   -> False
+   LitNumInt64   -> False
+   LitNumWord    -> False
++  LitNumWord8   -> False
++  LitNumWord16  -> False
++  LitNumWord32  -> False
+   LitNumWord64  -> False
+ litIsLifted _                  = False
+ 
+diff --git a/compiler/cmm/CmmLayoutStack.hs b/compiler/cmm/CmmLayoutStack.hs
+index e26f2878c0..bd91e8171c 100644
+--- a/compiler/cmm/CmmLayoutStack.hs
++++ b/compiler/cmm/CmmLayoutStack.hs
+@@ -37,6 +37,7 @@ import Control.Monad.Fix
+ import Data.Array as Array
+ import Data.Bits
+ import Data.List (nub)
++import TyCon (PrimRep (..))
+ 
+ {- Note [Stack Layout]
+ 
+@@ -1185,18 +1186,20 @@ lowerSafeForeignCall dflags block
+ foreignLbl :: FastString -> CmmExpr
+ foreignLbl name = CmmLit (CmmLabel (mkForeignLabel name Nothing ForeignLabelInExternalPackage IsFunction))
+ 
++-- void * suspendThread (StgRegTable *, bool interruptible);
+ callSuspendThread :: DynFlags -> LocalReg -> Bool -> CmmNode O O
+ callSuspendThread dflags id intrbl =
+   CmmUnsafeForeignCall
+        (ForeignTarget (foreignLbl (fsLit "suspendThread"))
+-        (ForeignConvention CCallConv [AddrHint, NoHint] [AddrHint] CmmMayReturn))
++        (ForeignConvention CCallConv [AddrHint, NoHint] [AddrHint] CmmMayReturn AddrRep [AddrRep, Word32Rep]))
+        [id] [baseExpr, mkIntExpr dflags (fromEnum intrbl)]
+ 
++-- StgRegTable * resumeThread  (void *);
+ callResumeThread :: LocalReg -> LocalReg -> CmmNode O O
+ callResumeThread new_base id =
+   CmmUnsafeForeignCall
+        (ForeignTarget (foreignLbl (fsLit "resumeThread"))
+-            (ForeignConvention CCallConv [AddrHint] [AddrHint] CmmMayReturn))
++            (ForeignConvention CCallConv [AddrHint] [AddrHint] CmmMayReturn AddrRep [AddrRep]))
+        [new_base] [CmmReg (CmmLocal id)]
+ 
+ -- -----------------------------------------------------------------------------
+diff --git a/compiler/cmm/CmmMachOp.hs b/compiler/cmm/CmmMachOp.hs
+index becf5fab84..d4a8bff431 100644
+--- a/compiler/cmm/CmmMachOp.hs
++++ b/compiler/cmm/CmmMachOp.hs
+@@ -17,7 +17,7 @@ module CmmMachOp
+     , mo_32To8, mo_32To16, mo_WordTo8, mo_WordTo16, mo_WordTo32, mo_WordTo64
+ 
+     -- CallishMachOp
+-    , CallishMachOp(..), callishMachOpHints
++    , CallishMachOp(..), callishMachOpHints, callishMachOpReps
+     , pprCallishMachOp
+     , machOpMemcpyishAlign
+ 
+@@ -32,6 +32,8 @@ import CmmType
+ import Outputable
+ import DynFlags
+ 
++import TyCon (PrimRep (..))
++
+ -----------------------------------------------------------------------------
+ --              MachOp
+ -----------------------------------------------------------------------------
+@@ -649,13 +651,93 @@ pprCallishMachOp mo = text (show mo)
+ 
+ callishMachOpHints :: CallishMachOp -> ([ForeignHint], [ForeignHint])
+ callishMachOpHints op = case op of
+-  MO_Memcpy _  -> ([], [AddrHint,AddrHint,NoHint])
+-  MO_Memset _  -> ([], [AddrHint,NoHint,NoHint])
+-  MO_Memmove _ -> ([], [AddrHint,AddrHint,NoHint])
++  --  void * memcpy(void *restrict dst, const void *restrict src, size_t n);
++  MO_Memcpy _  -> ([], [AddrHint, AddrHint, NoHint])
++  -- void * memset(void *b, int c, size_t len);
++  MO_Memset _  -> ([], [AddrHint, SignedHint, NoHint])
++  -- void * memmove(void *dst, const void *src, size_t len);
++  MO_Memmove _ -> ([], [AddrHint, AddrHint, NoHint])
++  --  int memcmp(const void *s1, const void *s2, size_t n);
+   MO_Memcmp _  -> ([], [AddrHint, AddrHint, NoHint])
+   _            -> ([],[])
+   -- empty lists indicate NoHint
+ 
++callishMachOpReps :: CallishMachOp -> (PrimRep, [PrimRep])
++callishMachOpReps op = case op of
++  MO_Memcpy _  -> (AddrRep, [AddrRep, AddrRep, WordRep])
++  MO_Memset _  -> (AddrRep, [AddrRep, IntRep,  WordRep])
++  MO_Memmove _ -> (AddrRep, [AddrRep, AddrRep, WordRep])
++  MO_Memcmp _  -> (IntRep, [AddrRep, AddrRep, WordRep])
++
++  MO_F64_Pwr   -> (DoubleRep, [DoubleRep, DoubleRep])
++
++  MO_F64_Sin   -> (DoubleRep, [DoubleRep])
++  MO_F64_Cos   -> (DoubleRep, [DoubleRep])
++  MO_F64_Tan   -> (DoubleRep, [DoubleRep])
++
++  MO_F64_Sinh  -> (DoubleRep, [DoubleRep])
++  MO_F64_Cosh  -> (DoubleRep, [DoubleRep])
++  MO_F64_Tanh  -> (DoubleRep, [DoubleRep])
++
++  MO_F64_Asin  -> (DoubleRep, [DoubleRep])
++  MO_F64_Acos  -> (DoubleRep, [DoubleRep])
++  MO_F64_Atan  -> (DoubleRep, [DoubleRep])
++
++  MO_F64_Asinh -> (DoubleRep, [DoubleRep])
++  MO_F64_Acosh -> (DoubleRep, [DoubleRep])
++  MO_F64_Atanh -> (DoubleRep, [DoubleRep])
++
++  MO_F64_Log   -> (DoubleRep, [DoubleRep])
++  MO_F64_Log1P -> (DoubleRep, [DoubleRep])
++  MO_F64_Exp   -> (DoubleRep, [DoubleRep])
++  MO_F64_ExpM1 -> (DoubleRep, [DoubleRep])
++
++  MO_F64_Fabs  -> (DoubleRep, [DoubleRep])
++  MO_F64_Sqrt  -> (DoubleRep, [DoubleRep])
++
++  MO_F32_Pwr   -> (FloatRep, [FloatRep, FloatRep])
++
++  MO_F32_Sin   -> (FloatRep, [FloatRep])
++  MO_F32_Cos   -> (FloatRep, [FloatRep])
++  MO_F32_Tan   -> (FloatRep, [FloatRep])
++
++  MO_F32_Sinh  -> (FloatRep, [FloatRep])
++  MO_F32_Cosh  -> (FloatRep, [FloatRep])
++  MO_F32_Tanh  -> (FloatRep, [FloatRep])
++
++  MO_F32_Asin  -> (FloatRep, [FloatRep])
++  MO_F32_Acos  -> (FloatRep, [FloatRep])
++  MO_F32_Atan  -> (FloatRep, [FloatRep])
++
++  MO_F32_Asinh -> (FloatRep, [FloatRep])
++  MO_F32_Acosh -> (FloatRep, [FloatRep])
++  MO_F32_Atanh -> (FloatRep, [FloatRep])
++
++  MO_F32_Log   -> (FloatRep, [FloatRep])
++  MO_F32_Log1P -> (FloatRep, [FloatRep])
++  MO_F32_Exp   -> (FloatRep, [FloatRep])
++  MO_F32_ExpM1 -> (FloatRep, [FloatRep])
++
++  MO_F32_Fabs  -> (FloatRep, [FloatRep])
++  MO_F32_Sqrt  -> (FloatRep, [FloatRep])
++
++  MO_PopCnt W8 -> (Word8Rep, [Word8Rep])
++  MO_PopCnt W16 -> (Word16Rep, [Word16Rep])
++  MO_PopCnt W32 -> (Word32Rep, [Word32Rep])
++  MO_PopCnt W64 -> (Word64Rep, [Word64Rep])
++
++  MO_BSwap W8 -> (Word8Rep, [Word8Rep])
++  MO_BSwap W16 -> (Word16Rep, [Word16Rep])
++  MO_BSwap W32 -> (Word32Rep, [Word32Rep])
++  MO_BSwap W64 -> (Word64Rep, [Word64Rep])
++
++  MO_BRev W8 -> (Word8Rep, [Word8Rep])
++  MO_BRev W16 -> (Word16Rep, [Word16Rep])
++  MO_BRev W32 -> (Word32Rep, [Word32Rep])
++  MO_BRev W64 -> (Word64Rep, [Word64Rep])
++
++  _            -> (VoidRep, [])
++
+ -- | The alignment of a 'memcpy'-ish operation.
+ machOpMemcpyishAlign :: CallishMachOp -> Maybe Int
+ machOpMemcpyishAlign op = case op of
+diff --git a/compiler/cmm/CmmNode.hs b/compiler/cmm/CmmNode.hs
+index 9d6fa7f29b..f48f4b2b5a 100644
+--- a/compiler/cmm/CmmNode.hs
++++ b/compiler/cmm/CmmNode.hs
+@@ -15,7 +15,7 @@
+ module CmmNode (
+      CmmNode(..), CmmFormal, CmmActual, CmmTickish,
+      UpdFrameOffset, Convention(..),
+-     ForeignConvention(..), ForeignTarget(..), foreignTargetHints,
++     ForeignConvention(..), ForeignTarget(..), foreignTargetHints, foreignTargetReps,
+      CmmReturnInfo(..),
+      mapExp, mapExpDeep, wrapRecExp, foldExp, foldExpDeep, wrapRecExpf,
+      mapExpM, mapExpDeepM, wrapRecExpM, mapSuccessors, mapCollectSuccessors,
+@@ -45,7 +45,9 @@ import Data.Maybe
+ import Data.List (tails,sortBy)
+ import Unique (nonDetCmpUnique)
+ import Util
++import PprCmmExpr
+ 
++import {-# SOURCE #-} TyCon (PrimRep)
+ 
+ ------------------------
+ -- CmmNode
+@@ -287,6 +289,8 @@ data ForeignConvention
+         [ForeignHint]           -- Extra info about the args
+         [ForeignHint]           -- Extra info about the result
+         CmmReturnInfo
++        PrimRep                 -- return prim rep
++        [PrimRep]               -- argument prim reps
+   deriving Eq
+ 
+ data CmmReturnInfo
+@@ -302,7 +306,11 @@ data ForeignTarget        -- The target of a foreign call
+         CallishMachOp            -- Which one
+   deriving Eq
+ 
+-foreignTargetHints :: ForeignTarget -> ([ForeignHint], [ForeignHint])
++foreignTargetReps :: HasCallStack => ForeignTarget -> (PrimRep, [PrimRep])
++foreignTargetReps (ForeignTarget _ (ForeignConvention _ _ _ _ rr ras)) = (rr, ras)
++foreignTargetReps (PrimTarget op) = callishMachOpReps op
++
++foreignTargetHints :: HasCallStack => ForeignTarget -> ([ForeignHint], [ForeignHint])
+ foreignTargetHints target
+   = ( res_hints ++ repeat NoHint
+     , arg_hints ++ repeat NoHint )
+@@ -310,7 +318,7 @@ foreignTargetHints target
+     (res_hints, arg_hints) =
+        case target of
+           PrimTarget op -> callishMachOpHints op
+-          ForeignTarget _ (ForeignConvention _ arg_hints res_hints _) ->
++          ForeignTarget _ (ForeignConvention _ arg_hints res_hints _ _ _) ->
+              (res_hints, arg_hints)
+ 
+ --------------------------------------------------
+@@ -376,7 +384,7 @@ instance DefinerOfRegs GlobalReg (CmmNode e x) where
+           activeRegs = activeStgRegs platform
+           activeCallerSavesRegs = filter (callerSaves platform) activeRegs
+ 
+-          foreignTargetRegs (ForeignTarget _ (ForeignConvention _ _ _ CmmNeverReturns)) = []
++          foreignTargetRegs (ForeignTarget _ (ForeignConvention _ _ _ CmmNeverReturns _ _)) = []
+           foreignTargetRegs _ = activeCallerSavesRegs
+ 
+ -- Note [Safe foreign calls clobber STG registers]
+diff --git a/compiler/cmm/CmmParse.y.source b/compiler/cmm/CmmParse.y.source
+index e7527f8e50..e98a40391c 100644
+--- a/compiler/cmm/CmmParse.y.source
++++ b/compiler/cmm/CmmParse.y.source
+@@ -262,6 +262,8 @@ import Data.Maybe
+ import qualified Data.Map as M
+ import qualified Data.ByteString.Char8 as BS8
+ 
++import TyCon (PrimRep(..))
++
+ #include "HsVersions.h"
+ }
+ 
+@@ -1203,7 +1205,27 @@ foreignCall conv_string results_code expr_code args_code safety ret
+                   expr' = adjCallTarget dflags conv expr args
+                   (arg_exprs, arg_hints) = unzip args
+                   (res_regs,  res_hints) = unzip results
+-                  fc = ForeignConvention conv arg_hints res_hints ret
++                  res_cmm_tys = zip (map localRegType res_regs) res_hints
++                  arg_cmm_tys = zip (map (cmmExprType dflags) arg_exprs) arg_hints
++                  res_rep :: (CmmType, ForeignHint) -> PrimRep
++                  res_rep (_, AddrHint)                       = AddrRep
++                  res_rep (t, _)          | isGcPtrType t     = Word64Rep
++                  res_rep (t, SignedHint) | t `cmmEqType` b8  = Int8Rep
++                  res_rep (t, SignedHint) | t `cmmEqType` b16 = Int16Rep
++                  res_rep (t, SignedHint) | t `cmmEqType` b32 = Int32Rep
++                  res_rep (t, SignedHint) | t `cmmEqType` b64 = Int64Rep
++                  res_rep (t, NoHint)     | t `cmmEqType` b8  = Word8Rep
++                  res_rep (t, NoHint)     | t `cmmEqType` b16 = Word16Rep
++                  res_rep (t, NoHint)     | t `cmmEqType` b32 = Word32Rep
++                  res_rep (t, NoHint)     | t `cmmEqType` b64 = Word64Rep
++                  res_rep (t, _)          | t `cmmEqType` f32 = FloatRep
++                  res_rep (t, _)          | t `cmmEqType` f64 = DoubleRep
++
++                  ret_rep = case (map res_rep res_cmm_tys) of
++                    [] -> VoidRep
++                    [r] -> r
++                    x -> (error $ show x)
++                  fc = ForeignConvention conv arg_hints res_hints ret ret_rep (map res_rep arg_cmm_tys)
+                   target = ForeignTarget expr' fc
+           _ <- code $ emitForeignCall safety res_regs target arg_exprs
+           return ()
+diff --git a/compiler/cmm/CmmType.hs b/compiler/cmm/CmmType.hs
+index 43d23c7ee7..95488d1300 100644
+--- a/compiler/cmm/CmmType.hs
++++ b/compiler/cmm/CmmType.hs
+@@ -50,13 +50,14 @@ import Data.Int
+ 
+ data CmmType    -- The important one!
+   = CmmType CmmCat Width
++  deriving (Show)
+ 
+ data CmmCat                -- "Category" (not exported)
+    = GcPtrCat              -- GC pointer
+    | BitsCat               -- Non-pointer
+    | FloatCat              -- Float
+    | VecCat Length CmmCat  -- Vector
+-   deriving( Eq )
++   deriving( Show, Eq )
+         -- See Note [Signed vs unsigned] at the end
+ 
+ instance Outputable CmmType where
+@@ -323,7 +324,7 @@ isVecType _                       = False
+ 
+ data ForeignHint
+   = NoHint | AddrHint | SignedHint
+-  deriving( Eq )
++  deriving( Eq, Show )
+         -- Used to give extra per-argument or per-result
+         -- information needed by foreign calling conventions
+ 
+@@ -436,4 +437,3 @@ C calling convention rather early on in the compiler).  However, given
+ this, the cons outweigh the pros.
+ 
+ -}
+-
+diff --git a/compiler/cmm/CmmUtils.hs b/compiler/cmm/CmmUtils.hs
+index 1a28f94a0c..9eceaa647e 100644
+--- a/compiler/cmm/CmmUtils.hs
++++ b/compiler/cmm/CmmUtils.hs
+@@ -11,7 +11,7 @@
+ 
+ module CmmUtils(
+         -- CmmType
+-        primRepCmmType, slotCmmType, slotForeignHint,
++        primRepCmmType, slotCmmType,
+         typeCmmType, typeForeignHint, primRepForeignHint,
+ 
+         -- CmmLit
+@@ -138,34 +138,28 @@ typeCmmType :: DynFlags -> UnaryType -> CmmType
+ typeCmmType dflags ty = primRepCmmType dflags (typePrimRep1 ty)
+ 
+ primRepForeignHint :: PrimRep -> ForeignHint
+-primRepForeignHint VoidRep      = panic "primRepForeignHint:VoidRep"
+-primRepForeignHint LiftedRep    = AddrHint
+-primRepForeignHint UnliftedRep  = AddrHint
+-primRepForeignHint IntRep       = SignedHint
+-primRepForeignHint Int8Rep      = SignedHint
+-primRepForeignHint Int16Rep     = SignedHint
+-primRepForeignHint Int32Rep     = SignedHint
+-primRepForeignHint Int64Rep     = SignedHint
+-primRepForeignHint WordRep      = NoHint
+-primRepForeignHint Word8Rep     = NoHint
+-primRepForeignHint Word16Rep    = NoHint
+-primRepForeignHint Word32Rep    = NoHint
+-primRepForeignHint Word64Rep    = NoHint
+-primRepForeignHint AddrRep      = AddrHint -- NB! AddrHint, but NonPtrArg
+-primRepForeignHint FloatRep     = NoHint
+-primRepForeignHint DoubleRep    = NoHint
+-primRepForeignHint (VecRep {})  = NoHint
+-
+-slotForeignHint :: SlotTy -> ForeignHint
+-slotForeignHint PtrSlot       = AddrHint
+-slotForeignHint WordSlot      = NoHint
+-slotForeignHint Word64Slot    = NoHint
+-slotForeignHint FloatSlot     = NoHint
+-slotForeignHint DoubleSlot    = NoHint
++primRepForeignHint VoidRep     = panic "primRepForeignHint:VoidRep"
++primRepForeignHint LiftedRep   = AddrHint
++primRepForeignHint UnliftedRep = AddrHint
++primRepForeignHint IntRep      = SignedHint
++primRepForeignHint Int8Rep     = SignedHint
++primRepForeignHint Int16Rep    = SignedHint
++primRepForeignHint Int32Rep    = SignedHint
++primRepForeignHint Int64Rep    = SignedHint
++primRepForeignHint WordRep     = NoHint
++primRepForeignHint Word8Rep    = NoHint
++primRepForeignHint Word16Rep   = NoHint
++primRepForeignHint Word32Rep   = NoHint
++primRepForeignHint Word64Rep   = NoHint
++primRepForeignHint AddrRep     = AddrHint -- NB! AddrHint, but NonPtrArg
++primRepForeignHint FloatRep    = NoHint
++primRepForeignHint DoubleRep   = NoHint
++primRepForeignHint (VecRep {}) = NoHint
+ 
+ typeForeignHint :: UnaryType -> ForeignHint
+ typeForeignHint = primRepForeignHint . typePrimRep1
+ 
++
+ ---------------------------------------------------
+ --
+ --      CmmLit
+diff --git a/compiler/cmm/PprC.hs b/compiler/cmm/PprC.hs
+index 546a5435fa..9a5510d4c1 100644
+--- a/compiler/cmm/PprC.hs
++++ b/compiler/cmm/PprC.hs
+@@ -235,7 +235,7 @@ pprStmt stmt =
+         hresults = zip results res_hints
+         hargs    = zip args arg_hints
+ 
+-        ForeignConvention cconv _ _ ret = conv
++        ForeignConvention cconv _ _ ret _ _ = conv
+ 
+         cast_fn = parens (cCast (pprCFunType (char '*') cconv hresults hargs) fn)
+ 
+@@ -1016,9 +1016,9 @@ pprCall ppr_fn cconv results args
+      pprArg (expr, _other)
+         = pprExpr expr
+ 
+-     pprUnHint AddrHint   rep = parens (machRepCType rep)
+-     pprUnHint SignedHint rep = parens (machRepCType rep)
+-     pprUnHint _          _   = empty
++     pprUnHint AddrHint       rep = parens (machRepCType rep)
++     pprUnHint (SignedHint) rep = parens (machRepCType rep)
++     pprUnHint _              _   = empty
+ 
+ -- Currently we only have these two calling conventions, but this might
+ -- change in the future...
+@@ -1164,7 +1164,7 @@ cLoad expr rep
+           bewareLoadStoreAlignment ArchMipseb   = True
+           bewareLoadStoreAlignment ArchMipsel   = True
+           bewareLoadStoreAlignment (ArchARM {}) = True
+-          bewareLoadStoreAlignment ArchARM64    = True
++          bewareLoadStoreAlignment ArchAArch64    = True
+           bewareLoadStoreAlignment ArchSPARC    = True
+           bewareLoadStoreAlignment ArchSPARC64  = True
+           -- Pessimistically assume that they will also cause problems
+@@ -1181,9 +1181,9 @@ isCmmWordType dflags ty = not (isFloatType ty)
+ -- argument, we always cast the argument to (void *), to avoid warnings from
+ -- the C compiler.
+ machRepHintCType :: CmmType -> ForeignHint -> SDoc
+-machRepHintCType _   AddrHint   = text "void *"
+-machRepHintCType rep SignedHint = machRep_S_CType (typeWidth rep)
+-machRepHintCType rep _other     = machRepCType rep
++machRepHintCType _   AddrHint       = text "void *"
++machRepHintCType rep (SignedHint) = machRep_S_CType (typeWidth rep)
++machRepHintCType rep _other         = machRepCType rep
+ 
+ machRepPtrCType :: CmmType -> SDoc
+ machRepPtrCType r
+diff --git a/compiler/cmm/PprCmm.hs b/compiler/cmm/PprCmm.hs
+index 397a666022..8662a32728 100644
+--- a/compiler/cmm/PprCmm.hs
++++ b/compiler/cmm/PprCmm.hs
+@@ -155,7 +155,7 @@ pprConvention  Slow                 = text "<slow-convention>"
+ pprConvention  GC                   = text "<gc-convention>"
+ 
+ pprForeignConvention :: ForeignConvention -> SDoc
+-pprForeignConvention (ForeignConvention c args res ret) =
++pprForeignConvention (ForeignConvention c args res ret _ _) =
+           doubleQuotes (ppr c) <+> text "arg hints: " <+> ppr args <+> text " result hints: " <+> ppr res <+> ppr ret
+ 
+ pprReturnInfo :: CmmReturnInfo -> SDoc
+diff --git a/compiler/cmm/PprCmmDecl.hs b/compiler/cmm/PprCmmDecl.hs
+index e54abdc8b6..2c85e803a8 100644
+--- a/compiler/cmm/PprCmmDecl.hs
++++ b/compiler/cmm/PprCmmDecl.hs
+@@ -125,7 +125,7 @@ pprInfoTable (CmmInfoTable { cit_lbl = lbl, cit_rep = rep
+          , text "srt: " <> ppr srt ]
+ 
+ instance Outputable ForeignHint where
+-  ppr NoHint     = empty
++  ppr NoHint     = quotes(text "unsigned")
+   ppr SignedHint = quotes(text "signed")
+ --  ppr AddrHint   = quotes(text "address")
+ -- Temp Jan08
+diff --git a/compiler/deSugar/DsCCall.hs b/compiler/deSugar/DsCCall.hs
+index 3df8ee11e0..cf9f978528 100644
+--- a/compiler/deSugar/DsCCall.hs
++++ b/compiler/deSugar/DsCCall.hs
+@@ -47,6 +47,7 @@ import Util
+ 
+ import Data.Maybe
+ 
++import RepType (typePrimRep1, mkCCallSpec)
+ {-
+ Desugaring of @ccall@s consists of adding some state manipulation,
+ unboxing any boxed primitive arguments and boxing the result if
+@@ -97,8 +98,20 @@ dsCCall lbl args may_gc result_ty
+        uniq <- newUnique
+        dflags <- getDynFlags
+        let
++           arg_tys = map exprType args
++
++           raw_res_ty = case tcSplitIOType_maybe result_ty of
++             Just (_ioTyCon, res_ty) -> res_ty
++             Nothing                 -> result_ty
++
++           myPprTraceDebug :: String -> SDoc -> a -> a
++           myPprTraceDebug str doc x
++             | hasPprDebug dflags = pprTrace str doc x
++             | otherwise          = x
+            target = StaticTarget NoSourceText lbl Nothing True
+-           the_fcall    = CCall (CCallSpec target CCallConv may_gc)
++           the_fcall    = myPprTraceDebug "dsCCall" (text "result type:" <+> ppr result_ty
++                                                  $$ text "ccall result type" <+> ppr ccall_result_ty)
++             $ CCall (mkCCallSpec target CCallConv may_gc raw_res_ty arg_tys)
+            the_prim_app = mkFCall dflags uniq the_fcall unboxed_args ccall_result_ty
+        return (foldr ($) (res_wrapper the_prim_app) arg_wrappers)
+ 
+@@ -349,31 +362,12 @@ resultWrapper result_ty
+   , [unwrapped_res_ty] <- dataConInstOrigArgTys data_con tycon_arg_tys  -- One argument
+   = do { dflags <- getDynFlags
+        ; (maybe_ty, wrapper) <- resultWrapper unwrapped_res_ty
+-       ; let narrow_wrapper = maybeNarrow dflags tycon
+-             marshal_con e  = Var (dataConWrapId data_con)
++       ; let marshal_con e  = Var (dataConWrapId data_con)
+                               `mkTyApps` tycon_arg_tys
+-                              `App` wrapper (narrow_wrapper e)
++                              `App` wrapper e
+        ; return (maybe_ty, marshal_con) }
+ 
+   | otherwise
+   = pprPanic "resultWrapper" (ppr result_ty)
+   where
+     maybe_tc_app = splitTyConApp_maybe result_ty
+-
+--- When the result of a foreign call is smaller than the word size, we
+--- need to sign- or zero-extend the result up to the word size.  The C
+--- standard appears to say that this is the responsibility of the
+--- caller, not the callee.
+-
+-maybeNarrow :: DynFlags -> TyCon -> (CoreExpr -> CoreExpr)
+-maybeNarrow dflags tycon
+-  | tycon `hasKey` int8TyConKey   = \e -> App (Var (mkPrimOpId Narrow8IntOp)) e
+-  | tycon `hasKey` int16TyConKey  = \e -> App (Var (mkPrimOpId Narrow16IntOp)) e
+-  | tycon `hasKey` int32TyConKey
+-         && wORD_SIZE dflags > 4         = \e -> App (Var (mkPrimOpId Narrow32IntOp)) e
+-
+-  | tycon `hasKey` word8TyConKey  = \e -> App (Var (mkPrimOpId Narrow8WordOp)) e
+-  | tycon `hasKey` word16TyConKey = \e -> App (Var (mkPrimOpId Narrow16WordOp)) e
+-  | tycon `hasKey` word32TyConKey
+-         && wORD_SIZE dflags > 4         = \e -> App (Var (mkPrimOpId Narrow32WordOp)) e
+-  | otherwise                     = id
+diff --git a/compiler/deSugar/DsForeign.hs b/compiler/deSugar/DsForeign.hs
+index 6a6a2eece8..93b36c5e30 100644
+--- a/compiler/deSugar/DsForeign.hs
++++ b/compiler/deSugar/DsForeign.hs
+@@ -173,9 +173,9 @@ dsCImport id co (CLabel cid) cconv _ _ = do
+     return ([(id, rhs')], empty, empty)
+ 
+ dsCImport id co (CFunction target) cconv@PrimCallConv safety _
+-  = dsPrimCall id co (CCall (CCallSpec target cconv safety))
++  = dsPrimCall id co (CCall (mkCCallSpec target cconv safety undefined undefined))
+ dsCImport id co (CFunction target) cconv safety mHeader
+-  = dsFCall id co (CCall (CCallSpec target cconv safety)) mHeader
++  = dsFCall id co (CCall (mkCCallSpec target cconv safety undefined undefined)) mHeader
+ dsCImport id co CWrapper cconv _ _
+   = dsFExportDynamic id co cconv
+ 
+@@ -203,7 +203,7 @@ fun_type_arg_stdcall_info _ _other_conv _
+ 
+ dsFCall :: Id -> Coercion -> ForeignCall -> Maybe Header
+         -> DsM ([(Id, Expr TyVar)], SDoc, SDoc)
+-dsFCall fn_id co fcall mDeclHeader = do
++dsFCall fn_id co (CCall (CCallSpec target cconv safety _ _)) mDeclHeader = do
+     let
+         ty                   = pFst $ coercionKind co
+         (tv_bndrs, rho)      = tcSplitForAllVarBndrs ty
+@@ -221,16 +221,19 @@ dsFCall fn_id co fcall mDeclHeader = do
+     work_uniq  <- newUnique
+ 
+     dflags <- getDynFlags
+-    (fcall', cDoc) <-
+-              case fcall of
++
++    let
++      fcall = CCall (mkCCallSpec target cconv safety io_res_ty arg_tys)
++
++    (fcall', cDoc) <- case fcall of
+               CCall (CCallSpec (StaticTarget _ cName mUnitId isFun)
+-                               CApiConv safety) ->
++                               CApiConv safety _ _) ->
+                do wrapperName <- mkWrapperName "ghc_wrapper" (unpackFS cName)
+-                  let fcall' = CCall (CCallSpec
++                  let fcall' = CCall (mkCCallSpec
+                                       (StaticTarget NoSourceText
+                                                     wrapperName mUnitId
+                                                     True)
+-                                      CApiConv safety)
++                                      CApiConv safety io_res_ty arg_tys)
+                       c = includes
+                        $$ fun_proto <+> braces (cRet <> semi)
+                       includes = vcat [ text "#include \"" <> ftext h
+@@ -304,7 +307,7 @@ for calling convention they are really prim ops.
+ 
+ dsPrimCall :: Id -> Coercion -> ForeignCall
+            -> DsM ([(Id, Expr TyVar)], SDoc, SDoc)
+-dsPrimCall fn_id co fcall = do
++dsPrimCall fn_id co (CCall (CCallSpec target cconv safety _ _)) = do
+     let
+         ty                   = pFst $ coercionKind co
+         (tvs, fun_ty)        = tcSplitForAllTys ty
+@@ -315,6 +318,7 @@ dsPrimCall fn_id co fcall = do
+     ccall_uniq <- newUnique
+     dflags <- getDynFlags
+     let
++        fcall = CCall (mkCCallSpec target cconv safety io_res_ty arg_tys)
+         call_app = mkFCall dflags ccall_uniq fcall (map Var args) io_res_ty
+         rhs      = mkLams tvs (mkLams args call_app)
+         rhs'     = Cast rhs co
+@@ -820,6 +824,12 @@ primTyDescChar dflags ty
+  = case typePrimRep1 (getPrimTyOf ty) of
+      IntRep      -> signed_word
+      WordRep     -> unsigned_word
++     Int8Rep     -> 'B'
++     Word8Rep    -> 'b'
++     Int16Rep    -> 'S'
++     Word16Rep   -> 's'
++     Int32Rep    -> 'W'
++     Word32Rep   -> 'w'
+      Int64Rep    -> 'L'
+      Word64Rep   -> 'l'
+      AddrRep     -> 'p'
+diff --git a/compiler/ghc.cabal.in b/compiler/ghc.cabal.in
+index b8186d2fa1..f717513217 100644
+--- a/compiler/ghc.cabal.in
++++ b/compiler/ghc.cabal.in
+@@ -291,7 +291,7 @@ Library
+         Bitmap
+         GHC.Platform.Regs
+         GHC.Platform.ARM
+-        GHC.Platform.ARM64
++        GHC.Platform.AArch64
+         GHC.Platform.NoRegs
+         GHC.Platform.PPC
+         GHC.Platform.S390X
+diff --git a/compiler/ghci/ByteCodeGen.hs b/compiler/ghci/ByteCodeGen.hs
+index fb60c21f9d..8c13ec5d49 100644
+--- a/compiler/ghci/ByteCodeGen.hs
++++ b/compiler/ghci/ByteCodeGen.hs
+@@ -1151,7 +1151,7 @@ generateCCall
+     -> Id                      -- of target, for type info
+     -> [AnnExpr' Id DVarSet]   -- args (atoms)
+     -> BcM BCInstrList
+-generateCCall d0 s p (CCallSpec target cconv safety) fn args_r_to_l
++generateCCall d0 s p (CCallSpec target cconv safety _rep_ret _rep_args) fn args_r_to_l
+  = do
+      dflags <- getDynFlags
+ 
+@@ -1359,6 +1359,12 @@ primRepToFFIType dflags r
+      VoidRep     -> FFIVoid
+      IntRep      -> signed_word
+      WordRep     -> unsigned_word
++     Int8Rep     -> FFISInt8
++     Word8Rep    -> FFIUInt8
++     Int16Rep    -> FFISInt16
++     Word16Rep   -> FFIUInt16
++     Int32Rep    -> FFISInt32
++     Word32Rep   -> FFIUInt32
+      Int64Rep    -> FFISInt64
+      Word64Rep   -> FFIUInt64
+      AddrRep     -> FFIPointer
+@@ -1378,6 +1384,12 @@ mkDummyLiteral dflags pr
+    = case pr of
+         IntRep    -> mkLitInt dflags 0
+         WordRep   -> mkLitWord dflags 0
++        Int8Rep   -> mkLitInt8 0
++        Word8Rep  -> mkLitWord8 0
++        Int16Rep  -> mkLitInt16 0
++        Word16Rep -> mkLitWord16 0
++        Int32Rep  -> mkLitInt32 0
++        Word32Rep -> mkLitWord32 0
+         Int64Rep  -> mkLitInt64 0
+         Word64Rep -> mkLitWord64 0
+         AddrRep   -> LitNullAddr
+@@ -1593,24 +1605,39 @@ pushAtom d p (AnnVar var)
+ 
+ pushAtom _ _ (AnnLit lit) = do
+      dflags <- getDynFlags
+-     let code rep
+-             = let size_words = WordOff (argRepSizeW dflags rep)
+-               in  return (unitOL (PUSH_UBX lit (trunc16W size_words)),
+-                           wordsToBytes dflags size_words)
++     let code :: PrimRep -> BcM (BCInstrList, ByteOff)
++         code rep =
++            return (unitOL instr, size_bytes)
++          where
++            size_bytes = ByteOff $ primRepSizeB dflags rep
++            -- Here we handle the non-word-width cases specifically since we
++            -- must emit different bytecode for them.
++            instr =
++              case size_bytes of
++                1  -> PUSH_UBX8 lit
++                2  -> PUSH_UBX16 lit
++                4  -> PUSH_UBX32 lit
++                _  -> PUSH_UBX lit (trunc16W $ bytesToWords dflags size_bytes)
+ 
+      case lit of
+-        LitLabel _ _ _   -> code N
+-        LitFloat _       -> code F
+-        LitDouble _      -> code D
+-        LitChar _        -> code N
+-        LitNullAddr      -> code N
+-        LitString _      -> code N
+-        LitRubbish       -> code N
++        LitLabel _ _ _  -> code AddrRep
++        LitFloat _      -> code FloatRep
++        LitDouble _     -> code DoubleRep
++        LitChar _       -> code WordRep
++        LitNullAddr     -> code AddrRep
++        LitString _     -> code AddrRep
++        LitRubbish      -> code WordRep
+         LitNumber nt _ _ -> case nt of
+-          LitNumInt     -> code N
+-          LitNumWord    -> code N
+-          LitNumInt64   -> code L
+-          LitNumWord64  -> code L
++          LitNumInt     -> code IntRep
++          LitNumWord    -> code WordRep
++          LitNumInt8    -> code Int8Rep
++          LitNumWord8   -> code Word8Rep
++          LitNumInt16   -> code Int16Rep
++          LitNumWord16  -> code Word16Rep
++          LitNumInt32   -> code Int32Rep
++          LitNumWord32  -> code Word32Rep
++          LitNumInt64   -> code Int64Rep
++          LitNumWord64  -> code Word64Rep
+           -- No LitInteger's or LitNatural's should be left by the time this is
+           -- called. CorePrep should have converted them all to a real core
+           -- representation.
+@@ -1834,7 +1861,7 @@ multiValException = throwGhcException (ProgramError
+ 
+ -- | Indicate if the calling convention is supported
+ isSupportedCConv :: CCallSpec -> Bool
+-isSupportedCConv (CCallSpec _ cconv _) = case cconv of
++isSupportedCConv (CCallSpec _ cconv _ _ _) = case cconv of
+    CCallConv            -> True     -- we explicitly pattern match on every
+    StdCallConv          -> True     -- convention to ensure that a warning
+    PrimCallConv         -> False    -- is triggered when a new one is added
+diff --git a/compiler/llvmGen/LlvmCodeGen.hs b/compiler/llvmGen/LlvmCodeGen.hs
+index 396e94b102..8a86dbedf6 100644
+--- a/compiler/llvmGen/LlvmCodeGen.hs
++++ b/compiler/llvmGen/LlvmCodeGen.hs
+@@ -56,11 +56,11 @@ llvmCodeGen dflags h cmm_stream
+          debugTraceMsg dflags 2
+               (text "Using LLVM version:" <+> text (llvmVersionStr ver))
+          let doWarn = wopt Opt_WarnUnsupportedLlvmVersion dflags
+-         when (not (llvmVersionSupported ver) && doWarn) $ putMsg dflags $
+-           "You are using an unsupported version of LLVM!" $$
+-           "Currently only " <> text (llvmVersionStr supportedLlvmVersion) <> " is supported." <+>
+-           "System LLVM version: " <> text (llvmVersionStr ver) $$
+-           "We will try though..."
++        --  when (not (llvmVersionSupported ver) && doWarn) $ putMsg dflags $
++        --    "You are using an unsupported version of LLVM!" $$
++        --    "Currently only " <> text (llvmVersionStr supportedLlvmVersion) <> " is supported." <+>
++        --    "System LLVM version: " <> text (llvmVersionStr ver) $$
++        --    "We will try though..."
+          let isS390X = platformArch (targetPlatform dflags) == ArchS390X
+          let major_ver = head . llvmVersionList $ ver
+          when (isS390X && major_ver < 10 && doWarn) $ putMsg dflags $
+diff --git a/compiler/llvmGen/LlvmCodeGen/CodeGen.hs b/compiler/llvmGen/LlvmCodeGen/CodeGen.hs
+index 8b3ef24e1b..d24b2bc51f 100644
+--- a/compiler/llvmGen/LlvmCodeGen/CodeGen.hs
++++ b/compiler/llvmGen/LlvmCodeGen/CodeGen.hs
+@@ -43,6 +43,9 @@ import qualified Data.Semigroup as Semigroup
+ import Data.List ( nub )
+ import Data.Maybe ( catMaybes )
+ 
++import TyCon (PrimRep(..))
++import StgSyn (isAddrRep)
++
+ type Atomic = Bool
+ type LlvmStatements = OrdList LlvmStatement
+ 
+@@ -218,6 +221,7 @@ genCall t@(PrimTarget (MO_Prefetch_Data localityInt)) [] args
+                              CC_Ccc LMVoid FixedArgs (tysToParams argTy) Nothing
+ 
+     let (_, arg_hints) = foreignTargetHints t
++    let (ret_rep, args_rep) = foreignTargetReps t
+     let args_hints' = zip args arg_hints
+     argVars <- arg_varsW args_hints' ([], nilOL, [])
+     fptr    <- liftExprData $ getFunPtr funTy t
+@@ -400,23 +404,34 @@ genCall t@(PrimTarget (MO_SubWordC w)) [dstV, dstO] [lhs, rhs] =
+ -- Handle all other foreign calls and prim ops.
+ genCall target res args = runStmtsDecls $ do
+     dflags <- getDynFlags
++    platform <- lift $ getLlvmPlatform
+ 
+-    -- parameter types
+-    let arg_type (_, AddrHint) = i8Ptr
+-        -- cast pointers to i8*. Llvm equivalent of void*
+-        arg_type (expr, _) = cmmToLlvmType $ cmmExprType dflags expr
++
++    let primRepToLlvmTy VoidRep  = (Unsigned, LMVoid)
++        primRepToLlvmTy r | isAddrRep r = (Unsigned, i8Ptr)
++        primRepToLlvmTy IntRep   = (Signed, widthToLlvmInt (cIntWidth dflags))
++        primRepToLlvmTy Int8Rep  = (Signed, i8)
++        primRepToLlvmTy Int16Rep = (Signed, i16)
++        primRepToLlvmTy Int32Rep = (Signed, i32)
++        primRepToLlvmTy Int64Rep = (Signed, i64)
++        primRepToLlvmTy WordRep  = (Unsigned, widthToLlvmInt (wordWidth dflags))
++        primRepToLlvmTy Word8Rep = (Unsigned, i8)
++        primRepToLlvmTy Word16Rep = (Unsigned, i16)
++        primRepToLlvmTy Word32Rep = (Unsigned, i32)
++        primRepToLlvmTy Word64Rep = (Unsigned, i64)
++        primRepToLlvmTy FloatRep  = (Signed, LMFloat)
++        primRepToLlvmTy DoubleRep = (Signed, LMDouble)
+ 
+     -- ret type
+-    let ret_type [] = LMVoid
+-        ret_type [(_, AddrHint)] = i8Ptr
+-        ret_type [(reg, _)]      = cmmToLlvmType $ localRegType reg
+-        ret_type t = panic $ "genCall: Too many return values! Can only handle"
+-                        ++ " 0 or 1, given " ++ show (length t) ++ "."
++    let -- similarly to arg_type_cmm, we may need to widen/narrow the result.
++        -- most likely widen, as cmm regs will be 64bit wide.
++        ret_type_cmm []              = LMVoid
++        ret_type_cmm [(_, AddrHint)] = i8Ptr
++        ret_type_cmm [(reg, _)]      = cmmToLlvmType $ localRegType reg
+ 
+     -- extract Cmm call convention, and translate to LLVM call convention
+-    platform <- lift $ getLlvmPlatform
+     let lmconv = case target of
+-            ForeignTarget _ (ForeignConvention conv _ _ _) ->
++            ForeignTarget _ (ForeignConvention conv _ _ _ _ _) ->
+               case conv of
+                  StdCallConv  -> case platformArch platform of
+                                  ArchX86    -> CC_X86_Stdcc
+@@ -442,43 +457,60 @@ genCall target res args = runStmtsDecls $ do
+                 | otherwise     = llvmStdFunAttrs
+ 
+         never_returns = case target of
+-             ForeignTarget _ (ForeignConvention _ _ _ CmmNeverReturns) -> True
++             ForeignTarget _ (ForeignConvention _ _ _ CmmNeverReturns _ _) -> True
+              _ -> False
+ 
+     -- fun type
+     let (res_hints, arg_hints) = foreignTargetHints target
++    let (ret_rep, args_rep) = foreignTargetReps target
++
+     let args_hints = zip args arg_hints
+     let ress_hints = zip res  res_hints
+     let ccTy  = StdCall -- tail calls should be done through CmmJump
+-    let retTy = ret_type ress_hints
+-    let argTy = tysToParams $ map arg_type args_hints
++
++    let retTyCmm = ret_type_cmm ress_hints
++
++    -- discard signage, we don't need that for the function signature.
++    -- the take length is such a hack. The issue is that we end up with
++    -- VoidRep's for the State Transition as additional function arguments
++    -- :-/
++    let argTy = tysToParams $ map (snd . primRepToLlvmTy) args_rep
++    let retTy = snd $ primRepToLlvmTy ret_rep
+     let funTy = \name -> LMFunction $ LlvmFunctionDecl name ExternallyVisible
+                              lmconv retTy FixedArgs argTy (llvmFunAlign dflags)
+ 
+ 
+-    argVars <- arg_varsW args_hints ([], nilOL, [])
+-    fptr    <- getFunPtrW funTy target
++    let args_with_reps = zip args (map primRepToLlvmTy args_rep)
+ 
+     let doReturn | ccTy == TailCall  = statement $ Return Nothing
+                  | never_returns     = statement $ Unreachable
+                  | otherwise         = return ()
+ 
++    let myPprTraceDebug :: String -> SDoc -> a -> a
++        myPprTraceDebug str doc x
++          | hasPprDebug dflags = pprTrace str doc x
++          | otherwise          = x
++
+     doTrashStmts
+ 
+     -- make the actual call
++    argVars <- arg_varsW2 args_with_reps ([], nilOL, [])
++    fptr    <- getFunPtrW funTy target
+     case retTy of
+         LMVoid -> do
+             statement $ Expr $ Call ccTy fptr argVars fnAttrs
+ 
+         _ -> do
+-            v1 <- doExprW retTy $ Call ccTy fptr argVars fnAttrs
++            let (signage, retTy) = primRepToLlvmTy ret_rep
++            v0 <- doExprW retTy $ Call ccTy fptr argVars fnAttrs
++            v1 <- castVarW Signed v0 retTyCmm
+             -- get the return register
+             let ret_reg [reg] = reg
+                 ret_reg t = panic $ "genCall: Bad number of registers! Can only handle"
+                                 ++ " 1, given " ++ show (length t) ++ "."
+             let creg = ret_reg res
+             vreg <- getCmmRegW (CmmLocal creg)
+-            if retTy == pLower (getVarType vreg)
++            if retTyCmm == pLower (getVarType vreg)
+                 then do
+                     statement $ Store v1 vreg
+                     doReturn
+@@ -580,8 +612,7 @@ genCallSimpleCast w t@(PrimTarget op) [dst] args = do
+ 
+     dstV                        <- getCmmReg (CmmLocal dst)
+ 
+-    let (_, arg_hints) = foreignTargetHints t
+-    let args_hints = zip args arg_hints
++    let args_hints = zip args (snd (foreignTargetHints t))
+     (argsV, stmts2, top2)       <- arg_vars args_hints ([], nilOL, [])
+     (argsV', stmts4)            <- castVars Signed $ zip argsV [width]
+     (retV, s1)                  <- doExpr width $ Call StdCall fptr argsV' []
+@@ -668,6 +699,14 @@ arg_varsW xs ys = do
+     tell $ LlvmAccum stmts decls
+     return vars
+ 
++arg_varsW2 :: [(CmmActual, (Signage, LlvmType))]
++           -> ([LlvmVar], LlvmStatements, [LlvmCmmDecl])
++           -> WriterT LlvmAccum LlvmM [LlvmVar]
++arg_varsW2 xs ys = do
++  (vars, stmts, decls) <- lift $ arg_vars2 xs ys
++  tell $ LlvmAccum stmts decls
++  return vars
++
+ -- | Conversion of call arguments.
+ arg_vars :: [(CmmActual, ForeignHint)]
+          -> ([LlvmVar], LlvmStatements, [LlvmCmmDecl])
+@@ -690,11 +729,46 @@ arg_vars ((e, AddrHint):rest) (vars, stmts, tops)
+        arg_vars rest (vars ++ [v2], stmts `appOL` stmts' `snocOL` s1,
+                                tops ++ top')
+ 
++-- arg_vars ((e, SignedHint w):rest) (vars, stmts, tops)
++--   = do (v1, stmts', top') <- exprToVar e
++--        dflags <- getDynFlags
++--        (v2, s1) <- castVar Signed v1 (signedType w)
++--        arg_vars rest (vars ++ [v2], stmts `appOL` stmts' `snocOL` s1, tops ++ top')
++--   where signedType W8 = i8
++--         signedType W16 = i16
++--         signedType W32 = i32
++--         signedType W64 = i64
++
++
+ arg_vars ((e, _):rest) (vars, stmts, tops)
+   = do (v1, stmts', top') <- exprToVar e
+        arg_vars rest (vars ++ [v1], stmts `appOL` stmts', tops ++ top')
+ 
+ 
++arg_vars2 :: [(CmmActual, (Signage, LlvmType))]
++          -> ([LlvmVar], LlvmStatements, [LlvmCmmDecl])
++          -> LlvmM ([LlvmVar], LlvmStatements, [LlvmCmmDecl])
++arg_vars2 [] x = return x
++arg_vars2 ((e, (s, ty0)):rest) (vars, stmts, tops)
++  | ty0 == i8Ptr
++  = do (v1, stmts', top') <- exprToVar e
++       dflags <- getDynFlags
++       let op = case getVarType v1 of
++             ty | isPointer ty -> LM_Bitcast
++             ty | isInt ty     -> LM_Inttoptr
++
++             a -> panic $ "genCall: Can't cast llvmType to i8*! ("
++                  ++ showSDoc dflags (ppr a) ++ ")"
++       (v2, s1) <- doExpr i8Ptr $ Cast op v1 i8Ptr
++       arg_vars2 rest (vars ++ [v2], stmts `appOL` stmts' `snocOL` s1,
++                      tops ++ top')
++
++arg_vars2 ((e, (s, ty)):rest) (vars, stmts, tops)
++  = do (v1, stmts', top') <- exprToVar e
++       dflags <- getDynFlags
++       (v2, s1) <- castVar s v1 ty
++       arg_vars2 rest (vars ++ [v2], stmts `appOL` stmts' `snocOL` s1, tops ++ top')
++
+ -- | Cast a collection of LLVM variables to specific types.
+ castVarsW :: Signage
+           -> [(LlvmVar, LlvmType)]
+@@ -739,6 +813,12 @@ castVar signage v t | getVarType v == t
+             Signed      -> LM_Sext
+             Unsigned    -> LM_Zext
+ 
++castVarW :: Signage -> LlvmVar -> LlvmType -> WriterT LlvmAccum LlvmM LlvmVar
++castVarW signage var ty = do
++  (var, stmt) <- lift $ castVar signage var ty
++  statement $ stmt
++  return var
++
+ 
+ cmmPrimOpRetValSignage :: CallishMachOp -> Signage
+ cmmPrimOpRetValSignage mop = case mop of
+diff --git a/compiler/main/DriverPipeline.hs b/compiler/main/DriverPipeline.hs
+index 04f50d7769..f3249ecb28 100644
+--- a/compiler/main/DriverPipeline.hs
++++ b/compiler/main/DriverPipeline.hs
+@@ -1857,7 +1857,7 @@ linkBinary' staticLink dflags o_files dep_packages = do
+                                ArchX86 -> True
+                                ArchX86_64 -> True
+                                ArchARM {} -> True
+-                               ArchARM64  -> True
++                               ArchAArch64  -> True
+                                _ -> False
+                           then ["-Wl,-no_compact_unwind"]
+                           else [])
+diff --git a/compiler/main/DynFlags.hs b/compiler/main/DynFlags.hs
+index 2ea0b3d5e9..8989c1b3bf 100644
+--- a/compiler/main/DynFlags.hs
++++ b/compiler/main/DynFlags.hs
+@@ -4646,14 +4646,27 @@ validHoleFitsImpliedGFlags
+ default_PIC :: Platform -> [GeneralFlag]
+ default_PIC platform =
+   case (platformOS platform, platformArch platform) of
+-    (OSDarwin, ArchX86_64) -> [Opt_PIC]
+-    (OSOpenBSD, ArchX86_64) -> [Opt_PIC] -- Due to PIE support in
+-                                         -- OpenBSD since 5.3 release
+-                                         -- (1 May 2013) we need to
+-                                         -- always generate PIC. See
+-                                         -- #10597 for more
+-                                         -- information.
+-    _                      -> []
++    -- Darwin always requires PIC.  Especially on more recent macOS releases
++    -- there will be a 4GB __ZEROPAGE that prevents us from using 32bit addresses
++    -- while we could work around this on x86_64 (like WINE does), we won't be
++    -- able on aarch64, where this is enforced.
++    (OSDarwin,  ArchX86_64) -> [Opt_PIC]
++    -- For AArch64, we need to always have PIC enabled.  The relocation model
++    -- on AArch64 does not permit arbitrary relocations.  Under ASLR, we can't
++    -- control much how far apart symbols are in memory for our in-memory static
++    -- linker;  and thus need to ensure we get sufficiently capable relocations.
++    -- This requires PIC on AArch64, and ExternalDynamicRefs on Linux as on top
++    -- of that.  Subsequently we expect all code on aarch64/linux (and macOS) to
++    -- be built with -fPIC.
++    (OSDarwin,  ArchAArch64) -> [Opt_PIC]
++    (OSLinux,   ArchAArch64) -> [Opt_PIC, Opt_ExternalDynamicRefs]
++    (OSOpenBSD, ArchX86_64)  -> [Opt_PIC] -- Due to PIE support in
++                                          -- OpenBSD since 5.3 release
++                                          -- (1 May 2013) we need to
++                                          -- always generate PIC. See
++                                          -- #10597 for more
++                                          -- information.
++    _                        -> []
+ 
+ 
+ -- We usually want to use RPath, except on macOS (OSDarwin).  On recent macOS
+diff --git a/compiler/main/SysTools.hs b/compiler/main/SysTools.hs
+index 4a301e0837..bed0251a47 100644
+--- a/compiler/main/SysTools.hs
++++ b/compiler/main/SysTools.hs
+@@ -370,7 +370,7 @@ linkDynLib dflags0 o_files dep_packages
+                  ++ [ Option "-undefined",
+                       Option "dynamic_lookup",
+                       Option "-single_module" ]
+-                 ++ (if platformArch platform == ArchX86_64
++                 ++ (if platformArch platform `elem` [ ArchX86_64, ArchAArch64 ]
+                      then [ ]
+                      else [ Option "-Wl,-read_only_relocs,suppress" ])
+                  ++ [ Option "-install_name", Option instName ]
+diff --git a/compiler/nativeGen/AsmCodeGen.hs b/compiler/nativeGen/AsmCodeGen.hs
+index 7d830d0337..787a48e770 100644
+--- a/compiler/nativeGen/AsmCodeGen.hs
++++ b/compiler/nativeGen/AsmCodeGen.hs
+@@ -172,7 +172,7 @@ nativeCodeGen dflags this_mod modLoc h us cmms
+       ArchSPARC     -> nCG' (sparcNcgImpl  dflags)
+       ArchSPARC64   -> panic "nativeCodeGen: No NCG for SPARC64"
+       ArchARM {}    -> panic "nativeCodeGen: No NCG for ARM"
+-      ArchARM64     -> panic "nativeCodeGen: No NCG for ARM64"
++      ArchAArch64     -> panic "nativeCodeGen: No NCG for ARM64"
+       ArchPPC_64 _  -> nCG' (ppcNcgImpl    dflags)
+       ArchAlpha     -> panic "nativeCodeGen: No NCG for Alpha"
+       ArchMipseb    -> panic "nativeCodeGen: No NCG for mipseb"
+diff --git a/compiler/nativeGen/PPC/CodeGen.hs b/compiler/nativeGen/PPC/CodeGen.hs
+index 5f852973ae..fe593c4744 100644
+--- a/compiler/nativeGen/PPC/CodeGen.hs
++++ b/compiler/nativeGen/PPC/CodeGen.hs
+@@ -1856,7 +1856,7 @@ genCCall' dflags gcp target dest_regs args
+                    | otherwise      = cmmTypeFormat rep
+                 conv_op = case hint of
+                             SignedHint -> MO_SS_Conv
+-                            _          -> MO_UU_Conv
++                            _            -> MO_UU_Conv
+ 
+                 stackOffset' = case gcp of
+                                GCPAIX ->
+diff --git a/compiler/nativeGen/RegAlloc/Graph/TrivColorable.hs b/compiler/nativeGen/RegAlloc/Graph/TrivColorable.hs
+index 773db33293..7152cb18a7 100644
+--- a/compiler/nativeGen/RegAlloc/Graph/TrivColorable.hs
++++ b/compiler/nativeGen/RegAlloc/Graph/TrivColorable.hs
+@@ -115,7 +115,7 @@ trivColorable platform virtualRegSqueeze realRegSqueeze RcInteger conflicts excl
+                             ArchSPARC64   -> panic "trivColorable ArchSPARC64"
+                             ArchPPC_64 _  -> 15
+                             ArchARM _ _ _ -> panic "trivColorable ArchARM"
+-                            ArchARM64     -> panic "trivColorable ArchARM64"
++                            ArchAArch64     -> panic "trivColorable ArchAArch64"
+                             ArchAlpha     -> panic "trivColorable ArchAlpha"
+                             ArchMipseb    -> panic "trivColorable ArchMipseb"
+                             ArchMipsel    -> panic "trivColorable ArchMipsel"
+@@ -146,7 +146,7 @@ trivColorable platform virtualRegSqueeze realRegSqueeze RcFloat conflicts exclus
+                             ArchSPARC64   -> panic "trivColorable ArchSPARC64"
+                             ArchPPC_64 _  -> 0
+                             ArchARM _ _ _ -> panic "trivColorable ArchARM"
+-                            ArchARM64     -> panic "trivColorable ArchARM64"
++                            ArchAArch64     -> panic "trivColorable ArchAArch64"
+                             ArchAlpha     -> panic "trivColorable ArchAlpha"
+                             ArchMipseb    -> panic "trivColorable ArchMipseb"
+                             ArchMipsel    -> panic "trivColorable ArchMipsel"
+@@ -179,7 +179,7 @@ trivColorable platform virtualRegSqueeze realRegSqueeze RcDouble conflicts exclu
+                             ArchSPARC64   -> panic "trivColorable ArchSPARC64"
+                             ArchPPC_64 _  -> 20
+                             ArchARM _ _ _ -> panic "trivColorable ArchARM"
+-                            ArchARM64     -> panic "trivColorable ArchARM64"
++                            ArchAArch64     -> panic "trivColorable ArchAArch64"
+                             ArchAlpha     -> panic "trivColorable ArchAlpha"
+                             ArchMipseb    -> panic "trivColorable ArchMipseb"
+                             ArchMipsel    -> panic "trivColorable ArchMipsel"
+diff --git a/compiler/nativeGen/RegAlloc/Linear/FreeRegs.hs b/compiler/nativeGen/RegAlloc/Linear/FreeRegs.hs
+index 0feddc67d8..55d0781339 100644
+--- a/compiler/nativeGen/RegAlloc/Linear/FreeRegs.hs
++++ b/compiler/nativeGen/RegAlloc/Linear/FreeRegs.hs
+@@ -79,7 +79,7 @@ maxSpillSlots dflags
+                 ArchSPARC     -> SPARC.Instr.maxSpillSlots dflags
+                 ArchSPARC64   -> panic "maxSpillSlots ArchSPARC64"
+                 ArchARM _ _ _ -> panic "maxSpillSlots ArchARM"
+-                ArchARM64     -> panic "maxSpillSlots ArchARM64"
++                ArchAArch64     -> panic "maxSpillSlots ArchAArch64"
+                 ArchPPC_64 _  -> PPC.Instr.maxSpillSlots dflags
+                 ArchAlpha     -> panic "maxSpillSlots ArchAlpha"
+                 ArchMipseb    -> panic "maxSpillSlots ArchMipseb"
+diff --git a/compiler/nativeGen/RegAlloc/Linear/Main.hs b/compiler/nativeGen/RegAlloc/Linear/Main.hs
+index eac9194c6a..1efef80b3d 100644
+--- a/compiler/nativeGen/RegAlloc/Linear/Main.hs
++++ b/compiler/nativeGen/RegAlloc/Linear/Main.hs
+@@ -216,7 +216,7 @@ linearRegAlloc dflags entry_ids block_live sccs
+       ArchSPARC64    -> panic "linearRegAlloc ArchSPARC64"
+       ArchPPC        -> go $ (frInitFreeRegs platform :: PPC.FreeRegs)
+       ArchARM _ _ _  -> panic "linearRegAlloc ArchARM"
+-      ArchARM64      -> panic "linearRegAlloc ArchARM64"
++      ArchAArch64      -> panic "linearRegAlloc ArchAArch64"
+       ArchPPC_64 _   -> go $ (frInitFreeRegs platform :: PPC.FreeRegs)
+       ArchAlpha      -> panic "linearRegAlloc ArchAlpha"
+       ArchMipseb     -> panic "linearRegAlloc ArchMipseb"
+diff --git a/compiler/nativeGen/TargetReg.hs b/compiler/nativeGen/TargetReg.hs
+index e0eca9235d..55e3123fa2 100644
+--- a/compiler/nativeGen/TargetReg.hs
++++ b/compiler/nativeGen/TargetReg.hs
+@@ -49,7 +49,7 @@ targetVirtualRegSqueeze platform
+       ArchSPARC64   -> panic "targetVirtualRegSqueeze ArchSPARC64"
+       ArchPPC_64 _  -> PPC.virtualRegSqueeze
+       ArchARM _ _ _ -> panic "targetVirtualRegSqueeze ArchARM"
+-      ArchARM64     -> panic "targetVirtualRegSqueeze ArchARM64"
++      ArchAArch64     -> panic "targetVirtualRegSqueeze ArchAArch64"
+       ArchAlpha     -> panic "targetVirtualRegSqueeze ArchAlpha"
+       ArchMipseb    -> panic "targetVirtualRegSqueeze ArchMipseb"
+       ArchMipsel    -> panic "targetVirtualRegSqueeze ArchMipsel"
+@@ -68,7 +68,7 @@ targetRealRegSqueeze platform
+       ArchSPARC64   -> panic "targetRealRegSqueeze ArchSPARC64"
+       ArchPPC_64 _  -> PPC.realRegSqueeze
+       ArchARM _ _ _ -> panic "targetRealRegSqueeze ArchARM"
+-      ArchARM64     -> panic "targetRealRegSqueeze ArchARM64"
++      ArchAArch64     -> panic "targetRealRegSqueeze ArchAArch64"
+       ArchAlpha     -> panic "targetRealRegSqueeze ArchAlpha"
+       ArchMipseb    -> panic "targetRealRegSqueeze ArchMipseb"
+       ArchMipsel    -> panic "targetRealRegSqueeze ArchMipsel"
+@@ -86,7 +86,7 @@ targetClassOfRealReg platform
+       ArchSPARC64   -> panic "targetClassOfRealReg ArchSPARC64"
+       ArchPPC_64 _  -> PPC.classOfRealReg
+       ArchARM _ _ _ -> panic "targetClassOfRealReg ArchARM"
+-      ArchARM64     -> panic "targetClassOfRealReg ArchARM64"
++      ArchAArch64     -> panic "targetClassOfRealReg ArchAArch64"
+       ArchAlpha     -> panic "targetClassOfRealReg ArchAlpha"
+       ArchMipseb    -> panic "targetClassOfRealReg ArchMipseb"
+       ArchMipsel    -> panic "targetClassOfRealReg ArchMipsel"
+@@ -104,7 +104,7 @@ targetMkVirtualReg platform
+       ArchSPARC64   -> panic "targetMkVirtualReg ArchSPARC64"
+       ArchPPC_64 _  -> PPC.mkVirtualReg
+       ArchARM _ _ _ -> panic "targetMkVirtualReg ArchARM"
+-      ArchARM64     -> panic "targetMkVirtualReg ArchARM64"
++      ArchAArch64     -> panic "targetMkVirtualReg ArchAArch64"
+       ArchAlpha     -> panic "targetMkVirtualReg ArchAlpha"
+       ArchMipseb    -> panic "targetMkVirtualReg ArchMipseb"
+       ArchMipsel    -> panic "targetMkVirtualReg ArchMipsel"
+@@ -122,7 +122,7 @@ targetRegDotColor platform
+       ArchSPARC64   -> panic "targetRegDotColor ArchSPARC64"
+       ArchPPC_64 _  -> PPC.regDotColor
+       ArchARM _ _ _ -> panic "targetRegDotColor ArchARM"
+-      ArchARM64     -> panic "targetRegDotColor ArchARM64"
++      ArchAArch64     -> panic "targetRegDotColor ArchAArch64"
+       ArchAlpha     -> panic "targetRegDotColor ArchAlpha"
+       ArchMipseb    -> panic "targetRegDotColor ArchMipseb"
+       ArchMipsel    -> panic "targetRegDotColor ArchMipsel"
+diff --git a/compiler/nativeGen/X86/CodeGen.hs b/compiler/nativeGen/X86/CodeGen.hs
+index 702cd98e77..1586bcae86 100644
+--- a/compiler/nativeGen/X86/CodeGen.hs
++++ b/compiler/nativeGen/X86/CodeGen.hs
+@@ -2440,7 +2440,7 @@ genCCall' dflags is32Bit (PrimTarget (MO_PopCnt width)) dest_regs@[dst]
+                           CallReference lbl
+             let target = ForeignTarget targetExpr (ForeignConvention CCallConv
+                                                            [NoHint] [NoHint]
+-                                                           CmmMayReturn)
++                                                           CmmMayReturn undefined undefined)
+             genCCall' dflags is32Bit target dest_regs args bid
+   where
+     format = intFormat width
+@@ -2473,7 +2473,7 @@ genCCall' dflags is32Bit (PrimTarget (MO_Pdep width)) dest_regs@[dst]
+                           CallReference lbl
+             let target = ForeignTarget targetExpr (ForeignConvention CCallConv
+                                                            [NoHint] [NoHint]
+-                                                           CmmMayReturn)
++                                                           CmmMayReturn undefined undefined)
+             genCCall' dflags is32Bit target dest_regs args bid
+   where
+     format = intFormat width
+@@ -2506,7 +2506,7 @@ genCCall' dflags is32Bit (PrimTarget (MO_Pext width)) dest_regs@[dst]
+                           CallReference lbl
+             let target = ForeignTarget targetExpr (ForeignConvention CCallConv
+                                                            [NoHint] [NoHint]
+-                                                           CmmMayReturn)
++                                                           CmmMayReturn undefined undefined)
+             genCCall' dflags is32Bit target dest_regs args bid
+   where
+     format = intFormat width
+@@ -2518,7 +2518,7 @@ genCCall' dflags is32Bit (PrimTarget (MO_Clz width)) dest_regs@[dst] args@[src]
+     targetExpr <- cmmMakeDynamicReference dflags CallReference lbl
+     let target = ForeignTarget targetExpr (ForeignConvention CCallConv
+                                            [NoHint] [NoHint]
+-                                           CmmMayReturn)
++                                           CmmMayReturn undefined undefined)
+     genCCall' dflags is32Bit target dest_regs args bid
+ 
+   | otherwise = do
+@@ -2561,7 +2561,7 @@ genCCall' dflags is32Bit (PrimTarget (MO_UF_Conv width)) dest_regs args bid = do
+                   CallReference lbl
+     let target = ForeignTarget targetExpr (ForeignConvention CCallConv
+                                            [NoHint] [NoHint]
+-                                           CmmMayReturn)
++                                           CmmMayReturn undefined undefined)
+     genCCall' dflags is32Bit target dest_regs args bid
+   where
+     lbl = mkCmmCodeLabel primUnitId (fsLit (word2FloatLabel width))
+@@ -2900,7 +2900,7 @@ genCCall32' dflags target dest_regs args = do
+               -- We have to pop any stack padding we added
+               -- even if we are doing stdcall, though (#5052)
+             pop_size
+-               | ForeignConvention StdCallConv _ _ _ <- cconv = arg_pad_size
++               | ForeignConvention StdCallConv _ _ _ _ _ <- cconv = arg_pad_size
+                | otherwise = tot_arg_size
+ 
+             call = callinsns `appOL`
+@@ -3274,7 +3274,7 @@ outOfLineCmmOp bid mop res args
+       dflags <- getDynFlags
+       targetExpr <- cmmMakeDynamicReference dflags CallReference lbl
+       let target = ForeignTarget targetExpr
+-                           (ForeignConvention CCallConv [] [] CmmMayReturn)
++                           (ForeignConvention CCallConv [] [] CmmMayReturn undefined undefined)
+ 
+       -- We know foreign calls results in no new basic blocks, so we can ignore
+       -- the returned block id.
+diff --git a/compiler/prelude/ForeignCall.hs b/compiler/prelude/ForeignCall.hs
+index c143b1ed1e..f5d9dc58e1 100644
+--- a/compiler/prelude/ForeignCall.hs
++++ b/compiler/prelude/ForeignCall.hs
+@@ -28,6 +28,10 @@ import BasicTypes ( SourceText, pprWithSourceText )
+ 
+ import Data.Char
+ import Data.Data
++import {-# SOURCE #-} TyCon (PrimRep (..))
++
++import GHC.Stack( HasCallStack )
++import Debug.Trace (traceStack)
+ 
+ {-
+ ************************************************************************
+@@ -41,7 +45,7 @@ newtype ForeignCall = CCall CCallSpec
+   deriving Eq
+ 
+ isSafeForeignCall :: ForeignCall -> Bool
+-isSafeForeignCall (CCall (CCallSpec _ _ safe)) = playSafe safe
++isSafeForeignCall (CCall (CCallSpec _ _ safe _ _)) = playSafe safe
+ 
+ -- We may need more clues to distinguish foreign calls
+ -- but this simple printer will do for now
+@@ -100,6 +104,8 @@ data CCallSpec
+   =  CCallSpec  CCallTarget     -- What to call
+                 CCallConv       -- Calling convention to use.
+                 Safety
++                PrimRep         -- result
++                [PrimRep]       -- args
+   deriving( Eq )
+ 
+ -- The call target:
+@@ -197,7 +203,7 @@ instance Outputable CExportSpec where
+   ppr (CExportStatic _ str _) = pprCLabelString str
+ 
+ instance Outputable CCallSpec where
+-  ppr (CCallSpec fun cconv safety)
++  ppr (CCallSpec fun cconv safety _ret_ty _arg_tys)
+     = hcat [ whenPprDebug callconv, ppr_fun fun ]
+     where
+       callconv = text "{-" <> ppr cconv <> text "-}"
+@@ -283,15 +289,19 @@ instance Binary CExportSpec where
+           return (CExportStatic ss aa ab)
+ 
+ instance Binary CCallSpec where
+-    put_ bh (CCallSpec aa ab ac) = do
++    put_ bh (CCallSpec aa ab ac ad ae) = do
+             put_ bh aa
+             put_ bh ab
+             put_ bh ac
++            put_ bh ad
++            put_ bh ae
+     get bh = do
+           aa <- get bh
+           ab <- get bh
+           ac <- get bh
+-          return (CCallSpec aa ab ac)
++          ad <- get bh
++          ae <- get bh
++          return (CCallSpec aa ab ac ad ae)
+ 
+ instance Binary CCallTarget where
+     put_ bh (StaticTarget ss aa ab ac) = do
+diff --git a/compiler/prelude/TysWiredIn.hs-boot b/compiler/prelude/TysWiredIn.hs-boot
+index 023682fe5b..f695a1d7d9 100644
+--- a/compiler/prelude/TysWiredIn.hs-boot
++++ b/compiler/prelude/TysWiredIn.hs-boot
+@@ -5,6 +5,7 @@ import {-# SOURCE #-} TyCoRep    (Type, Kind)
+ 
+ import BasicTypes (Arity, TupleSort)
+ import Name (Name)
++import Unique (Unique)
+ 
+ listTyCon :: TyCon
+ typeNatKind, typeSymbolKind :: Type
+@@ -43,3 +44,5 @@ unboxedTupleKind :: [Type] -> Type
+ mkPromotedListTy :: Type -> [Type] -> Type
+ 
+ tupleTyConName :: TupleSort -> Arity -> Name
++
++unitTyConKey :: Unique
+diff --git a/compiler/simplStg/RepType.hs b/compiler/simplStg/RepType.hs
+index 75fde79d87..2a758ce7c5 100644
+--- a/compiler/simplStg/RepType.hs
++++ b/compiler/simplStg/RepType.hs
+@@ -18,7 +18,9 @@ module RepType
+ 
+     -- * Unboxed sum representation type
+     ubxSumRepType, layoutUbxSum, typeSlotTy, SlotTy (..),
+-    slotPrimRep, primRepSlot
++    slotPrimRep, primRepSlot,
++
++    mkCCallSpec
+   ) where
+ 
+ #include "HsVersions.h"
+@@ -35,11 +37,62 @@ import TyCoRep
+ import Type
+ import Util
+ import TysPrim
+-import {-# SOURCE #-} TysWiredIn ( anyTypeOfKind )
++import {-# SOURCE #-} TysWiredIn ( anyTypeOfKind, unitTyConKey )
++import PrelNames
++import {-# SOURCE #-} TcType (tcSplitIOType_maybe)
+ 
+ import Data.List (sort)
+ import qualified Data.IntSet as IS
+ 
++import ForeignCall (CCallSpec(..), CCallTarget(..), CCallConv(..), Safety(..), CCallTarget(..))
++
++import Debug.Trace
++
++mkCCallSpec :: CCallTarget -> CCallConv -> Safety -> Type -> [Type] -> CCallSpec
++mkCCallSpec t c s r as = CCallSpec t c s (myTypePrimRep1 r') (map myTypePrimRep1 as')
++        where ppr_target :: CCallTarget -> String
++              ppr_target (StaticTarget _ lbl _ fn) = "static " ++ (if fn then "function " else "value ") ++ show lbl
++              ppr_target DynamicTarget = "dynamic"
++
++              r'= case tcSplitIOType_maybe r of
++                Just (_ioTyCon, res_ty) -> res_ty
++                Nothing                 -> r
++
++              -- for dynamic targets, we want to drop the first
++              -- represetnation, as that is the stable pointer to
++              -- the fucntion we are invocing, which is irrelevant
++              -- for the argument repsenstation.
++              as' = case t of
++                DynamicTarget -> tail as
++                _             -> as
++
++              typeTyCon :: Type -> TyCon
++              typeTyCon ty
++                | Just (tc, _) <- tcSplitTyConApp_maybe (unwrapType ty)
++                = tc
++                | otherwise
++                = pprPanic "DsForeign.typeTyCon" (ppr ty)
++
++              myTypePrimRep1 :: Type -> PrimRep
++              myTypePrimRep1 t = case typePrimRep1 t of
++                LiftedRep -> case getUnique (typeTyCon t) of
++                  key | key == int8TyConKey   -> Int8Rep
++                      | key == int16TyConKey  -> Int16Rep
++                      | key == int32TyConKey  -> Int32Rep
++                      | key == int64TyConKey  -> Int64Rep
++                      | key == word8TyConKey  -> Word8Rep
++                      | key == word16TyConKey -> Word16Rep
++                      | key == word32TyConKey -> Word32Rep
++                      | key == word64TyConKey -> Word64Rep
++                      | key == intTyConKey    -> IntRep
++                      | key == wordTyConKey   -> WordRep
++                      | key == floatTyConKey  -> FloatRep
++                      | key == doubleTyConKey -> DoubleRep
++                      | key == unitTyConKey   -> VoidRep
++                  _                           -> LiftedRep
++                other     -> other
++
++
+ {- **********************************************************************
+ *                                                                       *
+                 Representation types
+diff --git a/compiler/stgSyn/CoreToStg.hs b/compiler/stgSyn/CoreToStg.hs
+index 634b74be5b..4e75ad04a2 100644
+--- a/compiler/stgSyn/CoreToStg.hs
++++ b/compiler/stgSyn/CoreToStg.hs
+@@ -561,7 +561,7 @@ coreToStgApp f args ticks = do
+ 
+                 -- A call to some primitive Cmm function.
+                 FCallId (CCall (CCallSpec (StaticTarget _ lbl (Just pkgId) True)
+-                                          PrimCallConv _))
++                                          PrimCallConv _ _ _))
+                                  -> ASSERT( saturated )
+                                     StgOpApp (StgPrimCallOp (PrimCall lbl pkgId)) args' res_ty
+ 
+diff --git a/compiler/stgSyn/StgSyn.hs b/compiler/stgSyn/StgSyn.hs
+index 052ef2b6c7..427c488acf 100644
+--- a/compiler/stgSyn/StgSyn.hs
++++ b/compiler/stgSyn/StgSyn.hs
+@@ -54,7 +54,9 @@ module StgSyn (
+         stripStgTicksTop, stripStgTicksTopE,
+         stgCaseBndrInScope,
+ 
+-        pprStgBinding, pprGenStgTopBindings, pprStgTopBindings
++        pprStgBinding, pprGenStgTopBindings, pprStgTopBindings,
++
++        isAddrRep
+     ) where
+ 
+ #include "HsVersions.h"
+diff --git a/compiler/typecheck/TcType.hs-boot b/compiler/typecheck/TcType.hs-boot
+index 2bc14735f1..2e2bcb58b8 100644
+--- a/compiler/typecheck/TcType.hs-boot
++++ b/compiler/typecheck/TcType.hs-boot
+@@ -1,8 +1,12 @@
+ module TcType where
+ import Outputable( SDoc )
++import {-# SOURCE #-} TyCoRep( Type )
++import {-# SOURCE #-} TyCon (TyCon)
++import Data.Maybe (Maybe)
+ 
+ data MetaDetails
+ 
+ data TcTyVarDetails
+ pprTcTyVarDetails :: TcTyVarDetails -> SDoc
+ vanillaSkolemTv :: TcTyVarDetails
++tcSplitIOType_maybe :: Type -> Maybe (TyCon, Type)
+diff --git a/compiler/types/TyCon.hs b/compiler/types/TyCon.hs
+index 551dcb5817..6b91d4d086 100644
+--- a/compiler/types/TyCon.hs
++++ b/compiler/types/TyCon.hs
+@@ -6,7 +6,7 @@
+ The @TyCon@ datatype
+ -}
+ 
+-{-# LANGUAGE CPP, FlexibleInstances #-}
++{-# LANGUAGE CPP, FlexibleInstances, LambdaCase #-}
+ 
+ module TyCon(
+         -- * Main TyCon data types
+@@ -1437,7 +1437,44 @@ data PrimRep
+   | FloatRep
+   | DoubleRep
+   | VecRep Int PrimElemRep  -- ^ A vector
+-  deriving( Show )
++  deriving( Eq, Show )
++
++instance Binary PrimRep where
++  put_ bh VoidRep     = putByte bh 0
++  put_ bh LiftedRep   = putByte bh 1
++  put_ bh UnliftedRep = putByte bh 2
++  put_ bh Int8Rep     = putByte bh 3
++  put_ bh Int16Rep    = putByte bh 4
++  put_ bh Int32Rep    = putByte bh 5
++  put_ bh Int64Rep    = putByte bh 6
++  put_ bh IntRep      = putByte bh 7
++  put_ bh Word8Rep    = putByte bh 8
++  put_ bh Word16Rep   = putByte bh 9
++  put_ bh Word32Rep   = putByte bh 10
++  put_ bh Word64Rep   = putByte bh 11
++  put_ bh WordRep     = putByte bh 12
++  put_ bh AddrRep     = putByte bh 13
++  put_ bh FloatRep    = putByte bh 14
++  put_ bh DoubleRep   = putByte bh 15
++  put_ bh (VecRep n el) = putByte bh 16 >> put_ bh n >> put_ bh el
++  get bh = getByte bh >>= \case
++    0 -> pure VoidRep
++    1 -> pure LiftedRep
++    2 -> pure UnliftedRep
++    3 -> pure Int8Rep
++    4 -> pure Int16Rep
++    5 -> pure Int32Rep
++    6 -> pure Int64Rep
++    7 -> pure IntRep
++    8 -> pure Word8Rep
++    9 -> pure Word16Rep
++    10 -> pure Word32Rep
++    11 -> pure Word64Rep
++    12 -> pure WordRep
++    13 -> pure AddrRep
++    14 -> pure FloatRep
++    15 -> pure DoubleRep
++    16 -> VecRep <$> get bh <*> get bh
+ 
+ data PrimElemRep
+   = Int8ElemRep
+@@ -1452,6 +1489,30 @@ data PrimElemRep
+   | DoubleElemRep
+    deriving( Eq, Show )
+ 
++instance Binary PrimElemRep where
++  put_ bh Int8ElemRep   = putByte bh 0
++  put_ bh Int16ElemRep  = putByte bh 1
++  put_ bh Int32ElemRep  = putByte bh 2
++  put_ bh Int64ElemRep  = putByte bh 3
++  put_ bh Word8ElemRep  = putByte bh 4
++  put_ bh Word16ElemRep = putByte bh 5
++  put_ bh Word32ElemRep = putByte bh 6
++  put_ bh Word64ElemRep = putByte bh 7
++  put_ bh FloatElemRep  = putByte bh 8
++  put_ bh DoubleElemRep = putByte bh 9
++  get bh = getByte bh >>= \case
++    0 -> pure Int8ElemRep
++    1 -> pure Int16ElemRep
++    2 -> pure Int32ElemRep
++    3 -> pure Int64ElemRep
++    4 -> pure Word8ElemRep
++    5 -> pure Word16ElemRep
++    6 -> pure Word32ElemRep
++    7 -> pure Word64ElemRep
++    8 -> pure FloatElemRep
++    9 -> pure DoubleElemRep
++
++
+ instance Outputable PrimRep where
+   ppr r = text (show r)
+ 
+diff --git a/compiler/types/TyCon.hs-boot b/compiler/types/TyCon.hs-boot
+index 4db8d0f1c1..1b7fcbb331 100644
+--- a/compiler/types/TyCon.hs-boot
++++ b/compiler/types/TyCon.hs-boot
+@@ -1,8 +1,14 @@
+ module TyCon where
+ 
+ import GhcPrelude
++import Binary
+ 
+ data TyCon
++data PrimRep
++
++instance Eq PrimRep
++instance Show PrimRep
++instance Binary PrimRep
+ 
+ isTupleTyCon        :: TyCon -> Bool
+ isUnboxedTupleTyCon :: TyCon -> Bool
+diff --git a/compiler/types/Type.hs-boot b/compiler/types/Type.hs-boot
+index 16c6bfe07b..b135e41d24 100644
+--- a/compiler/types/Type.hs-boot
++++ b/compiler/types/Type.hs-boot
+@@ -3,7 +3,7 @@
+ module Type where
+ 
+ import GhcPrelude
+-import TyCon
++import {-# SOURCE #-} TyCon
+ import {-# SOURCE #-} TyCoRep( Type, Coercion )
+ import Util
+ 
+diff --git a/compiler/utils/FastString.hs b/compiler/utils/FastString.hs
+index 3a438ef23e..9efa04c9f2 100644
+--- a/compiler/utils/FastString.hs
++++ b/compiler/utils/FastString.hs
+@@ -233,7 +233,7 @@ cmpFS f1@(FastString u1 _ _ _) f2@(FastString u2 _ _ _) =
+   compare (bytesFS f1) (bytesFS f2)
+ 
+ foreign import ccall unsafe "memcmp"
+-  memcmp :: Ptr a -> Ptr b -> Int -> IO Int
++  memcmp :: Ptr a -> Ptr b -> CSize -> IO CInt
+ 
+ -- -----------------------------------------------------------------------------
+ -- Construction
+@@ -376,7 +376,7 @@ lower-level `sharedCAF` mechanism that relies on Globals.c.
+ -}
+ 
+ mkFastString# :: Addr# -> FastString
+-mkFastString# a# = mkFastStringBytes ptr (ptrStrLength ptr)
++mkFastString# a# = mkFastStringBytes ptr (fromIntegral (ptrStrLength ptr))
+   where ptr = Ptr a#
+ 
+ {- Note [Updating the FastString table]
+@@ -528,7 +528,7 @@ copyBytesToForeignPtr ptr len = do
+ 
+ cmpStringPrefix :: Ptr Word8 -> Ptr Word8 -> Int -> IO Bool
+ cmpStringPrefix ptr1 ptr2 len =
+- do r <- memcmp ptr1 ptr2 len
++ do r <- memcmp ptr1 ptr2 (fromIntegral len)
+     return (r == 0)
+ 
+ hashStr  :: Ptr Word8 -> Int -> Int
+@@ -641,7 +641,7 @@ data PtrString = PtrString !(Ptr Word8) !Int
+ 
+ -- | Wrap an unboxed address into a 'PtrString'.
+ mkPtrString# :: Addr# -> PtrString
+-mkPtrString# a# = PtrString (Ptr a#) (ptrStrLength (Ptr a#))
++mkPtrString# a# = PtrString (Ptr a#) (fromIntegral (ptrStrLength (Ptr a#)))
+ 
+ -- | Encode a 'String' into a newly allocated 'PtrString' using Latin-1
+ -- encoding.  The original string must not contain non-Latin-1 characters
+@@ -677,7 +677,7 @@ lengthPS (PtrString _ n) = n
+ -- under the carpet
+ 
+ foreign import ccall unsafe "strlen"
+-  ptrStrLength :: Ptr Word8 -> Int
++  ptrStrLength :: Ptr Word8 -> CSize
+ 
+ {-# NOINLINE sLit #-}
+ sLit :: String -> PtrString
+diff --git a/config.sub b/config.sub
+index 19c9553b18..a332ce4fb9 100755
+--- a/config.sub
++++ b/config.sub
+@@ -2,7 +2,7 @@
+ # Configuration validation subroutine script.
+ #   Copyright 1992-2020 Free Software Foundation, Inc.
+ 
+-timestamp='2020-12-02'
++timestamp='2021-01-09'
+ 
+ # This file is free software; you can redistribute it and/or modify it
+ # under the terms of the GNU General Public License as published by
+diff --git a/docs/users_guide/runtime_control.rst b/docs/users_guide/runtime_control.rst
+index 73e8824154..d341a763ce 100644
+--- a/docs/users_guide/runtime_control.rst
++++ b/docs/users_guide/runtime_control.rst
+@@ -313,8 +313,10 @@ Miscellaneous RTS options
+     an object, the linker will probably fail with an error message when the
+     problem is detected.
+ 
+-    On some platforms where PIC is always the case, e.g. x86_64 MacOS X, this
+-    flag is enabled by default.
++    On some platforms where PIC is always the case, e.g. macOS and OpenBSD on
++    x86_64, and macOS and Linux on aarch64 this flag is enabled by default.
++    One repercussion of this is that referenced system libraries also need to be
++    compiled with ``-fPIC`` if we need to load them in the runtime linker.
+ 
+ .. rts-flag:: -xm âŸ¨addressâŸ©
+ 
+diff --git a/includes/CodeGen.Platform.hs b/includes/CodeGen.Platform.hs
+index b108a61c0a..50f116f3b1 100644
+--- a/includes/CodeGen.Platform.hs
++++ b/includes/CodeGen.Platform.hs
+@@ -94,7 +94,7 @@ import Reg
+ # define zmm14 30
+ # define zmm15 31
+ 
+--- Note: these are only needed for ARM/ARM64 because globalRegMaybe is now used in CmmSink.hs.
++-- Note: these are only needed for ARM/AArch64 because globalRegMaybe is now used in CmmSink.hs.
+ -- Since it's only used to check 'isJust', the actual values don't matter, thus
+ -- I'm not sure if these are the correct numberings.
+ -- Normally, the register names are just stringified as part of the REG() macro
+@@ -1096,4 +1096,3 @@ freeReg _ = True
+ freeReg = panic "freeReg not defined for this platform"
+ 
+ #endif
+-
+diff --git a/includes/Rts.h b/includes/Rts.h
+index 1db3ea0df8..568a7e6108 100644
+--- a/includes/Rts.h
++++ b/includes/Rts.h
+@@ -29,6 +29,12 @@ extern "C" {
+ #include <windows.h>
+ #endif
+ 
++#if defined(ios_HOST_OS) || defined(darwin_HOST_OS)
++/* Inclusion of system headers usually requires _DARWIN_C_SOURCE on Mac OS X
++ * because of some specific defines like MMAP_ANON, MMAP_ANONYMOUS. */
++#define _DARWIN_C_SOURCE 1
++#endif
++
+ #if !defined(IN_STG_CODE)
+ #define IN_STG_CODE 0
+ #endif
+diff --git a/includes/rts/Flags.h b/includes/rts/Flags.h
+index d0c41a1576..e8d2313108 100644
+--- a/includes/rts/Flags.h
++++ b/includes/rts/Flags.h
+@@ -199,8 +199,10 @@ typedef struct _CONCURRENT_FLAGS {
+  * When linkerAlwaysPic is true, the runtime linker assume that all object
+  * files were compiled with -fPIC -fexternal-dynamic-refs and load them
+  * anywhere in the address space.
++ * Note that there is no 32bit darwin system we can realistically expect to
++ * run on or compile for.
+  */
+-#if defined(x86_64_HOST_ARCH) && defined(darwin_HOST_OS)
++#if defined(darwin_HOST_OS) || defined(aarch64_HOST_ARCH)
+ #define DEFAULT_LINKER_ALWAYS_PIC true
+ #else
+ #define DEFAULT_LINKER_ALWAYS_PIC false
+diff --git a/includes/rts/storage/GC.h b/includes/rts/storage/GC.h
+index 889df9a675..88c4660741 100644
+--- a/includes/rts/storage/GC.h
++++ b/includes/rts/storage/GC.h
+@@ -199,9 +199,14 @@ typedef void* AdjustorExecutable;
+ 
+ AdjustorWritable allocateExec(W_ len, AdjustorExecutable *exec_addr);
+ void flushExec(W_ len, AdjustorExecutable exec_addr);
+-#if defined(ios_HOST_OS)
++#if (defined(arm_HOST_ARCH) || defined(aarch64_HOST_ARCH)) && (defined(ios_HOST_OS) || defined(darwin_HOST_OS))
+ AdjustorWritable execToWritable(AdjustorExecutable exec);
+ #endif
++#if RTS_LINKER_USE_MMAP
++AdjustorWritable allocateWrite(W_ bytes);
++void markExec(W_ bytes, AdjustorWritable writ);
++void freeWrite(W_ bytes, AdjustorWritable writ);
++#endif
+ void             freeExec (AdjustorExecutable p);
+ 
+ // Used by GC checks in external .cmm code:
+diff --git a/libraries/base/config.sub b/libraries/base/config.sub
+index 19c9553b18..a332ce4fb9 100644
+--- a/libraries/base/config.sub
++++ b/libraries/base/config.sub
+@@ -2,7 +2,7 @@
+ # Configuration validation subroutine script.
+ #   Copyright 1992-2020 Free Software Foundation, Inc.
+ 
+-timestamp='2020-12-02'
++timestamp='2021-01-09'
+ 
+ # This file is free software; you can redistribute it and/or modify it
+ # under the terms of the GNU General Public License as published by
+diff --git a/libraries/ghc-boot/GHC/Platform.hs b/libraries/ghc-boot/GHC/Platform.hs
+index 341b551fc5..e45313fafe 100644
+--- a/libraries/ghc-boot/GHC/Platform.hs
++++ b/libraries/ghc-boot/GHC/Platform.hs
+@@ -114,7 +114,7 @@ data Arch
+           , armISAExt :: [ArmISAExt]
+           , armABI    :: ArmABI
+           }
+-        | ArchARM64
++        | ArchAArch64
+         | ArchAlpha
+         | ArchMipseb
+         | ArchMipsel
+@@ -155,7 +155,7 @@ stringEncodeArch = \case
+         ARMv5 -> "v5"
+         ARMv6 -> "v6"
+         ARMv7 -> "v7"
+-  ArchARM64 -> "aarch64"
++  ArchAArch64 -> "aarch64"
+   ArchAlpha -> "alpha"
+   ArchMipseb -> "mipseb"
+   ArchMipsel -> "mipsel"
+@@ -163,7 +163,7 @@ stringEncodeArch = \case
+ 
+ isARM :: Arch -> Bool
+ isARM (ArchARM {}) = True
+-isARM ArchARM64    = True
++isARM ArchAArch64    = True
+ isARM _ = False
+ 
+ -- | Operating systems that the native code generator knows about.
+diff --git a/libraries/ghci/GHCi/InfoTable.hsc b/libraries/ghci/GHCi/InfoTable.hsc
+index 587e39bbed..6c4a073399 100644
+--- a/libraries/ghci/GHCi/InfoTable.hsc
++++ b/libraries/ghci/GHCi/InfoTable.hsc
+@@ -73,7 +73,7 @@ data Arch = ArchSPARC
+           | ArchX86_64
+           | ArchAlpha
+           | ArchARM
+-          | ArchARM64
++          | ArchAArch64
+           | ArchPPC64
+           | ArchPPC64LE
+           | ArchS390X
+@@ -95,7 +95,7 @@ platform =
+ #elif defined(arm_HOST_ARCH)
+        ArchARM
+ #elif defined(aarch64_HOST_ARCH)
+-       ArchARM64
++       ArchAArch64
+ #elif defined(powerpc64_HOST_ARCH)
+        ArchPPC64
+ #elif defined(powerpc64le_HOST_ARCH)
+@@ -211,7 +211,7 @@ mkJumpToAddr a = case platform of
+                 , 0x11, 0xff, 0x2f, 0xe1
+                 , byte0 w32, byte1 w32, byte2 w32, byte3 w32]
+ 
+-    ArchARM64 { } ->
++    ArchAArch64 { } ->
+         -- Generates:
+         --
+         --      ldr     x1, label
+@@ -360,7 +360,7 @@ sizeOfEntryCode
+ -- Note: Must return proper pointer for use in a closure
+ newExecConItbl :: StgInfoTable -> ByteString -> IO (FunPtr ())
+ newExecConItbl obj con_desc
+-   = alloca $ \pcode -> do
++   = do
+         let lcon_desc = BS.length con_desc + 1{- null terminator -}
+             -- SCARY
+             -- This size represents the number of bytes in an StgConInfoTable.
+@@ -369,8 +369,10 @@ newExecConItbl obj con_desc
+                -- table, because on a 64-bit platform we reference this string
+                -- with a 32-bit offset relative to the info table, so if we
+                -- allocated the string separately it might be out of range.
+-        wr_ptr <- _allocateExec (sz + fromIntegral lcon_desc) pcode
+-        ex_ptr <- peek pcode
++        wr_ptr <- _allocateWrite (sz + fromIntegral lcon_desc)
++        let ex_ptr = wr_ptr
++        -- wr_ptr <- _allocateExec (sz + fromIntegral lcon_desc) pcode
++        -- ex_ptr <- peek pcode
+         let cinfo = StgConInfoTable { conDesc = ex_ptr `plusPtr` fromIntegral sz
+                                     , infoTable = obj }
+         pokeConItbl wr_ptr ex_ptr cinfo
+@@ -379,6 +381,7 @@ newExecConItbl obj con_desc
+         let null_off = fromIntegral sz + fromIntegral (BS.length con_desc)
+         poke (castPtr wr_ptr `plusPtr` null_off) (0 :: Word8)
+         _flushExec sz ex_ptr -- Cache flush (if needed)
++        _markExec (sz + fromIntegral lcon_desc) ex_ptr
+ #if defined(TABLES_NEXT_TO_CODE)
+         return (castPtrToFunPtr (ex_ptr `plusPtr` conInfoTableSizeB))
+ #else
+@@ -391,6 +394,15 @@ foreign import ccall unsafe "allocateExec"
+ foreign import ccall unsafe "flushExec"
+   _flushExec :: CUInt -> Ptr a -> IO ()
+ 
++foreign import ccall unsafe "allocateWrite"
++  _allocateWrite :: CUInt -> IO (Ptr a)
++
++foreign import ccall unsafe "markExec"
++  _markExec :: CUInt -> Ptr a -> IO ()
++
++foreign import ccall unsafe "freeWrite"
++  _freeWrite :: CUInt -> Ptr a -> IO ()
++
+ -- -----------------------------------------------------------------------------
+ -- Constants and config
+ 
+diff --git a/libraries/integer-gmp/config.sub b/libraries/integer-gmp/config.sub
+index 19c9553b18..a332ce4fb9 100755
+--- a/libraries/integer-gmp/config.sub
++++ b/libraries/integer-gmp/config.sub
+@@ -2,7 +2,7 @@
+ # Configuration validation subroutine script.
+ #   Copyright 1992-2020 Free Software Foundation, Inc.
+ 
+-timestamp='2020-12-02'
++timestamp='2021-01-09'
+ 
+ # This file is free software; you can redistribute it and/or modify it
+ # under the terms of the GNU General Public License as published by
+diff --git a/libraries/integer-gmp/gmp/gmpsrc.patch b/libraries/integer-gmp/gmp/gmpsrc.patch
+index 067f58e902..d539b9545f 100644
+--- a/libraries/integer-gmp/gmp/gmpsrc.patch
++++ b/libraries/integer-gmp/gmp/gmpsrc.patch
+@@ -1,16 +1,40 @@
+-diff -Naur gmp-6.1.2/configure gmpbuild/configure
+---- gmp-6.1.2/configure	2016-12-16 10:45:32.000000000 -0500
+-+++ gmpbuild/configure	2017-01-29 15:18:01.037775639 -0500
+-@@ -28181,7 +28181,7 @@
++diff -Naur gmp-6.2.1/Makefile.am gmpbuild/Makefile.am
++--- gmp-6.2.1/Makefile.am	2020-11-15 02:45:09.000000000 +0800
+++++ gmpbuild/Makefile.am	2021-01-09 22:56:14.571708858 +0800
++@@ -112,7 +112,7 @@
++ LIBGMPXX_LT_AGE      = 6
++ 
++ 
++-SUBDIRS = tests mpn mpz mpq mpf printf scanf rand cxx demos tune doc
+++SUBDIRS = tests mpn mpz mpq mpf printf scanf rand cxx demos tune
++ 
++ EXTRA_DIST = configfsf.guess configfsf.sub .gdbinit INSTALL.autoconf \
++ 	     COPYING.LESSERv3 COPYINGv2 COPYINGv3
++diff -Naur gmp-6.2.1/Makefile.in gmpbuild/Makefile.in
++--- gmp-6.2.1/Makefile.in	2020-11-15 02:45:16.000000000 +0800
+++++ gmpbuild/Makefile.in	2021-01-10 16:15:37.387670402 +0800
++@@ -572,7 +572,7 @@
++ LIBGMPXX_LT_CURRENT = 10
++ LIBGMPXX_LT_REVISION = 1
++ LIBGMPXX_LT_AGE = 6
++-SUBDIRS = tests mpn mpz mpq mpf printf scanf rand cxx demos tune doc
+++SUBDIRS = tests mpn mpz mpq mpf printf scanf rand cxx demos tune
++ 
++ # Put asl.h here for now.
++ 
++diff -Naur gmp-6.2.1/configure gmpbuild/configure
++--- gmp-6.2.1/configure	2020-11-15 02:45:15.000000000 +0800
+++++ gmpbuild/configure	2021-01-10 16:13:59.196004951 +0800
++@@ -27985,7 +27985,7 @@
+  # FIXME: Upcoming version of autoconf/automake may not like broken lines.
+  #        Right now automake isn't accepting the new AC_CONFIG_FILES scheme.
+  
+--ac_config_files="$ac_config_files Makefile mpf/Makefile mpn/Makefile mpq/Makefile mpz/Makefile printf/Makefile scanf/Makefile rand/Makefile cxx/Makefile tests/Makefile tests/devel/Makefile tests/mpf/Makefile tests/mpn/Makefile tests/mpq/Makefile tests/mpz/Makefile tests/rand/Makefile tests/misc/Makefile tests/cxx/Makefile doc/Makefile tune/Makefile demos/Makefile demos/calc/Makefile demos/expr/Makefile gmp.h:gmp-h.in"
+-+ac_config_files="$ac_config_files Makefile mpf/Makefile mpn/Makefile mpq/Makefile mpz/Makefile printf/Makefile scanf/Makefile rand/Makefile cxx/Makefile tests/Makefile tests/devel/Makefile tests/mpf/Makefile tests/mpn/Makefile tests/mpq/Makefile tests/mpz/Makefile tests/rand/Makefile tests/misc/Makefile tests/cxx/Makefile tune/Makefile demos/Makefile demos/calc/Makefile demos/expr/Makefile gmp.h:gmp-h.in"
++-ac_config_files="$ac_config_files Makefile mpf/Makefile mpn/Makefile mpq/Makefile mpz/Makefile printf/Makefile scanf/Makefile rand/Makefile cxx/Makefile tests/Makefile tests/devel/Makefile tests/mpf/Makefile tests/mpn/Makefile tests/mpq/Makefile tests/mpz/Makefile tests/rand/Makefile tests/misc/Makefile tests/cxx/Makefile doc/Makefile tune/Makefile demos/Makefile demos/calc/Makefile demos/expr/Makefile gmp.h:gmp-h.in gmp.pc:gmp.pc.in gmpxx.pc:gmpxx.pc.in"
+++ac_config_files="$ac_config_files Makefile mpf/Makefile mpn/Makefile mpq/Makefile mpz/Makefile printf/Makefile scanf/Makefile rand/Makefile cxx/Makefile tests/Makefile tests/devel/Makefile tests/mpf/Makefile tests/mpn/Makefile tests/mpq/Makefile tests/mpz/Makefile tests/rand/Makefile tests/misc/Makefile tests/cxx/Makefile tune/Makefile demos/Makefile demos/calc/Makefile demos/expr/Makefile gmp.h:gmp-h.in gmp.pc:gmp.pc.in gmpxx.pc:gmpxx.pc.in"
+  
+  cat >confcache <<\_ACEOF
+  # This file is a shell script that caches the results of configure
+-@@ -29325,7 +29325,6 @@
++@@ -29129,7 +29129,6 @@
+      "tests/rand/Makefile") CONFIG_FILES="$CONFIG_FILES tests/rand/Makefile" ;;
+      "tests/misc/Makefile") CONFIG_FILES="$CONFIG_FILES tests/misc/Makefile" ;;
+      "tests/cxx/Makefile") CONFIG_FILES="$CONFIG_FILES tests/cxx/Makefile" ;;
+@@ -18,27 +42,3 @@ diff -Naur gmp-6.1.2/configure gmpbuild/configure
+      "tune/Makefile") CONFIG_FILES="$CONFIG_FILES tune/Makefile" ;;
+      "demos/Makefile") CONFIG_FILES="$CONFIG_FILES demos/Makefile" ;;
+      "demos/calc/Makefile") CONFIG_FILES="$CONFIG_FILES demos/calc/Makefile" ;;
+-diff -Naur gmp-6.1.2/Makefile.am gmpbuild/Makefile.am
+---- gmp-6.1.2/Makefile.am	2016-12-16 10:45:27.000000000 -0500
+-+++ gmpbuild/Makefile.am	2017-01-29 15:14:20.764370926 -0500
+-@@ -110,7 +110,7 @@
+- LIBGMPXX_LT_AGE      = 5
+- 
+- 
+--SUBDIRS = tests mpn mpz mpq mpf printf scanf rand cxx demos tune doc
+-+SUBDIRS = tests mpn mpz mpq mpf printf scanf rand cxx demos tune
+- 
+- EXTRA_DIST = configfsf.guess configfsf.sub .gdbinit INSTALL.autoconf \
+- 	     COPYING.LESSERv3 COPYINGv2 COPYINGv3
+-diff -Naur gmp-6.1.2/Makefile.in gmpbuild/Makefile.in
+---- gmp-6.1.2/Makefile.in	2016-12-16 10:45:34.000000000 -0500
+-+++ gmpbuild/Makefile.in	2017-01-29 15:14:32.596446554 -0500
+-@@ -566,7 +566,7 @@
+- LIBGMPXX_LT_CURRENT = 9
+- LIBGMPXX_LT_REVISION = 2
+- LIBGMPXX_LT_AGE = 5
+--SUBDIRS = tests mpn mpz mpq mpf printf scanf rand cxx demos tune doc
+-+SUBDIRS = tests mpn mpz mpq mpf printf scanf rand cxx demos tune
+- 
+- # The "test -f" support for srcdir!=builddir is similar to the automake .c.o
+- # etc rules, but with each foo.c explicitly, since $< is not portable
+diff --git a/rts/Adjustor.c b/rts/Adjustor.c
+index d360cfe87b..7fc931344c 100644
+--- a/rts/Adjustor.c
++++ b/rts/Adjustor.c
+@@ -99,7 +99,7 @@ freeHaskellFunctionPtr(void* ptr)
+ {
+     ffi_closure *cl;
+ 
+-#if defined(ios_HOST_OS)
++#if defined(ios_HOST_OS) || defined(darwin_HOST_OS)
+     cl = execToWritable(ptr);
+ #else
+     cl = (ffi_closure*)ptr;
+diff --git a/rts/Interpreter.c b/rts/Interpreter.c
+index 463ddae18b..3de506f7e7 100644
+--- a/rts/Interpreter.c
++++ b/rts/Interpreter.c
+@@ -979,7 +979,7 @@ run_BCO:
+         bcoSize = bco->instrs->bytes / sizeof(StgWord16);
+ #endif
+         IF_DEBUG(interpreter,debugBelch("bcoSize = %d\n", bcoSize));
+-
++        IF_DEBUG(interpreter,disassemble( bco ));
+ #if defined(INTERP_STATS)
+         it_lastopc = 0; /* no opcode */
+ #endif
+diff --git a/rts/Libdw.c b/rts/Libdw.c
+index d45d9d0e5d..9619479313 100644
+--- a/rts/Libdw.c
++++ b/rts/Libdw.c
+@@ -133,8 +133,9 @@ int libdwLookupLocation(LibdwSession *session, Location *frame,
+     Dwfl_Module *mod = dwfl_addrmodule(session->dwfl, addr);
+     if (mod == NULL)
+         return 1;
++    void *object_file = &frame->object_file;
+     dwfl_module_info(mod, NULL, NULL, NULL, NULL, NULL,
+-                     &frame->object_file, NULL);
++                     object_file, NULL);
+ 
+     // Find function name
+     frame->function = dwfl_module_addrname(mod, addr);
+diff --git a/rts/Linker.c b/rts/Linker.c
+index c0d28e6581..70738f5ee4 100644
+--- a/rts/Linker.c
++++ b/rts/Linker.c
+@@ -1005,42 +1005,6 @@ resolveSymbolAddr (pathchar* buffer, int size,
+ }
+ 
+ #if RTS_LINKER_USE_MMAP
+-
+-/* -----------------------------------------------------------------------------
+-   Occationally we depend on mmap'd region being close to already mmap'd regions.
+-
+-   Our static in-memory linker may be restricted by the architectures relocation
+-   range. E.g. aarch64 has a +-4GB range for PIC code, thus we'd preferrably
+-   get memory for the linker close to existing mappings.  mmap on it's own is
+-   free to return any memory location, independent of what the preferred
+-   location argument indicates.
+-
+-   For example mmap (via qemu) might give you addresses all over the available
+-   memory range if the requested location is already occupied.
+-
+-   mmap_next will do a linear search from the start page upwards to find a
+-   suitable location that is as close as possible to the locations (proivded
+-   via the first argument).
+-   -------------------------------------------------------------------------- */
+-
+-void*
+-mmap_next(void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
+-  if(addr == NULL) return mmap(addr, length, prot, flags, fd, offset);
+-  // we are going to look for up to pageSize * 1024 * 1024 (4GB) from the
+-  // address.
+-  size_t pageSize = getPageSize();
+-  for(int i = (uintptr_t)addr & (pageSize-1) ? 1 : 0; i < 1024*1024; i++) {
+-    void *target = (void*)(((uintptr_t)addr & ~(pageSize-1))+(i*pageSize));
+-    void *mem = mmap(target, length, prot, flags, fd, offset);
+-    if(mem == NULL) return mem;
+-    if(mem == target) return mem;
+-    munmap(mem, length);
+-    IF_DEBUG(linker && (i % 1024 == 0),
+-      debugBelch("mmap_next failed to find suitable space in %p - %p\n", addr, target));
+-  }
+-  return NULL;
+-}
+-
+ //
+ // Returns NULL on failure.
+ //
+@@ -1072,8 +1036,8 @@ mmap_again:
+             debugBelch("mmapForLinker: \tflags      %#0x\n",
+                        MAP_PRIVATE | tryMap32Bit | fixed | flags));
+ 
+-   result = mmap_next(map_addr, size, prot,
+-                      MAP_PRIVATE|tryMap32Bit|fixed|flags, fd, offset);
++   result = mmap(map_addr, size, prot,
++                 MAP_PRIVATE|tryMap32Bit|fixed|flags, fd, offset);
+ 
+    if (result == MAP_FAILED) {
+        sysErrorBelch("mmap %" FMT_Word " bytes at %p",(W_)size,map_addr);
+@@ -1484,7 +1448,7 @@ preloadObjectFile (pathchar *path)
+     *
+     * See also the misalignment logic for darwin below.
+     */
+-#if defined(ios_HOST_OS)
++#if defined(darwin_HOST_OS)
+    image = mmapForLinker(fileSize, PROT_READ|PROT_WRITE, MAP_PRIVATE, fd, 0);
+ #else
+    image = mmapForLinker(fileSize, PROT_READ|PROT_WRITE|PROT_EXEC,
+diff --git a/rts/LinkerInternals.h b/rts/LinkerInternals.h
+index b0fab81cb3..00323bb606 100644
+--- a/rts/LinkerInternals.h
++++ b/rts/LinkerInternals.h
+@@ -13,8 +13,12 @@
+ #include "linker/M32Alloc.h"
+ 
+ #if RTS_LINKER_USE_MMAP
++#if defined(ios_HOST_OS) || defined(darwin_HOST_OS)
++/* Inclusion of system headers usually requires _DARWIN_C_SOURCE on Mac OS X
++ * because of some specific defines like MMAP_ANON, MMAP_ANONYMOUS. */
++#define _DARWIN_C_SOURCE 1
++#endif
+ #include <sys/mman.h>
+-void* mmap_next(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
+ #endif
+ 
+ #include "BeginPrivate.h"
+diff --git a/rts/StgCRun.c b/rts/StgCRun.c
+index 05f65d874a..1bb37a7acd 100644
+--- a/rts/StgCRun.c
++++ b/rts/StgCRun.c
+@@ -982,7 +982,7 @@ StgRun(StgFunPtr f, StgRegTable *basereg) {
+         "br %1\n\t"
+ 
+         ".globl " STG_RETURN "\n\t"
+-#if !(defined(ios_HOST_OS) || defined(darwin_HOST_OS))
++#if !defined(ios_HOST_OS) && !defined(darwin_HOST_OS)
+         ".type " STG_RETURN ", %%function\n"
+ #endif
+         STG_RETURN ":\n\t"
+@@ -991,7 +991,7 @@ StgRun(StgFunPtr f, StgRegTable *basereg) {
+          */
+         "add sp, sp, %3\n\t"
+         /*
+-         * Return the new register table, taking it from Stg's R1 (ARM64's R22).
++         * Return the new register table, taking it from Stg's R1 (AArch64's R22).
+          */
+         "mov %0, x22\n\t"
+         /*
+diff --git a/rts/ghc.mk b/rts/ghc.mk
+index 451b1912cb..ada9055ebd 100644
+--- a/rts/ghc.mk
++++ b/rts/ghc.mk
+@@ -37,7 +37,7 @@ $(eval $(call all-target,rts,$(ALL_RTS_LIBS)))
+ # -----------------------------------------------------------------------------
+ # Defining the sources
+ 
+-ALL_DIRS = hooks sm eventlog linker
++ALL_DIRS = hooks sm eventlog linker linker/macho
+ 
+ ifeq "$(TargetOS_CPP)" "mingw32"
+ ALL_DIRS += win32
+@@ -329,8 +329,8 @@ $(eval $(call distdir-opts,rts,dist,1))
+ # We like plenty of warnings.
+ WARNING_OPTS += -Wall
+ WARNING_OPTS += -Wextra
+-WARNING_OPTS += -Wstrict-prototypes 
+-WARNING_OPTS += -Wmissing-prototypes 
++WARNING_OPTS += -Wstrict-prototypes
++WARNING_OPTS += -Wmissing-prototypes
+ WARNING_OPTS += -Wmissing-declarations
+ WARNING_OPTS += -Winline
+ WARNING_OPTS += -Wpointer-arith
+@@ -346,7 +346,7 @@ WARNING_OPTS += -Wno-aggregate-return
+ #WARNING_OPTS += -Wshadow
+ #WARNING_OPTS += -Wcast-qual
+ 
+-# This one seems buggy on GCC 4.1.2, which is the only GCC version we 
++# This one seems buggy on GCC 4.1.2, which is the only GCC version we
+ # have that can bootstrap the SPARC build. We end up with lots of supurious
+ # warnings of the form "cast increases required alignment of target type".
+ # Some legitimate warnings can be fixed by adding an intermediate cast to
+@@ -383,7 +383,7 @@ rts_CC_OPTS += -DUSE_LIBFFI_FOR_ADJUSTORS
+ endif
+ 
+ # We *want* type-checking of hand-written cmm.
+-rts_HC_OPTS += -dcmm-lint 
++rts_HC_OPTS += -dcmm-lint
+ 
+ # -fno-strict-aliasing is required for the runtime, because we often
+ # use a variety of types to represent closure pointers (StgPtr,
+@@ -658,4 +658,3 @@ install_libffi_headers :
+ $(eval $(call clean-target,rts,dist,rts/dist))
+ 
+ BINDIST_EXTRAS += rts/package.conf.in
+-
+diff --git a/rts/linker/MachO.c b/rts/linker/MachO.c
+index f0eccd6fac..8bb9c28460 100644
+--- a/rts/linker/MachO.c
++++ b/rts/linker/MachO.c
+@@ -42,6 +42,9 @@
+   *) add still more sanity checks.
+ */
+ #if defined(aarch64_HOST_ARCH)
++#  define  NEED_PLT
++#  include "macho/plt.h"
++
+ /* aarch64 linker by moritz angermann <moritz@lichtzwerge.de> */
+ 
+ /* often times we need to extend some value of certain number of bits
+@@ -65,9 +68,9 @@ void encodeAddend(ObjectCode * oc, Section * section,
+ /* finding and making stubs. We don't need to care about the symbol they
+  * represent. As long as two stubs point to the same address, they are identical
+  */
+-bool findStub(Section * section, void ** addr);
+-bool makeStub(Section * section, void ** addr);
+-void freeStubs(Section * section);
++// bool findStub(Section * section, void ** addr);
++// bool makeStub(Section * section, void ** addr);
++// void freeStubs(Section * section);
+ 
+ /* Global Offset Table logic */
+ bool isGotLoad(MachORelocationInfo * ri);
+@@ -154,8 +157,10 @@ ocDeinit_MachO(ObjectCode * oc) {
+         }
+ #if defined(aarch64_HOST_ARCH)
+         freeGot(oc);
+-        for(int i = 0; i < oc->n_sections; i++) {
+-            freeStubs(&oc->sections[i]);
++        if(oc->sections != NULL) {
++            for(int i = 0; i < oc->n_sections; i++) {
++                freeStubs(&oc->sections[i]);
++            }
+         }
+ #endif
+         stgFree(oc->info);
+@@ -425,67 +430,6 @@ isGotLoad(struct relocation_info * ri) {
+     ||  ri->r_type == ARM64_RELOC_GOT_LOAD_PAGEOFF12;
+ }
+ 
+-/* This is very similar to makeSymbolExtra
+- * However, as we load sections into different
+- * pages, that may be further appart than
+- * branching allows, we'll use some extra
+- * space at the end of each section allocated
+- * for stubs.
+- */
+-bool
+-findStub(Section * section, void ** addr) {
+-
+-    for(Stub * s = section->info->stubs; s != NULL; s = s->next) {
+-        if(s->target == *addr) {
+-            *addr = s->addr;
+-            return EXIT_SUCCESS;
+-        }
+-    }
+-    return EXIT_FAILURE;
+-}
+-
+-bool
+-makeStub(Section * section, void ** addr) {
+-
+-    Stub * s = stgCallocBytes(1, sizeof(Stub), "makeStub(Stub)");
+-    s->target = *addr;
+-    s->addr = (uint8_t*)section->info->stub_offset
+-            + ((8+8)*section->info->nstubs) + 8;
+-    s->next = NULL;
+-
+-     /* target address */
+-    *(uint64_t*)((uint8_t*)s->addr - 8) = (uint64_t)s->target;
+-    /* ldr x16, - (8 bytes) */
+-    *(uint32_t*)(s->addr)               = (uint32_t)0x58ffffd0;
+-    /* br x16 */
+-    *(uint32_t*)((uint8_t*)s->addr + 4) = (uint32_t)0xd61f0200;
+-
+-    if(section->info->nstubs == 0) {
+-        /* no stubs yet, let's just create this one */
+-        section->info->stubs = s;
+-    } else {
+-        Stub * tail = section->info->stubs;
+-        while(tail->next != NULL) tail = tail->next;
+-        tail->next = s;
+-    }
+-    section->info->nstubs += 1;
+-    *addr = s->addr;
+-    return EXIT_SUCCESS;
+-}
+-void
+-freeStubs(Section * section) {
+-    if(section->info->nstubs == 0)
+-        return;
+-    Stub * last = section->info->stubs;
+-    while(last->next != NULL) {
+-        Stub * t = last;
+-        last = last->next;
+-        stgFree(t);
+-    }
+-    section->info->stubs = NULL;
+-    section->info->nstubs = 0;
+-}
+-
+ /*
+  * Check if we need a global offset table slot for a
+  * given symbol
+@@ -618,9 +562,9 @@ relocateSectionAarch64(ObjectCode * oc, Section * section)
+                 if((value - pc + addend) >> (2 + 26)) {
+                     /* we need a stub */
+                     /* check if we already have that stub */
+-                    if(findStub(section, (void**)&value)) {
++                    if(findStub(section, (void**)&value, 0)) {
+                         /* did not find it. Crete a new stub. */
+-                        if(makeStub(section, (void**)&value)) {
++                        if(makeStub(section, (void**)&value, 0)) {
+                             barf("could not find or make stub");
+                         }
+                     }
+@@ -1223,9 +1167,15 @@ ocGetNames_MachO(ObjectCode* oc)
+ 
+             size_t alignment = 1 << section->align;
+             SectionKind kind = getSectionKind_MachO(section);
++            SectionAlloc alloc = SECTION_NOMEM;
++            void *start = NULL, *mapped_start = NULL;
++            StgWord mapped_size = 0, mapped_offset = 0;
++            StgWord size = section->size;
+ 
+             void *secMem = (void *)roundUpToAlign((size_t)curMem, alignment);
+ 
++            start = secMem;
++
+             IF_DEBUG(linker,
+                      debugBelch("ocGetNames_MachO: loading section %d in segment %d "
+                                 "(#%d, %s %s)\n"
+@@ -1238,28 +1188,56 @@ ocGetNames_MachO(ObjectCode* oc)
+             case S_GB_ZEROFILL:
+                 IF_DEBUG(linker, debugBelch("ocGetNames_MachO: memset to 0 a ZEROFILL section\n"));
+                 memset(secMem, 0, section->size);
++                addSection(&secArray[sec_idx], kind, alloc, start, size,
++                            mapped_offset, mapped_start, mapped_size);
+                 break;
+             default:
+                 IF_DEBUG(linker,
+                          debugBelch("ocGetNames_MachO: copying from %p to %p"
+                                     " a block of %" PRIu64 " bytes\n",
+                                     (void *) (oc->image + section->offset), secMem, section->size));
++#if defined(NEED_PLT)
++                unsigned nstubs = numberOfStubsForSection(oc, sec_idx);
++                unsigned stub_space = STUB_SIZE * nstubs;
+ 
+-                memcpy(secMem, oc->image + section->offset, section->size);
+-            }
++                void * mem = mmapForLinker(section->size+stub_space, PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
+ 
++                if( mem == MAP_FAILED ) {
++                    sysErrorBelch("failed to mmap allocated memory to load section %d. "
++                                  "errno = %d", sec_idx, errno);
++                }
++                /* copy only the image part over; we don't want to copy data
++                * into the stub part.
++                */
++                memcpy( mem, oc->image + section->offset, size );
++
++                alloc = SECTION_MMAP;
++                mapped_offset = 0;
++                mapped_size = roundUpToPage(size+stub_space);
++                start = mem;
++                mapped_start = mem;
++#else
++                memcpy(secMem, oc->image + section->offset, section->size);
++#endif
++                addSection(&secArray[sec_idx], kind, alloc, start, size,
++                            mapped_offset, mapped_start, mapped_size);
+             /* SECTION_NOMEM since memory is already allocated in segments */
+-            addSection(&secArray[sec_idx], kind, SECTION_NOMEM,
+-                       secMem, section->size,
+-                       0, 0, 0);
+-            addProddableBlock(oc, secMem, section->size);
+ 
+-            curMem = (char*) secMem + section->size;
++#if defined(NEED_PLT)
++                secArray[sec_idx].info->nstubs = 0;
++                secArray[sec_idx].info->stub_offset = (uint8_t*)mem + size;
++                secArray[sec_idx].info->stub_size = stub_space;
++                secArray[sec_idx].info->stubs = NULL;
++#else
++                secArray[sec_idx].info->nstubs = 0;
++                secArray[sec_idx].info->stub_offset = NULL;
++                secArray[sec_idx].info->stub_size = 0;
++                secArray[sec_idx].info->stubs = NULL;
++#endif
++                addProddableBlock(oc, start, section->size);
++            }
+ 
+-            secArray[sec_idx].info->nstubs = 0;
+-            secArray[sec_idx].info->stub_offset = NULL;
+-            secArray[sec_idx].info->stub_size = 0;
+-            secArray[sec_idx].info->stubs = NULL;
++            curMem = (char*) secMem + section->size;
+ 
+             secArray[sec_idx].info->macho_section = section;
+             secArray[sec_idx].info->relocation_info
+@@ -1443,6 +1421,26 @@ ocMprotect_MachO( ObjectCode *oc )
+             mmapForLinkerMarkExecutable(segment->start, segment->size);
+         }
+     }
++
++    // Also mark mmaped, sections executable. Those are not part of the
++    // segments anymore and have been mapped separately.
++    for(int i=0; i < oc->n_sections; i++) {
++        Section *section = &oc->sections[i];
++        if(section->size == 0) continue;
++        if(section->alloc != SECTION_MMAP) continue;
++        // N.B. m32 handles protection of its allocations during
++        // flushing.
++        if(section->alloc == SECTION_M32) continue;
++        switch (section->kind) {
++        case SECTIONKIND_CODE_OR_RODATA: {
++            mmapForLinkerMarkExecutable(section->mapped_start, section->mapped_size);
++            break;
++        }
++        default:
++            break;
++        }
++    }
++
+     return true;
+ }
+ 
+@@ -1498,8 +1496,10 @@ ocResolve_MachO(ObjectCode* oc)
+                  */
+                 if(NULL == symbol->addr) {
+                     symbol->addr = lookupDependentSymbol((char*)symbol->name, oc);
+-                    if(NULL == symbol->addr)
+-                        barf("Failed to lookup symbol: %s", symbol->name);
++                    if(NULL == symbol->addr) {
++                        errorBelch("Failed to lookup symbol: %s", symbol->name);
++                        return 0;
++                    }
+                 } else {
+                     // we already have the address.
+                 }
+@@ -1508,10 +1508,12 @@ ocResolve_MachO(ObjectCode* oc)
+                * the address as well already
+                */
+             if(NULL == symbol->addr) {
+-                barf("Something went wrong!");
++                errorBelch("Something went wrong!");
++                return 0;
+             }
+             if(NULL == symbol->got_addr) {
+-                barf("Not good either!");
++                errorBelch("Not good either!");
++                return 0;
+             }
+             *(uint64_t*)symbol->got_addr = (uint64_t)symbol->addr;
+         }
+diff --git a/rts/linker/MachOTypes.h b/rts/linker/MachOTypes.h
+index c5923b441f..4df1a728f4 100644
+--- a/rts/linker/MachOTypes.h
++++ b/rts/linker/MachOTypes.h
+@@ -103,6 +103,11 @@ typedef
+ struct _Stub {
+     void * addr;
+     void * target;
++    /* flags can hold architecture specific information they are used during
++     * lookup of stubs as well. Thus two stubs for the same target with
++     * different flags are considered unequal.
++    */
++    uint8_t flags;
+     struct _Stub * next;
+ }
+ Stub;
+diff --git a/rts/linker/elf_plt_aarch64.c b/rts/linker/elf_plt_aarch64.c
+index 6a9d1ddd94..11354a63db 100644
+--- a/rts/linker/elf_plt_aarch64.c
++++ b/rts/linker/elf_plt_aarch64.c
+@@ -46,8 +46,8 @@ bool needStubForRelaAarch64(Elf_Rela * rela) {
+ bool
+ makeStubAarch64(Stub * s) {
+     // We (the linker) may corrupt registers x16 (IP0) and x17 (IP1) [AAPCS64]
+-    // and the condition flags, according to the "ELF for the ARM64
+-    // Architecture".
++    // and the condition flags, according to the "ELF for the ARM 64-bit
++    // Architecture (AArch64)".
+     //
+     // [Special purpose regs]
+     // X16 and X17 are IP0 and IP1, intra-procedure-call temporary registers.
+diff --git a/rts/linker/elf_reloc.c b/rts/linker/elf_reloc.c
+index 410a23607b..c2271b6e60 100644
+--- a/rts/linker/elf_reloc.c
++++ b/rts/linker/elf_reloc.c
+@@ -4,7 +4,7 @@
+ 
+ #if defined(OBJFORMAT_ELF)
+ 
+-/* we currently only use this abstraction for elf/arm64 */
++/* we currently only use this abstraction for elf/aarch64 */
+ #if defined(aarch64_HOST_ARCH)
+ 
+ bool
+diff --git a/rts/linker/macho/plt.c b/rts/linker/macho/plt.c
+new file mode 100644
+index 0000000000..dfd6426e8f
+--- /dev/null
++++ b/rts/linker/macho/plt.c
+@@ -0,0 +1,94 @@
++#include "Rts.h"
++#include "plt.h"
++
++#if defined(aarch64_HOST_ARCH)
++
++#if defined(OBJFORMAT_MACHO)
++
++#include <mach/machine.h>
++#include <mach-o/fat.h>
++#include <mach-o/loader.h>
++#include <mach-o/nlist.h>
++#include <mach-o/reloc.h>
++
++#define STRINGIFY(x) #x
++#define TOSTRING(x) STRINGIFY(x)
++
++#define _makeStub       ADD_SUFFIX(makeStub)
++#define needStubForRel  ADD_SUFFIX(needStubForRel)
++
++unsigned
++numberOfStubsForSection( ObjectCode *oc, unsigned sectionIndex) {
++    unsigned n = 0;
++
++    MachOSection *section = &oc->info->macho_sections[sectionIndex];
++    MachORelocationInfo *relocation_info = (MachORelocationInfo*)(oc->image + section->reloff);
++    if(section->size > 0)
++        for(size_t i = 0; i < section->nreloc; i++)
++            if(needStubForRel(&relocation_info[i]))
++                n += 1;
++
++    return n;
++}
++
++bool
++findStub(Section * section,
++          void* * addr,
++          uint8_t flags) {
++    for(Stub * s = section->info->stubs; s != NULL; s = s->next) {
++        if(   s->target == *addr
++           && s->flags  == flags) {
++            *addr = s->addr;
++            return EXIT_SUCCESS;
++        }
++    }
++    return EXIT_FAILURE;
++}
++
++bool
++makeStub(Section * section,
++          void* * addr,
++          uint8_t flags) {
++
++    Stub * s = calloc(1, sizeof(Stub));
++    ASSERT(s != NULL);
++    s->target = *addr;
++    s->flags  = flags;
++    s->next = NULL;
++    s->addr = (uint8_t *)section->info->stub_offset + 8
++            + STUB_SIZE * section->info->nstubs;
++
++    if((*_makeStub)(s))
++        return EXIT_FAILURE;
++
++    if(section->info->stubs == NULL) {
++        ASSERT(section->info->nstubs == 0);
++        /* no stubs yet, let's just create this one */
++        section->info->stubs = s;
++    } else {
++        Stub * tail = section->info->stubs;
++        while(tail->next != NULL) tail = tail->next;
++        tail->next = s;
++    }
++    section->info->nstubs += 1;
++    *addr = s->addr;
++    return EXIT_SUCCESS;
++}
++
++void
++freeStubs(Section * section) {
++    if(NULL == section || section->info->nstubs == 0)
++        return;
++    Stub * last = section->info->stubs;
++    while(last->next != NULL) {
++        Stub * t = last;
++        last = last->next;
++        free(t);
++    }
++    section->info->stubs = NULL;
++    section->info->nstubs = 0;
++}
++
++#endif // OBJECTFORMAT_MACHO
++#endif // aarch64_HOST_ARCH
++
+diff --git a/rts/linker/macho/plt.h b/rts/linker/macho/plt.h
+new file mode 100644
+index 0000000000..ae1ff14390
+--- /dev/null
++++ b/rts/linker/macho/plt.h
+@@ -0,0 +1,35 @@
++#pragma once
++
++#include <LinkerInternals.h>
++
++#include "plt_aarch64.h"
++
++#if defined(aarch64_HOST_ARCH)
++
++#if defined(OBJFORMAT_MACHO)
++
++#if defined(__x86_64__)
++#define __suffix__ X86_64
++#elif defined(__aarch64__) || defined(__arm64__)
++#define __suffix__ Aarch64
++#else
++#error "unknown architecture"
++#endif
++
++#define PASTE(x,y) x ## y
++#define EVAL(x,y) PASTE(x,y)
++#define ADD_SUFFIX(x) EVAL(PASTE(x,),__suffix__)
++
++unsigned numberOfStubsForSection( ObjectCode *oc, unsigned sectionIndex);
++
++#define STUB_SIZE          ADD_SUFFIX(stubSize)
++
++bool findStub(Section * section, void* * addr, uint8_t flags);
++bool makeStub(Section * section, void* * addr, uint8_t flags);
++
++void freeStubs(Section * section);
++
++#endif // OBJECTFORMAT_MACHO
++
++#endif // aarch64_HOST_ARCH
++
+diff --git a/rts/linker/macho/plt_aarch64.c b/rts/linker/macho/plt_aarch64.c
+new file mode 100644
+index 0000000000..5c72ac8d81
+--- /dev/null
++++ b/rts/linker/macho/plt_aarch64.c
+@@ -0,0 +1,62 @@
++#include "Rts.h"
++#include "plt_aarch64.h"
++
++#include <stdlib.h>
++
++#if defined(aarch64_HOST_ARCH)
++
++#if defined(OBJFORMAT_MACHO)
++
++#include <mach/machine.h>
++#include <mach-o/fat.h>
++#include <mach-o/loader.h>
++#include <mach-o/nlist.h>
++#include <mach-o/reloc.h>
++
++/* five 4 byte instructions */
++const size_t instSizeAarch64 = 4;
++const size_t stubSizeAarch64 = 5 * 4;
++
++bool needStubForRelAarch64(MachORelocationInfo * rel) {
++    switch(rel->r_type) {
++        case ARM64_RELOC_BRANCH26:
++            return true;
++        default:
++            return false;
++    }
++}
++
++/* see the elf_plt_aarch64.c for the discussion on this */
++bool
++makeStubAarch64(Stub * s) {
++    uint32_t mov__hw0_x16 = 0xd2800000 | 16;
++    uint32_t movk_hw0_x16 = mov__hw0_x16 | (1 << 29);
++
++    uint32_t mov__hw3_x16 = mov__hw0_x16 | (3 << 21);
++    uint32_t movk_hw2_x16 = movk_hw0_x16 | (2 << 21);
++    uint32_t movk_hw1_x16 = movk_hw0_x16 | (1 << 21);
++
++
++    uint32_t br_x16 = 0xd61f0000 | 16 << 5;
++
++    uint32_t *P = (uint32_t*)s->addr;
++
++    /* target address */
++    uint64_t addr = (uint64_t)s->target;
++    uint16_t  addr_hw0 = (uint16_t)(addr >>  0);
++    uint16_t  addr_hw1 = (uint16_t)(addr >> 16);
++    uint16_t  addr_hw2 = (uint16_t)(addr >> 32);
++    uint16_t  addr_hw3 = (uint16_t)(addr >> 48);
++
++    P[0] = mov__hw3_x16 | ((uint32_t)addr_hw3 << 5);
++    P[1] = movk_hw2_x16 | ((uint32_t)addr_hw2 << 5);
++    P[2] = movk_hw1_x16 | ((uint32_t)addr_hw1 << 5);
++    P[3] = movk_hw0_x16 | ((uint32_t)addr_hw0 << 5);
++    P[4] = br_x16;
++
++    return EXIT_SUCCESS;
++}
++
++#endif
++#endif
++
+diff --git a/rts/linker/macho/plt_aarch64.h b/rts/linker/macho/plt_aarch64.h
+new file mode 100644
+index 0000000000..3a4091b938
+--- /dev/null
++++ b/rts/linker/macho/plt_aarch64.h
+@@ -0,0 +1,23 @@
++#pragma once
++
++#include <LinkerInternals.h>
++
++#if defined(OBJFORMAT_MACHO)
++
++#if defined(x86_64_HOST_ARCH)
++#  include <mach-o/x86_64/reloc.h>
++#endif
++
++#if defined(aarch64_HOST_ARCH)
++#  include <mach-o/arm64/reloc.h>
++#endif
++
++#include "../MachOTypes.h"
++
++
++extern const size_t stubSizeAarch64;
++bool needStubForRelAarch64(MachORelocationInfo * rel);
++bool makeStubAarch64(Stub * s);
++
++#endif
++
+diff --git a/rts/package.conf.in b/rts/package.conf.in
+index e4cb159cb8..6e1d19d588 100644
+--- a/rts/package.conf.in
++++ b/rts/package.conf.in
+@@ -296,7 +296,7 @@ ld-options:
+          , "-Wl,-search_paths_first"
+ #endif
+ 
+-#if defined(darwin_HOST_OS) && !defined(x86_64_HOST_ARCH)
++#if defined(darwin_HOST_OS) && !defined(x86_64_HOST_ARCH) && !defined(aarch64_HOST_ARCH)
+          , "-read_only_relocs", "warning"
+ #endif
+ 
+diff --git a/rts/rts.cabal.in b/rts/rts.cabal.in
+index cab390ed30..3d4ee0f914 100644
+--- a/rts/rts.cabal.in
++++ b/rts/rts.cabal.in
+@@ -368,7 +368,7 @@ library
+ 
+     if os(osx)
+       ld-options: "-Wl,-search_paths_first"
+-      if !arch(x86_64)
++      if !arch(x86_64) && !arch(aarch64)
+          ld-options: -read_only_relocs warning
+ 
+     cmm-sources: Apply.cmm
+@@ -463,6 +463,8 @@ library
+                linker/LoadArchive.c
+                linker/M32Alloc.c
+                linker/MachO.c
++               linker/macho/plt.c
++               linker/macho/plt_aarch64.c
+                linker/PEi386.c
+                linker/SymbolExtras.c
+                linker/elf_got.c
+diff --git a/rts/sm/Storage.c b/rts/sm/Storage.c
+index a88073d1f8..bfeb7f7fad 100644
+--- a/rts/sm/Storage.c
++++ b/rts/sm/Storage.c
+@@ -30,10 +30,14 @@
+ #include "GC.h"
+ #include "Evac.h"
+ #include "NonMoving.h"
+-#if defined(ios_HOST_OS)
++#if defined(ios_HOST_OS) || defined(darwin_HOST_OS)
+ #include "Hash.h"
+ #endif
+ 
++#if RTS_LINKER_USE_MMAP
++#include "LinkerInternals.h"
++#endif
++
+ #include <string.h>
+ 
+ #include "ffi.h"
+@@ -1543,7 +1547,7 @@ StgWord calcTotalCompactW (void)
+          should be modified to use allocateExec instead of VirtualAlloc.
+    ------------------------------------------------------------------------- */
+ 
+-#if (defined(arm_HOST_ARCH) || defined(aarch64_HOST_ARCH)) && defined(ios_HOST_OS)
++#if (defined(arm_HOST_ARCH) || defined(aarch64_HOST_ARCH)) && (defined(ios_HOST_OS) || defined(darwin_HOST_OS))
+ #include <libkern/OSCacheControl.h>
+ #endif
+ 
+@@ -1574,7 +1578,7 @@ void flushExec (W_ len, AdjustorExecutable exec_addr)
+   /* x86 doesn't need to do anything, so just suppress some warnings. */
+   (void)len;
+   (void)exec_addr;
+-#elif (defined(arm_HOST_ARCH) || defined(aarch64_HOST_ARCH)) && defined(ios_HOST_OS)
++#elif (defined(arm_HOST_ARCH) || defined(aarch64_HOST_ARCH)) && (defined(ios_HOST_OS) || defined(darwin_HOST_OS))
+   /* On iOS we need to use the special 'sys_icache_invalidate' call. */
+   sys_icache_invalidate(exec_addr, len);
+ #elif defined(__clang__)
+@@ -1628,7 +1632,7 @@ void freeExec (AdjustorExecutable addr)
+     RELEASE_SM_LOCK
+ }
+ 
+-#elif defined(ios_HOST_OS)
++#elif (defined(arm_HOST_ARCH) || defined(aarch64_HOST_ARCH)) && (defined(ios_HOST_OS) || defined(darwin_HOST_OS))
+ 
+ static HashTable* allocatedExecs;
+ 
+@@ -1636,6 +1640,11 @@ AdjustorWritable allocateExec(W_ bytes, AdjustorExecutable *exec_ret)
+ {
+     AdjustorWritable writ;
+     ffi_closure* cl;
++    // This check is necessary as we can't use allocateExec for anything *but*
++    // ffi_closures on ios/darwin on arm.  libffi does some heavy lifting to
++    // get around the X^W restrictions, and we can't just use this codepath
++    // to allocate generic executable space. For those cases we have to refer
++    // back to allocateWrite/markExec/freeWrite (see above.)
+     if (bytes != sizeof(ffi_closure)) {
+         barf("allocateExec: for ffi_closure only");
+     }
+@@ -1651,6 +1660,20 @@ AdjustorWritable allocateExec(W_ bytes, AdjustorExecutable *exec_ret)
+     return writ;
+ }
+ 
++#if RTS_LINKER_USE_MMAP
++AdjustorWritable allocateWrite(W_ bytes) {
++    return mmapForLinker(bytes, PROT_READ | PROT_WRITE, MAP_ANONYMOUS, -1, 0);
++}
++
++void markExec(W_ bytes, AdjustorWritable writ) {
++    mmapForLinkerMarkExecutable(writ, bytes);
++}
++
++void freeWrite(W_ bytes, AdjustorWritable writ) {
++    munmap(writ, bytes);
++}
++#endif
++
+ AdjustorWritable execToWritable(AdjustorExecutable exec)
+ {
+     AdjustorWritable writ;
+diff --git a/utils/llvm-targets/gen-data-layout.sh b/utils/llvm-targets/gen-data-layout.sh
+index aba2d07ae0..f72c95b787 100755
+--- a/utils/llvm-targets/gen-data-layout.sh
++++ b/utils/llvm-targets/gen-data-layout.sh
+@@ -80,9 +80,12 @@ TARGETS=(
+     # macOS
+     "i386-apple-darwin"
+     "x86_64-apple-darwin"
++    "arm64-apple-darwin"
+     # iOS
+-    "armv7-apple-ios arm64-apple-ios"
+-    "i386-apple-ios x86_64-apple-ios"
++    "armv7-apple-ios"
++    "arm64-apple-ios"
++    "i386-apple-ios"
++    "x86_64-apple-ios"
+ 
+     #########################
+     # FreeBSD
+-- 
+GitLab
+
+
+From 4235d63f2eda5080bc31e82f2de0037164fca426 Mon Sep 17 00:00:00 2001
+From: Moritz Angermann <moritz.angermann@gmail.com>
+Date: Fri, 29 Jan 2021 16:02:52 +0800
+Subject: [PATCH 8/8] CI!
+
+---
+ libraries/ghci/GHCi/InfoTable.hsc | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/libraries/ghci/GHCi/InfoTable.hsc b/libraries/ghci/GHCi/InfoTable.hsc
+index 6c4a073399..16e9a47774 100644
+--- a/libraries/ghci/GHCi/InfoTable.hsc
++++ b/libraries/ghci/GHCi/InfoTable.hsc
+@@ -381,7 +381,9 @@ newExecConItbl obj con_desc
+         let null_off = fromIntegral sz + fromIntegral (BS.length con_desc)
+         poke (castPtr wr_ptr `plusPtr` null_off) (0 :: Word8)
+         _flushExec sz ex_ptr -- Cache flush (if needed)
++#if defined(RTS_LINKER_USE_MMAP)
+         _markExec (sz + fromIntegral lcon_desc) ex_ptr
++#endif
+ #if defined(TABLES_NEXT_TO_CODE)
+         return (castPtrToFunPtr (ex_ptr `plusPtr` conInfoTableSizeB))
+ #else
+@@ -396,13 +398,10 @@ foreign import ccall unsafe "flushExec"
+ 
+ foreign import ccall unsafe "allocateWrite"
+   _allocateWrite :: CUInt -> IO (Ptr a)
+-
++#if defined(RTS_LINKER_USE_MMAP)
+ foreign import ccall unsafe "markExec"
+   _markExec :: CUInt -> Ptr a -> IO ()
+-
+-foreign import ccall unsafe "freeWrite"
+-  _freeWrite :: CUInt -> Ptr a -> IO ()
+-
++#endif
+ -- -----------------------------------------------------------------------------
+ -- Constants and config
+ 
+-- 
+GitLab
+diff -ru ghc-8.10.3/configure ghc-8.10.3.new/configure
+--- ghc-8.10.3/configure	2020-12-18 19:42:17.000000000 -0700
++++ ghc-8.10.3.new/configure	2021-02-01 09:00:00.000000000 -0700
+@@ -789,6 +789,7 @@
+ TargetPlatformFull
+ CrossCompilePrefix
+ CrossCompiling
++CURSES_LIB_DIRS_STAGE0
+ CURSES_LIB_DIRS
+ CURSES_INCLUDE_DIRS
+ GMP_PREFER_FRAMEWORK
+@@ -927,6 +928,7 @@
+ with_intree_gmp
+ with_gmp_framework_preferred
+ with_curses_libraries
++with_curses_libraries_stage0
+ with_gcc
+ with_clang
+ with_hs_cpp
+@@ -1623,6 +1625,9 @@
+   --with-gmp-framework-preferred
+                           on OSX, prefer the GMP framework to the gmp lib
+   --with-curses-libraries directory containing curses libraries
++  --with-curses-libraries-stage0
++                          directory containing curses lirbaries (for stage0:
++                          boot)
+   --with-gcc=ARG          Use ARG as the path to gcc (obsolete, use CC=ARG
+                           instead) [default=autodetect]
+   --with-clang=ARG        Use ARG as the path to gcc (obsolete, use CC=ARG
+@@ -3560,7 +3565,7 @@
+     else
+ 
+ case "$build_cpu" in
+-  aarch64*)
++  aarch64*|arm64*)
+     BuildArch="aarch64"
+     ;;
+   alpha*)
+@@ -3725,7 +3730,7 @@
+     else
+ 
+ case "$host_cpu" in
+-  aarch64*)
++  aarch64*|arm64*)
+     HostArch="aarch64"
+     ;;
+   alpha*)
+@@ -3879,7 +3884,7 @@
+         then
+ 
+ case "$host_cpu" in
+-  aarch64*)
++  aarch64*|arm64*)
+     TargetArch="aarch64"
+     ;;
+   alpha*)
+@@ -4042,7 +4047,7 @@
+     else
+ 
+ case "$target_cpu" in
+-  aarch64*)
++  aarch64*|arm64*)
+     TargetArch="aarch64"
+     ;;
+   alpha*)
+@@ -4191,12 +4196,13 @@
+     fi
+ 
+ 
+-  case "$target_vendor-$target_os" in
++  llvm_target_cpu=$target_cpu
++  case "$target" in
+     *-freebsd*-gnueabihf)
+       llvm_target_vendor="unknown"
+       llvm_target_os="freebsd-gnueabihf"
+       ;;
+-    hardfloat-*eabi)
++    *-hardfloat-*eabi)
+       llvm_target_vendor="unknown"
+       llvm_target_os="$target_os""hf"
+       ;;
+@@ -4228,6 +4234,79 @@
+ 
+       llvm_target_os="$target_os"
+       ;;
++    # apple is a bit about their naming scheme for
++    # aarch64; and clang on macOS doesn't know that
++    # aarch64 would be arm64. So for LLVM we'll need
++    # to call it arm64; while we'll refer to it internally
++    # as aarch64 for consistency and sanity.
++    aarch64-apple-*|arm64-apple-*)
++      llvm_target_cpu="arm64"
++
++  case "$target_vendor" in
++  pc|gentoo|w64) # like i686-pc-linux-gnu, i686-gentoo-freebsd8, x86_64-w64-mingw32
++    llvm_target_vendor="unknown"
++    ;;
++  softfloat) # like armv5tel-softfloat-linux-gnueabi
++    llvm_target_vendor="unknown"
++    ;;
++  hardfloat) # like armv7a-hardfloat-linux-gnueabi
++    llvm_target_vendor="unknown"
++    ;;
++  *)
++    #pass thru by default
++    llvm_target_vendor="$target_vendor"
++    ;;
++  esac
++
++
++    case "$target_os" in
++      gnu*) # e.g. i686-unknown-gnu0.9
++        llvm_target_os="gnu"
++        ;;
++      # watchos and tvos are ios variants as of May 2017.
++      ios|watchos|tvos)
++        llvm_target_os="ios"
++        ;;
++      linux-android*)
++        llvm_target_os="linux-android"
++        ;;
++      linux-*|linux)
++        llvm_target_os="linux"
++        ;;
++      openbsd*)
++        llvm_target_os="openbsd"
++        ;;
++      # As far as I'm aware, none of these have relevant variants
++      freebsd|netbsd|dragonfly|hpux|linuxaout|kfreebsdgnu|freebsd2|mingw32|darwin|nextstep2|nextstep3|sunos4|ultrix|haiku)
++        llvm_target_os="$target_os"
++        ;;
++      msys)
++        as_fn_error $? "Building GHC using the msys toolchain is not supported; please use mingw instead. Perhaps you need to set 'MSYSTEM=MINGW64 or MINGW32?'" "$LINENO" 5
++        ;;
++      aix*) # e.g. powerpc-ibm-aix7.1.3.0
++        llvm_target_os="aix"
++        ;;
++      darwin*) # e.g. aarch64-apple-darwin14
++        llvm_target_os="darwin"
++        ;;
++      solaris2*)
++        llvm_target_os="solaris2"
++        ;;
++      freebsd*) # like i686-gentoo-freebsd7
++                #      i686-gentoo-freebsd8
++                #      i686-gentoo-freebsd8.2
++        llvm_target_os="freebsd"
++        ;;
++      nto-qnx*)
++        llvm_target_os="nto-qnx"
++        ;;
++      *)
++        echo "Unknown OS $target_os"
++        exit 1
++        ;;
++      esac
++
++      ;;
+     *)
+ 
+   case "$target_vendor" in
+@@ -4296,7 +4375,7 @@
+ 
+       ;;
+   esac
+-  LlvmTarget="$target_cpu-$llvm_target_vendor-$llvm_target_os"
++  LlvmTarget="$llvm_target_cpu-$llvm_target_vendor-$llvm_target_os"
+ 
+ 
+ 
+@@ -5393,6 +5472,16 @@
+ 
+ 
+ 
++# Check whether --with-curses-libraries-stage0 was given.
++if test "${with_curses_libraries_stage0+set}" = set; then :
++  withval=$with_curses_libraries_stage0; CURSES_LIB_DIRS_STAGE0=$withval
++fi
++
++
++
++
++
++
+ 
+     if test "$TargetVendor_CPP" = "apple"
+     then
+@@ -10423,7 +10512,7 @@
+             test -z "$2" || eval "$2=\"ArchARM {armISA = \$ARM_ISA, armISAExt = \$ARM_ISA_EXT, armABI = \$ARM_ABI}\""
+             ;;
+         aarch64)
+-            test -z "$2" || eval "$2=ArchARM64"
++            test -z "$2" || eval "$2=ArchAArch64"
+             ;;
+         alpha)
+             test -z "$2" || eval "$2=ArchAlpha"
+@@ -10524,10 +10613,14 @@
+ if ac_fn_c_try_link "$LINENO"; then :
+   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+ $as_echo "yes" >&6; }
+-         TargetHasSubsectionsViaSymbols=YES
++         if test x"$TargetArch" = xaarch64; then
++                        TargetHasSubsectionsViaSymbols=NO
++         else
++            TargetHasSubsectionsViaSymbols=YES
+ 
+ $as_echo "#define HAVE_SUBSECTIONS_VIA_SYMBOLS 1" >>confdefs.h
+ 
++         fi
+ 
+ else
+   TargetHasSubsectionsViaSymbols=NO
