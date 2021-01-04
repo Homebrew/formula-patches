@@ -1,0 +1,11 @@
+diff --git a/lib/delayer/extend.rb b/lib/delayer/extend.rb
+index 950c954..15f394a 100644
+--- a/lib/delayer/extend.rb
++++ b/lib/delayer/extend.rb
+@@ -1,5 +1,7 @@
+ # frozen_string_literal: true
+
++require 'set'
++
+ module Delayer
+   attr_reader :priority
