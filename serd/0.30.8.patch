@@ -1,0 +1,66 @@
+diff --git a/src/serd_config.h b/src/serd_config.h
+index 269beeb..facdf52 100644
+--- a/src/serd_config.h
++++ b/src/serd_config.h
+@@ -44,17 +44,6 @@
+ #    endif
+ #  endif
+ 
+-// C99 and C++11: aligned_alloc()
+-#  ifndef HAVE_ALIGNED_ALLOC
+-#    if !defined(__APPLE__) && !defined(_WIN32)
+-#      if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+-#        define HAVE_ALIGNED_ALLOC
+-#      elif defined(__cplusplus) && __cplusplus >= 201103L)
+-#        define HAVE_ALIGNED_ALLOC
+-#      endif
+-#    endif
+-#  endif
+-
+ // POSIX.1-2001: fileno()
+ #  ifndef HAVE_FILENO
+ #    if defined(_POSIX_VERSION) && _POSIX_VERSION >= 200112L
+@@ -88,12 +77,6 @@
+   if the build system defines them all.
+ */
+ 
+-#ifdef HAVE_ALIGNED_ALLOC
+-#  define USE_ALIGNED_ALLOC 1
+-#else
+-#  define USE_ALIGNED_ALLOC 0
+-#endif
+-
+ #ifdef HAVE_FILENO
+ #  define USE_FILENO 1
+ #else
+diff --git a/src/system.c b/src/system.c
+index 12672d4..6bc93ca 100644
+--- a/src/system.c
++++ b/src/system.c
+@@ -55,8 +55,6 @@ serd_malloc_aligned(const size_t alignment, const size_t size)
+ {
+ #if defined(_WIN32)
+   return _aligned_malloc(size, alignment);
+-#elif USE_ALIGNED_ALLOC
+-  return aligned_alloc(alignment, size);
+ #elif USE_POSIX_MEMALIGN
+   void*     ptr = NULL;
+   const int ret = posix_memalign(&ptr, alignment, size);
+diff --git a/wscript b/wscript
+index 08c92ea..1a745e8 100644
+--- a/wscript
++++ b/wscript
+@@ -123,13 +123,6 @@ def configure(conf):
+     if Options.options.largefile:
+         conf.env.append_unique('DEFINES', ['_FILE_OFFSET_BITS=64'])
+ 
+-    conf.check_function('c', 'aligned_alloc',
+-                        header_name = 'stdlib.h',
+-                        return_type = 'void*',
+-                        arg_types   = 'size_t,size_t',
+-                        define_name = 'HAVE_ALIGNED_ALLOC',
+-                        mandatory   = False)
+-
+     if not Options.options.no_posix:
+         funcs = {'posix_memalign': ('stdlib.h', 'int', 'void**,size_t,size_t'),
+                  'posix_fadvise':  ('fcntl.h', 'int', 'int,off_t,off_t,int'),
