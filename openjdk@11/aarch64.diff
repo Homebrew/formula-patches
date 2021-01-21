@@ -8581,9 +8581,9 @@ diff -Npur jdk11u-jdk-11.0.9-ga/src/hotspot/share/runtime/abstract_vm_version.cp
 diff -Npur jdk11u-jdk-11.0.9-ga/src/hotspot/share/runtime/abstract_vm_version.hpp jdk11u-jdk-11.0.9-ga-patched/src/hotspot/share/runtime/abstract_vm_version.hpp
 --- jdk11u-jdk-11.0.9-ga/src/hotspot/share/runtime/abstract_vm_version.hpp	1970-01-01 01:00:00.000000000 +0100
 +++ jdk11u-jdk-11.0.9-ga-patched/src/hotspot/share/runtime/abstract_vm_version.hpp	2021-01-16 15:56:28.000000000 +0100
-@@ -0,0 +1,188 @@
+@@ -0,0 +1,189 @@
 +/*
-+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
++ * Copyright (c) 1997, 2000, Oracle and/or its affiliates. All rights reserved.
 + * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 + *
 + * This code is free software; you can redistribute it and/or modify it
@@ -8618,6 +8618,7 @@ diff -Npur jdk11u-jdk-11.0.9-ga/src/hotspot/share/runtime/abstract_vm_version.hp
 +  KVM,
 +  VMWare,
 +  HyperV,
++  HyperVRole,
 +  PowerVM, // on AIX or Linux ppc64(le)
 +  PowerFullPartitionMode, // on Linux ppc64(le)
 +  PowerKVM
@@ -9087,17 +9088,6 @@ diff -Npur jdk11u-jdk-11.0.9-ga/src/hotspot/share/runtime/sharedRuntime.cpp jdk1
    address entry_point = moop->from_compiled_entry_no_trampoline();
  
    // It's possible that deoptimization can occur at a call site which hasn't
-@@ -2811,8 +2814,8 @@ void AdapterHandlerLibrary::create_nativ
-     BufferBlob*  buf = buffer_blob(); // the temporary code buffer in CodeCache
-     if (buf != NULL) {
-       CodeBuffer buffer(buf);
--      double locs_buf[20];
--      buffer.insts()->initialize_shared_locs((relocInfo*)locs_buf, sizeof(locs_buf) / sizeof(relocInfo));
-+      struct { double data[20]; } locs_buf;
-+      buffer.insts()->initialize_shared_locs((relocInfo*)&locs_buf, sizeof(locs_buf) / sizeof(relocInfo));
-       MacroAssembler _masm(&buffer);
- 
-       // Fill in the signature array, for the calling-convention call.
 diff -Npur jdk11u-jdk-11.0.9-ga/src/hotspot/share/runtime/signature.hpp jdk11u-jdk-11.0.9-ga-patched/src/hotspot/share/runtime/signature.hpp
 --- jdk11u-jdk-11.0.9-ga/src/hotspot/share/runtime/signature.hpp	2020-09-11 18:12:45.000000000 +0200
 +++ jdk11u-jdk-11.0.9-ga-patched/src/hotspot/share/runtime/signature.hpp	2021-01-16 15:56:28.000000000 +0100
@@ -9792,16 +9782,9 @@ diff -Npur jdk11u-jdk-11.0.9-ga/src/hotspot/share/runtime/vm_version.cpp jdk11u-
 -  return _parallel_worker_threads;
 -}
 diff -Npur jdk11u-jdk-11.0.9-ga/src/hotspot/share/runtime/vm_version.hpp jdk11u-jdk-11.0.9-ga-patched/src/hotspot/share/runtime/vm_version.hpp
---- jdk11u-jdk-11.0.9-ga/src/hotspot/share/runtime/vm_version.hpp	2020-09-11 18:12:45.000000000 +0200
-+++ jdk11u-jdk-11.0.9-ga-patched/src/hotspot/share/runtime/vm_version.hpp	2021-01-16 15:56:28.000000000 +0100
-@@ -1,5 +1,5 @@
- /*
-- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
-+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
-  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
-  *
-  * This code is free software; you can redistribute it and/or modify it
-@@ -22,169 +22,10 @@
+--- jdk11u-jdk-11.0.9-ga/src/hotspot/share/runtime/vm_version.hpp      2020-09-11 18:12:45.000000000 +0200
++++ jdk11u-jdk-11.0.9-ga-patched/src/hotspot/share/runtime/vm_version.hpp      2021-01-16 15:56:28.000000000 +0100
+@@ -22,170 +22,10 @@
   *
   */
  
@@ -9818,6 +9801,7 @@ diff -Npur jdk11u-jdk-11.0.9-ga/src/hotspot/share/runtime/vm_version.hpp jdk11u-
 -  KVM,
 -  VMWare,
 -  HyperV,
+-  HyperVRole,
 -  PowerVM, // on AIX or Linux ppc64(le)
 -  PowerFullPartitionMode, // on Linux ppc64(le)
 -  PowerKVM
@@ -9967,9 +9951,10 @@ diff -Npur jdk11u-jdk-11.0.9-ga/src/hotspot/share/runtime/vm_version.hpp jdk11u-
 -
 -  static bool print_matching_lines_from_file(const char* filename, outputStream* st, const char* keywords_to_match[]);
 -};
+-
 +#ifndef SHARE_RUNTIME_VM_VERSION_HPP
 +#define SHARE_RUNTIME_VM_VERSION_HPP
- 
++
 +#include "utilities/macros.hpp"  // for CPU_HEADER() macro.
  #include CPU_HEADER(vm_version)
  
@@ -10087,25 +10072,6 @@ diff -Npur jdk11u-jdk-11.0.9-ga/src/java.desktop/macosx/native/libawt_lwawt/awt/
  }
  
  @implementation AWTView
-diff -Npur jdk11u-jdk-11.0.9-ga/src/java.desktop/macosx/native/libawt_lwawt/awt/CSystemColors.m jdk11u-jdk-11.0.9-ga-patched/src/java.desktop/macosx/native/libawt_lwawt/awt/CSystemColors.m
---- jdk11u-jdk-11.0.9-ga/src/java.desktop/macosx/native/libawt_lwawt/awt/CSystemColors.m	2020-09-11 18:12:45.000000000 +0200
-+++ jdk11u-jdk-11.0.9-ga-patched/src/java.desktop/macosx/native/libawt_lwawt/awt/CSystemColors.m	2021-01-16 15:56:28.000000000 +0100
-@@ -1,5 +1,5 @@
- /*
-- * Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
-+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
-  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
-  *
-  * This code is free software; you can redistribute it and/or modify it
-@@ -126,7 +126,7 @@ static JNF_STATIC_MEMBER_CACHE(jm_system
- + (NSColor*)getColor:(NSUInteger)colorIndex useAppleColor:(BOOL)useAppleColor {
-     NSColor* result = nil;
- 
--    if (colorIndex < (useAppleColor) ? sun_lwawt_macosx_LWCToolkit_NUM_APPLE_COLORS : java_awt_SystemColor_NUM_COLORS) {
-+    if (colorIndex < ((useAppleColor) ? sun_lwawt_macosx_LWCToolkit_NUM_APPLE_COLORS : java_awt_SystemColor_NUM_COLORS)) {
-         result = (useAppleColor ? appleColors : sColors)[colorIndex];
-     }
-     else {
 diff -Npur jdk11u-jdk-11.0.9-ga/src/java.desktop/macosx/native/libawt_lwawt/awt/OSVersion.h jdk11u-jdk-11.0.9-ga-patched/src/java.desktop/macosx/native/libawt_lwawt/awt/OSVersion.h
 --- jdk11u-jdk-11.0.9-ga/src/java.desktop/macosx/native/libawt_lwawt/awt/OSVersion.h	2020-09-11 18:12:45.000000000 +0200
 +++ jdk11u-jdk-11.0.9-ga-patched/src/java.desktop/macosx/native/libawt_lwawt/awt/OSVersion.h	1970-01-01 01:00:00.000000000 +0100
@@ -11004,229 +10970,3 @@ diff -Npur jdk11u-jdk-11.0.9-ga/src/jdk.hotspot.agent/share/classes/sun/jvm/hots
 +    return debugger.getThreadForIdentifierAddress(threadIdAddr, uniqueThreadIdAddr);
 +  }
 +}
-diff -Npur jdk11u-jdk-11.0.9-ga/test/hotspot/gtest/code/test_vtableStub.cpp jdk11u-jdk-11.0.9-ga-patched/test/hotspot/gtest/code/test_vtableStub.cpp
---- jdk11u-jdk-11.0.9-ga/test/hotspot/gtest/code/test_vtableStub.cpp	2020-09-11 18:12:45.000000000 +0200
-+++ jdk11u-jdk-11.0.9-ga-patched/test/hotspot/gtest/code/test_vtableStub.cpp	2021-01-16 15:56:38.000000000 +0100
-@@ -30,6 +30,7 @@
- TEST_VM(code, vtableStubs) {
-   // Should be in VM to use locks
-   ThreadInVMfromNative ThreadInVMfromNative(JavaThread::current());
-+  Thread::WXWriteFromExecSetter wx_exec;
- 
-   VtableStubs::find_vtable_stub(0); // min vtable index
-   for (int i = 0; i < 15; i++) {
-@@ -42,6 +43,7 @@ TEST_VM(code, vtableStubs) {
- TEST_VM(code, itableStubs) {
-   // Should be in VM to use locks
-   ThreadInVMfromNative ThreadInVMfromNative(JavaThread::current());
-+  Thread::WXWriteFromExecSetter wx_exec;
- 
-   VtableStubs::find_itable_stub(0); // min itable index
-   for (int i = 0; i < 15; i++) {
-diff -Npur jdk11u-jdk-11.0.9-ga/test/hotspot/gtest/gc/shared/test_oopStorage.cpp jdk11u-jdk-11.0.9-ga-patched/test/hotspot/gtest/gc/shared/test_oopStorage.cpp
---- jdk11u-jdk-11.0.9-ga/test/hotspot/gtest/gc/shared/test_oopStorage.cpp	2020-09-11 18:12:45.000000000 +0200
-+++ jdk11u-jdk-11.0.9-ga-patched/test/hotspot/gtest/gc/shared/test_oopStorage.cpp	2021-01-16 15:56:38.000000000 +0100
-@@ -147,6 +147,9 @@ static bool process_deferred_updates(Oop
- }
- 
- static void release_entry(OopStorage& storage, oop* entry, bool process_deferred = true) {
-+  // missing transition to vm state
-+  Thread::WXWriteFromExecSetter wx_write;
-+
-   *entry = NULL;
-   storage.release(entry);
-   if (process_deferred) {
-@@ -497,11 +500,17 @@ public:
-       QuickSort::sort(to_release, nrelease, PointerCompare(), false);
-     }
- 
--    _storage.release(to_release, nrelease);
--    EXPECT_EQ(_max_entries - nrelease, _storage.allocation_count());
-+    {
-+      // missing transition to vm state
-+      Thread::WXWriteFromExecSetter wx_write;
-+      _storage.release(to_release, nrelease);
-+      EXPECT_EQ(_max_entries - nrelease, _storage.allocation_count());
-+    }
- 
-     for (size_t i = 0; i < nrelease; ++i) {
-       release_entry(_storage, _entries[2 * i + 1], false);
-+      // missing transition to vm state
-+      Thread::WXWriteFromExecSetter wx_write;
-       EXPECT_EQ(_max_entries - nrelease - (i + 1), _storage.allocation_count());
-     }
-     EXPECT_TRUE(process_deferred_updates(_storage));
-@@ -529,6 +538,8 @@ TEST_VM_F(OopStorageTest, invalid_pointe
-   {
-     char* mem = NEW_C_HEAP_ARRAY(char, 1000, mtInternal);
-     oop* ptr = reinterpret_cast<oop*>(align_down(mem + 250, sizeof(oop)));
-+    // missing transition to vm state
-+    Thread::WXWriteFromExecSetter wx_write;
-     // Predicate returns false for some malloc'ed block.
-     EXPECT_EQ(OopStorage::INVALID_ENTRY, _storage.allocation_status(ptr));
-     FREE_C_HEAP_ARRAY(char, mem);
-@@ -537,6 +548,8 @@ TEST_VM_F(OopStorageTest, invalid_pointe
-   {
-     oop obj;
-     oop* ptr = &obj;
-+    // missing transition to vm state
-+    Thread::WXWriteFromExecSetter wx_write;
-     // Predicate returns false for some "random" location.
-     EXPECT_EQ(OopStorage::INVALID_ENTRY, _storage.allocation_status(ptr));
-   }
-@@ -1077,11 +1090,16 @@ TEST_VM_F(OopStorageTestWithAllocation, 
-   oop* garbage = reinterpret_cast<oop*>(1024 * 1024);
-   release_entry(_storage, released);
- 
--  EXPECT_EQ(OopStorage::ALLOCATED_ENTRY, _storage.allocation_status(retained));
--  EXPECT_EQ(OopStorage::UNALLOCATED_ENTRY, _storage.allocation_status(released));
-+  {
-+    // missing transition to vm state
-+    Thread::WXWriteFromExecSetter wx_write;
-+
-+    EXPECT_EQ(OopStorage::ALLOCATED_ENTRY, _storage.allocation_status(retained));
-+    EXPECT_EQ(OopStorage::UNALLOCATED_ENTRY, _storage.allocation_status(released));
- #ifndef DISABLE_GARBAGE_ALLOCATION_STATUS_TESTS
--  EXPECT_EQ(OopStorage::INVALID_ENTRY, _storage.allocation_status(garbage));
-+    EXPECT_EQ(OopStorage::INVALID_ENTRY, _storage.allocation_status(garbage));
- #endif
-+  }
- 
-   for (size_t i = 0; i < _max_entries; ++i) {
-     if ((_entries[i] != retained) && (_entries[i] != released)) {
-@@ -1092,14 +1110,20 @@ TEST_VM_F(OopStorageTestWithAllocation, 
- 
-   {
-     ThreadInVMfromNative invm(JavaThread::current());
-+    Thread::WXWriteFromExecSetter wx_write;
-     VM_DeleteBlocksAtSafepoint op(&_storage);
-     VMThread::execute(&op);
-   }
--  EXPECT_EQ(OopStorage::ALLOCATED_ENTRY, _storage.allocation_status(retained));
-+
-+  {
-+    // missing transition to vm state
-+    Thread::WXWriteFromExecSetter wx_write;
-+    EXPECT_EQ(OopStorage::ALLOCATED_ENTRY, _storage.allocation_status(retained));
- #ifndef DISABLE_GARBAGE_ALLOCATION_STATUS_TESTS
--  EXPECT_EQ(OopStorage::INVALID_ENTRY, _storage.allocation_status(released));
--  EXPECT_EQ(OopStorage::INVALID_ENTRY, _storage.allocation_status(garbage));
-+    EXPECT_EQ(OopStorage::INVALID_ENTRY, _storage.allocation_status(released));
-+    EXPECT_EQ(OopStorage::INVALID_ENTRY, _storage.allocation_status(garbage));
- #endif // DISABLE_GARBAGE_ALLOCATION_STATUS_TESTS
-+  }
- }
- 
- TEST_VM_F(OopStorageTest, usage_info) {
-diff -Npur jdk11u-jdk-11.0.9-ga/test/hotspot/gtest/gc/shared/test_oopStorage_parperf.cpp jdk11u-jdk-11.0.9-ga-patched/test/hotspot/gtest/gc/shared/test_oopStorage_parperf.cpp
---- jdk11u-jdk-11.0.9-ga/test/hotspot/gtest/gc/shared/test_oopStorage_parperf.cpp	2020-09-11 18:12:45.000000000 +0200
-+++ jdk11u-jdk-11.0.9-ga-patched/test/hotspot/gtest/gc/shared/test_oopStorage_parperf.cpp	2021-01-16 15:56:38.000000000 +0100
-@@ -112,6 +112,8 @@ OopStorageParIterPerf::OopStorageParIter
- }
- 
- OopStorageParIterPerf::~OopStorageParIterPerf() {
-+  // missing transition to vm state
-+  Thread::WXWriteFromExecSetter wx_write;
-   _storage.release(_entries, ARRAY_SIZE(_entries));
- }
- 
-diff -Npur jdk11u-jdk-11.0.9-ga/test/hotspot/gtest/runtime/test_os.cpp jdk11u-jdk-11.0.9-ga-patched/test/hotspot/gtest/runtime/test_os.cpp
---- jdk11u-jdk-11.0.9-ga/test/hotspot/gtest/runtime/test_os.cpp	2020-09-11 18:12:45.000000000 +0200
-+++ jdk11u-jdk-11.0.9-ga-patched/test/hotspot/gtest/runtime/test_os.cpp	2021-01-16 15:56:38.000000000 +0100
-@@ -157,6 +157,10 @@ static void do_test_print_hex_dump(addre
-   char buf[256];
-   buf[0] = '\0';
-   stringStream ss(buf, sizeof(buf));
-+
-+  // missing transition to vm state
-+  Thread::WXWriteFromExecSetter wx_write;
-+
-   os::print_hex_dump(&ss, addr, addr + len, unitsize);
- //  tty->print_cr("expected: %s", expected);
- //  tty->print_cr("result: %s", buf);
-diff -Npur jdk11u-jdk-11.0.9-ga/test/hotspot/jtreg/runtime/CompressedOops/CompressedClassPointers.java jdk11u-jdk-11.0.9-ga-patched/test/hotspot/jtreg/runtime/CompressedOops/CompressedClassPointers.java
---- jdk11u-jdk-11.0.9-ga/test/hotspot/jtreg/runtime/CompressedOops/CompressedClassPointers.java	2020-09-11 18:12:45.000000000 +0200
-+++ jdk11u-jdk-11.0.9-ga-patched/test/hotspot/jtreg/runtime/CompressedOops/CompressedClassPointers.java	2021-01-16 15:56:38.000000000 +0100
-@@ -25,7 +25,7 @@
-  * @test
-  * @bug 8024927
-  * @summary Testing address of compressed class pointer space as best as possible.
-- * @requires vm.bits == 64 & vm.opt.final.UseCompressedOops == true & os.family != "windows"
-+ * @requires vm.bits == 64 & vm.opt.final.UseCompressedOops == true & os.family != "windows" & !(os.family == "mac" & os.arch=="aarch64")
-  * @library /test/lib
-  * @modules java.base/jdk.internal.misc
-  *          java.management
-diff -Npur jdk11u-jdk-11.0.9-ga/test/hotspot/jtreg/vmTestbase/nsk/jvmti/scenarios/extension/EX03/ex03t001/ex03t001.c jdk11u-jdk-11.0.9-ga-patched/test/hotspot/jtreg/vmTestbase/nsk/jvmti/scenarios/extension/EX03/ex03t001/ex03t001.c
---- jdk11u-jdk-11.0.9-ga/test/hotspot/jtreg/vmTestbase/nsk/jvmti/scenarios/extension/EX03/ex03t001/ex03t001.c	2020-09-11 18:12:45.000000000 +0200
-+++ jdk11u-jdk-11.0.9-ga-patched/test/hotspot/jtreg/vmTestbase/nsk/jvmti/scenarios/extension/EX03/ex03t001/ex03t001.c	2021-01-16 15:56:38.000000000 +0100
-@@ -43,13 +43,22 @@ static jrawMonitorID eventMon;
- /* ============================================================================= */
- 
- static void JNICALL
--ClassUnload(jvmtiEnv* jvmti_env, JNIEnv *jni_env, jthread thread, jclass class, ...) {
-+ClassUnload(jvmtiEnv* jvmti_env, ...) {
-     /*
-      * With the CMS GC the event can be posted on
-      * a ConcurrentGC thread that is not a JavaThread.
-      * In this case the thread argument can be NULL, so that,
-      * we should not expect the thread argument to be non-NULL.
-      */
-+    JNIEnv *jni_env = NULL;
-+    va_list ap;
-+
-+    va_start(ap, jvmti_env);
-+    jni_env = va_arg(ap, JNIEnv *);
-+    jthread thread = va_arg(ap, jthread);
-+    jclass class = va_arg(ap, jclass);
-+    va_end(ap);
-+
-     if (class == NULL) {
-         nsk_jvmti_setFailStatus();
-         NSK_COMPLAIN0("ClassUnload: 'class' input parameter is NULL.\n");
-diff -Npur jdk11u-jdk-11.0.9-ga/test/hotspot/jtreg/vmTestbase/nsk/share/jdi/ArgumentHandler.java jdk11u-jdk-11.0.9-ga-patched/test/hotspot/jtreg/vmTestbase/nsk/share/jdi/ArgumentHandler.java
---- jdk11u-jdk-11.0.9-ga/test/hotspot/jtreg/vmTestbase/nsk/share/jdi/ArgumentHandler.java	2020-09-11 18:12:45.000000000 +0200
-+++ jdk11u-jdk-11.0.9-ga-patched/test/hotspot/jtreg/vmTestbase/nsk/share/jdi/ArgumentHandler.java	2021-01-16 15:56:38.000000000 +0100
-@@ -538,6 +538,8 @@ class CheckedFeatures {
-         {"linux-s390x",     "com.sun.jdi.SharedMemoryAttach"},
-         {"macosx-amd64",    "com.sun.jdi.SharedMemoryAttach"},
-         {"mac-x64",         "com.sun.jdi.SharedMemoryAttach"},
-+        {"macosx-aarch64",  "com.sun.jdi.SharedMemoryAttach"},
-+        {"mac-aarch64",     "com.sun.jdi.SharedMemoryAttach"},
-         {"aix-ppc64",       "com.sun.jdi.SharedMemoryAttach"},
- 
-             // listening connectors
-@@ -568,6 +570,8 @@ class CheckedFeatures {
-         {"linux-s390x",     "com.sun.jdi.SharedMemoryListen"},
-         {"macosx-amd64",    "com.sun.jdi.SharedMemoryListen"},
-         {"mac-x64",         "com.sun.jdi.SharedMemoryListen"},
-+        {"macosx-aarch64",  "com.sun.jdi.SharedMemoryListen"},
-+        {"mac-aarch64",     "com.sun.jdi.SharedMemoryListen"},
-         {"aix-ppc64",       "com.sun.jdi.SharedMemoryListen"},
- 
-             // launching connectors
-@@ -647,8 +651,14 @@ class CheckedFeatures {
-         {"macosx-amd64",     "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
-         {"macosx-amd64",     "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
- 
--        {"mac-x64",         "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
--        {"mac-x64",         "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
-+        {"mac-x64",          "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
-+        {"mac-x64",          "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
-+
-+        {"macosx-aarch64",   "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
-+        {"macosx-aarch64",   "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
-+
-+        {"mac-aarch64",      "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
-+        {"mac-aarch64",      "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
- 
-         {"aix-ppc64",       "com.sun.jdi.CommandLineLaunch", "dt_shmem"},
-         {"aix-ppc64",       "com.sun.jdi.RawCommandLineLaunch", "dt_shmem"},
-@@ -672,6 +682,8 @@ class CheckedFeatures {
-         {"linux-s390x",     "dt_shmem"},
-         {"macosx-amd64",    "dt_shmem"},
-         {"mac-x64",         "dt_shmem"},
-+        {"macosx-aarch64",  "dt_shmem"},
-+        {"mac-aarch64",     "dt_shmem"},
-         {"aix-ppc64",       "dt_shmem"},
-     };
- }
