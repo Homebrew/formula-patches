@@ -1,0 +1,1451 @@
+From d0bae0b218d54aedb439381e5e4480e862f42f8b Mon Sep 17 00:00:00 2001
+From: Iain Sandoe <iain@sandoe.co.uk>
+Date: Sat, 8 Aug 2020 12:15:09 +0100
+Subject: [PATCH] Darwin: Adjust the PCH area to allow for 16384byte page size.
+
+Newer versions of Darwin report pagesize 20 which means that we
+need to adjust the aligment of the PCH area.
+
+gcc/ChangeLog:
+
+	* config/host-darwin.c: Align pch_address_space to 16384.
+
+(cherry picked from commit 590febb5f6624f78b36402a7c9a9c318978f1efa)
+---
+ gcc/config/host-darwin.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/gcc/config/host-darwin.c b/gcc/config/host-darwin.c
+index 0face6c450f3..c862935dcf31 100644
+--- a/gcc/config/host-darwin.c
++++ b/gcc/config/host-darwin.c
+@@ -24,7 +24,10 @@
+ #include "config/host-darwin.h"
+ 
+ /* Yes, this is really supposed to work.  */
+-static char pch_address_space[1024*1024*1024] __attribute__((aligned (4096)));
++/* This allows for a pagesize of 16384, which we have on Darwin20, but should
++   continue to work OK for pagesize 4096 which we have on earlier versions.
++   The size is 1 (binary) Gb.  */
++static char pch_address_space[65536*16384] __attribute__((aligned (16384)));
+ 
+ /* Return the address of the PCH address space, if the PCH will fit in it.  */
+ 
+From 24957662c670c92b2260debb029893c6e91b2979 Mon Sep 17 00:00:00 2001
+From: Iain Sandoe <iain@sandoe.co.uk>
+Date: Fri, 31 Jul 2020 21:05:28 +0100
+Subject: [PATCH] Darwin: Darwin 20 is to be macOS 11 (Big Sur).
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+As per Nigel Tufnel's assertion "... this one goes to 11".
+
+The various parts of the code that deal with mapping Darwin versions
+to macOS (X) versions need updating to deal with  a major version of
+11.
+
+So now we have, for example:
+
+Darwin  4 => macOS (X) 10.0
+…
+Darwin 14 => macOS (X) 10.10
+...
+Darwin 19 => macOS (X) 10.15
+
+Darwin 20 => macOS  11.0
+
+Because of the historical duplication of the "10" in macOSX 10.xx and
+the number of tools that expect this, it is likely that system tools will
+allow macos11.0 and/or macosx11.0 (despite that the latter makes little
+sense).
+
+Update the link test to cover Catalina (Darwin19/10.15) and
+Big Sur (Darwin20/11.0).
+
+gcc/ChangeLog:
+
+	* config/darwin-c.c: Allow for Darwin20 to correspond to macOS 11.
+	* config/darwin-driver.c: Likewise.
+
+gcc/testsuite/ChangeLog:
+
+	* gcc.dg/darwin-minversion-link.c: Allow for Darwin19 (macOS 10.15)
+	and Darwin20 (macOS 11.0).
+
+(cherry picked from commit 556ab5125912fa2233986eb19d6cd995cf7de1d2)
+---
+ gcc/config/darwin-c.c                         |  4 ++--
+ gcc/config/darwin-driver.c                    | 21 ++++++++++++-------
+ gcc/testsuite/gcc.dg/darwin-minversion-link.c |  5 +++--
+ 3 files changed, 18 insertions(+), 12 deletions(-)
+
+diff --git a/gcc/config/darwin-c.c b/gcc/config/darwin-c.c
+index e3b999e166b2..9034f49908e0 100644
+--- a/gcc/config/darwin-c.c
++++ b/gcc/config/darwin-c.c
+@@ -692,10 +692,10 @@ macosx_version_as_macro (void)
+   if (!version_array)
+     goto fail;
+ 
+-  if (version_array[MAJOR] != 10)
++  if (version_array[MAJOR] < 10 || version_array[MAJOR] > 11)
+     goto fail;
+ 
+-  if (version_array[MINOR] < 10)
++  if (version_array[MAJOR] == 10 && version_array[MINOR] < 10)
+     version_macro = version_as_legacy_macro (version_array);
+   else
+     version_macro = version_as_modern_macro (version_array);
+diff --git a/gcc/config/darwin-driver.c b/gcc/config/darwin-driver.c
+index 6cf85d04b699..2df433ad716c 100644
+--- a/gcc/config/darwin-driver.c
++++ b/gcc/config/darwin-driver.c
+@@ -65,7 +65,7 @@ validate_macosx_version_min (const char *version_str)
+   major = strtoul (version_str, &end, 10);
+   version_str = end + ((*end == '.') ? 1 : 0);
+ 
+-  if (major != 10) /* So far .. all MacOS 10 ... */
++  if (major < 10 || major > 11 ) /* MacOS 10 and 11 are known. */
+     return NULL;
+ 
+   /* Version string components must be present and numeric.  */
+@@ -104,7 +104,7 @@ validate_macosx_version_min (const char *version_str)
+   if (need_rewrite)
+     {
+       char *new_version;
+-      asprintf (&new_version, "10.%lu.%lu", minor, tiny);
++      asprintf (&new_version, "%2lu.%lu.%lu", major, minor, tiny);
+       return new_version;
+     }
+ 
+@@ -115,6 +115,12 @@ validate_macosx_version_min (const char *version_str)
+ #include <sys/sysctl.h>
+ #include "xregex.h"
+ 
++/* Determine the version of the running OS.
++   We only look at the first two components (ignoring the patch one) and
++   report NN.MM.0 where NN is currently either 10 or 11 and MM is the OS
++   minor release number.
++   If we can't parse what the kernel gives us, warn the user, and do nothing.  */
++
+ static char *
+ darwin_find_version_from_kernel (void)
+ {
+@@ -125,8 +131,6 @@ darwin_find_version_from_kernel (void)
+   char * version_p;
+   char * new_flag;
+ 
+-  /* Determine the version of the running OS.  If we can't, warn user,
+-     and do nothing.  */
+   if (sysctl (osversion_name, ARRAY_SIZE (osversion_name), osversion,
+ 	      &osversion_len, NULL, 0) == -1)
+     {
+@@ -144,10 +148,11 @@ darwin_find_version_from_kernel (void)
+     major_vers = major_vers * 10 + (*version_p++ - '0');
+   if (*version_p++ != '.')
+     goto parse_failed;
+-  
+-  /* The major kernel version number is 4 plus the second OS version
+-     component.  */
+-  if (major_vers - 4 <= 4)
++
++  /* Darwin20 sees a transition to macOS 11.  */
++  if (major_vers >= 20)
++    asprintf (&new_flag, "11.%02d.00", major_vers - 20);
++  else if (major_vers - 4 <= 4)
+     /* On 10.4 and earlier, the old linker is used which does not
+        support three-component system versions.
+        FIXME: we should not assume this - a newer linker could be used.  */
+diff --git a/gcc/testsuite/gcc.dg/darwin-minversion-link.c b/gcc/testsuite/gcc.dg/darwin-minversion-link.c
+index 0a80048ba354..765fb799a918 100644
+--- a/gcc/testsuite/gcc.dg/darwin-minversion-link.c
++++ b/gcc/testsuite/gcc.dg/darwin-minversion-link.c
+@@ -13,8 +13,9 @@
+ /* { dg-additional-options "-mmacosx-version-min=010.011.06 -DCHECK=101106" { target *-*-darwin15* } } */
+ /* { dg-additional-options "-mmacosx-version-min=010.012.06 -DCHECK=101206" { target *-*-darwin16* } } */
+ /* { dg-additional-options "-mmacosx-version-min=010.013.06 -DCHECK=101306" { target *-*-darwin17* } } */
+-/* This next test covers 10.18 and (currently unreleased) 10.19 for now. */  
+-/* { dg-additional-options "-mmacosx-version-min=010.014.05 -DCHECK=101405" { target *-*-darwin1[89]* } } */
++/* { dg-additional-options "-mmacosx-version-min=010.014.05 -DCHECK=101405" { target *-*-darwin18* } } */
++/* { dg-additional-options "-mmacosx-version-min=010.015.06 -DCHECK=101506" { target *-*-darwin19* } } */
++/* { dg-additional-options "-mmacosx-version-min=011.000.00 -DCHECK=110000" { target *-*-darwin20 } } */
+ 
+ int
+ main ()
+From f5ee16a0d8e31d1754e760e984623194de8e56d7 Mon Sep 17 00:00:00 2001
+From: Iain Sandoe <iain@sandoe.co.uk>
+Date: Sat, 19 Dec 2020 13:05:34 +0000
+Subject: [PATCH] Darwin : Update the kernel version to macOS version mapping.
+
+With the change to macOS 11 and Darwin20, the algorithm for mapping
+kernel version to macOS version has changed.
+
+We now have darwin 20.X.Y => macOS 11.(X > 0 ? X - 1 : 0).??.
+It currently unclear if the Y will be mapped to macOS patch version
+and, if so, whether it will be one-based or 0-based.
+Likewise, it's unknown if Darwin 21 will map to macOS 12, so these
+entries are unchanged for the present.
+
+gcc/ChangeLog:
+
+	* config/darwin-driver.c (darwin_find_version_from_kernel):
+	Compute the minor OS version from the minor kernel version.
+---
+ gcc/config/darwin-driver.c | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/gcc/config/darwin-driver.c b/gcc/config/darwin-driver.c
+index 2df433ad716c..0fff7b70f35e 100644
+--- a/gcc/config/darwin-driver.c
++++ b/gcc/config/darwin-driver.c
+@@ -149,9 +149,22 @@ darwin_find_version_from_kernel (void)
+   if (*version_p++ != '.')
+     goto parse_failed;
+ 
+-  /* Darwin20 sees a transition to macOS 11.  */
++  /* Darwin20 sees a transition to macOS 11.  In this, it seems that the
++     mapping to macOS minor version is now shifted to the kernel minor
++     version - 1 (at least for the initial releases).  At this stage, we
++     don't know what macOS version will correspond to Darwin21.  */
+   if (major_vers >= 20)
+-    asprintf (&new_flag, "11.%02d.00", major_vers - 20);
++    {
++      int minor_vers = *version_p++ - '0';
++      if (ISDIGIT (*version_p))
++	minor_vers = minor_vers * 10 + (*version_p++ - '0');
++      if (*version_p++ != '.')
++	goto parse_failed;
++      if (minor_vers > 0)
++	minor_vers -= 1; /* Kernel 20.3 => macOS 11.2.  */
++      /* It's not yet clear whether patch level will be considered.  */
++      asprintf (&new_flag, "11.%02d.00", minor_vers);
++    }
+   else if (major_vers - 4 <= 4)
+     /* On 10.4 and earlier, the old linker is used which does not
+        support three-component system versions.
+From 82abd13fb66e088bb1bc858f0209c201cde79580 Mon Sep 17 00:00:00 2001
+From: Iain Sandoe <iain@sandoe.co.uk>
+Date: Wed, 23 Dec 2020 17:16:08 +0000
+Subject: [PATCH] Darwin : Adjust handling of MACOSX_DEPLOYMENT_TARGET for
+ macOS 11.
+
+The shift to macOS version 11 also means that '11' without any
+following '.x' is accepted as a valid version number.  This adjusts
+the validation code to accept this and map it to 11.0.0 which
+matches what the clang toolchain appears to do.
+
+gcc/ChangeLog:
+
+	* config/darwin-driver.c (validate_macosx_version_min): Allow
+	MACOSX_DEPLOYMENT_TARGET=11.
+	(darwin_default_min_version): Adjust warning spelling to avoid
+	an apostrophe.
+---
+ gcc/config/darwin-driver.c | 23 ++++++++++++++++-------
+ 1 file changed, 16 insertions(+), 7 deletions(-)
+
+diff --git a/gcc/config/darwin-driver.c b/gcc/config/darwin-driver.c
+index 0fff7b70f35e..f00d5a02d1d0 100644
+--- a/gcc/config/darwin-driver.c
++++ b/gcc/config/darwin-driver.c
+@@ -43,13 +43,13 @@ static const char *
+ validate_macosx_version_min (const char *version_str)
+ {
+   size_t version_len;
+-  unsigned long major, minor, tiny = 0;
++  unsigned long major, minor = 0, tiny = 0;
+   char *end;
+   const char *old_version = version_str;
+   bool need_rewrite = false;
+ 
+   version_len = strlen (version_str);
+-  if (version_len < 4) /* The minimum would be 10.x  */
++  if (version_len < 2) /* The minimum would be 11  */
+     return NULL;
+ 
+   /* Version string must consist of digits and periods only.  */
+@@ -63,18 +63,27 @@ validate_macosx_version_min (const char *version_str)
+     need_rewrite = true;
+ 
+   major = strtoul (version_str, &end, 10);
+-  version_str = end + ((*end == '.') ? 1 : 0);
+ 
+   if (major < 10 || major > 11 ) /* MacOS 10 and 11 are known. */
+     return NULL;
+ 
+-  /* Version string components must be present and numeric.  */
+-  if (!ISDIGIT (version_str[0]))
++  /* Skip a separating period, if there's one.  */
++  version_str = end + ((*end == '.') ? 1 : 0);
++
++  if (major == 11 && *end != '\0' && !ISDIGIT (version_str[0]))
++     /* For MacOS 11, we allow just the major number, but if the minor is
++	there it must be numeric.  */
++    return NULL;
++  else if (major == 11 && *end == '\0')
++    /* We will rewrite 11 =>  11.0.0.  */
++    need_rewrite = true;
++  else if (major == 10 && (*end == '\0' || !ISDIGIT (version_str[0])))
++    /* Otherwise, minor version components must be present and numeric.  */
+     return NULL;
+ 
+   /* If we have one or more leading zeros on a component, then rewrite the
+      version string.  */
+-  if (version_str[0] == '0' && version_str[1] != '\0'
++  if (*end != '\0' && version_str[0] == '0' && version_str[1] != '\0'
+       && version_str[1] != '.')
+     need_rewrite = true;
+ 
+@@ -220,7 +229,7 @@ darwin_default_min_version (void)
+       const char *checked = validate_macosx_version_min (new_flag);
+       if (checked == NULL)
+ 	{
+-	  warning (0, "couldn%'t understand version %s", new_flag);
++	  warning (0, "could not understand version %s", new_flag);
+ 	  return NULL;
+ 	}
+       new_flag = xstrndup (checked, strlen (checked));
+From 7b19b6b15368c6157d2261015fbb94c8c07c104a Mon Sep 17 00:00:00 2001
+From: Iain Sandoe <iain@sandoe.co.uk>
+Date: Wed, 18 Nov 2020 13:15:47 +0000
+Subject: [PATCH] Darwin, libsanitizer : Support libsanitizer for
+ x86_64-darwin20.
+
+The sanitizer is supported for at least x86_64 and Darwin20.
+
+libsanitizer/ChangeLog:
+
+	* configure.tgt: Allow x86_64 Darwin2x.
+
+(cherry picked from commit 93f1186f7d3419c7af692295bd509d7bfaf170a1)
+---
+ libsanitizer/configure.tgt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libsanitizer/configure.tgt b/libsanitizer/configure.tgt
+index 5d46990eba4d..79084e58afbc 100644
+--- a/libsanitizer/configure.tgt
++++ b/libsanitizer/configure.tgt
+@@ -60,7 +60,7 @@ case "${target}" in
+ 		TSAN_TARGET_DEPENDENT_OBJECTS=tsan_rtl_aarch64.lo
+ 	fi
+ 	;;
+-  x86_64-*-darwin1[2-9]* | i?86-*-darwin1[2-9]*)
++  x86_64-*-darwin2* | x86_64-*-darwin1[2-9]* | i?86-*-darwin1[2-9]*)
+ 	TSAN_SUPPORTED=no
+ 	;;
+   x86_64-*-solaris2.11* | i?86-*-solaris2.11*)
+From c85bc938ccf75ea45c00e430f715544ff396e5b5 Mon Sep 17 00:00:00 2001
+From: Iain Sandoe <iain@sandoe.co.uk>
+Date: Wed, 18 Nov 2020 10:06:03 +0000
+Subject: [PATCH] Darwin : Update libtool and dependencies for Darwin20
+ [PR97865]
+
+The change in major version (and the increment from Darwin19 to 20)
+caused libtool tests to fail which resulted in incorrect build settings
+for shared libraries.
+
+We take this opportunity to sort out the shared undefined symbols state
+rather than propagating the current unsound behaviour into a new rev.
+
+This change means that we default to the case that missing symbols are
+considered an error, and if one wants to allow this intentionally, the
+confiuration for that case should be set appropriately.
+
+Three existing cases need undefined dynamic lookup:
+ libitm, where there is already a configuration mechanism to add the
+         flags.
+ libcc1, where we add simple configuration to add the flags for Darwin.
+ libsanitizer, where we can add to the existing extra flags.
+
+	Backported from 1352bc88a0525743c952197fb2db6e4f8c091cde and 5dc998933e7aa737f4a45a8a2885d42d5288d51a
+
+libcc1/ChangeLog:
+
+	PR target/97865
+	* Makefile.am: Add dynamic_lookup to LD flags for Darwin.
+	* configure.ac: Test for Darwin host and set a flag.
+	* Makefile.in: Regenerate.
+	* configure: Regenerate.
+
+libitm/ChangeLog:
+
+	PR target/97865
+	* configure.tgt: Add dynamic_lookup to XLDFLAGS for Darwin.
+	* configure: Regenerate.
+
+libsanitizer/ChangeLog:
+
+	PR target/97865
+	* configure.tgt: Add dynamic_lookup to EXTRA_CXXFLAGS for
+	Darwin.
+	* configure: Regenerate.
+
+ChangeLog:
+
+	PR target/97865
+	* libtool.m4: Update handling of Darwin platform link flags
+	for Darwin20.
+
+gcc/ChangeLog:
+
+	PR target/97865
+	* configure: Regenerate.
+
+libatomic/ChangeLog:
+
+	PR target/97865
+	* configure: Regenerate.
+
+libbacktrace/ChangeLog:
+
+	PR target/97865
+	* configure: Regenerate.
+
+libffi/ChangeLog:
+
+	PR target/97865
+	* configure: Regenerate.
+
+libgfortran/ChangeLog:
+
+	PR target/97865
+	* configure: Regenerate.
+
+libgomp/ChangeLog:
+
+	PR target/97865
+	* configure: Regenerate.
+	* Makefile.in: Update copyright years.
+
+libhsail-rt/ChangeLog:
+
+	PR target/97865
+	* configure: Regenerate.
+
+libobjc/ChangeLog:
+
+	PR target/97865
+	* configure: Regenerate.
+
+libphobos/ChangeLog:
+
+	PR target/97865
+	* configure: Regenerate.
+
+libquadmath/ChangeLog:
+
+	PR target/97865
+	* configure: Regenerate.
+
+libssp/ChangeLog:
+
+	PR target/97865
+	* configure: Regenerate.
+
+libstdc++-v3/ChangeLog:
+
+	PR target/97865
+	* configure: Regenerate.
+
+libvtv/ChangeLog:
+
+	PR target/97865
+	* configure: Regenerate.
+
+zlib/ChangeLog:
+
+	PR target/97865
+	* configure: Regenerate.
+
+Co-Authored-By: Jakub Jelinek  <jakub@redhat.com>
+---
+ gcc/configure              | 34 ++++++++++++------------
+ libatomic/configure        | 34 ++++++++++++------------
+ libbacktrace/configure     | 34 ++++++++++++------------
+ libcc1/Makefile.am         |  3 +++
+ libcc1/Makefile.in         |  3 ++-
+ libcc1/configure           | 53 ++++++++++++++++++++++++++------------
+ libcc1/configure.ac        |  6 +++++
+ libffi/configure           | 34 ++++++++++++------------
+ libgfortran/configure      | 34 ++++++++++++------------
+ libgomp/Makefile.in        |  2 +-
+ libgomp/configure          | 34 ++++++++++++------------
+ libhsail-rt/configure      | 34 ++++++++++++------------
+ libitm/configure           | 34 ++++++++++++------------
+ libitm/configure.tgt       |  9 ++++++-
+ libobjc/configure          | 34 ++++++++++++------------
+ libphobos/configure        | 34 ++++++++++++------------
+ libquadmath/configure      | 34 ++++++++++++------------
+ libsanitizer/configure     | 34 ++++++++++++------------
+ libsanitizer/configure.tgt |  1 +
+ libssp/configure           | 34 ++++++++++++------------
+ libstdc++-v3/configure     | 48 +++++++++++++++++-----------------
+ libtool.m4                 | 32 ++++++++++++-----------
+ libvtv/configure           | 34 ++++++++++++------------
+ zlib/configure             | 38 ++++++++++++++-------------
+ 24 files changed, 372 insertions(+), 299 deletions(-)
+
+diff --git a/gcc/configure b/gcc/configure
+index 4fa977217a75..8fe9c91fd7c2 100755
+--- a/gcc/configure
++++ b/gcc/configure
+@@ -15490,23 +15490,25 @@ _LT_EOF
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $lt_cv_ld_force_load" >&5
+ $as_echo "$lt_cv_ld_force_load" >&6; }
+-    case $host_os in
+-    rhapsody* | darwin1.[012])
++    # Allow for Darwin 4-7 (macOS 10.0-10.3) although these are not expect to
++    # build without first building modern cctools / linker.
++    case $host_cpu-$host_os in
++    *-rhapsody* | *-darwin1.[012])
+       _lt_dar_allow_undefined='${wl}-undefined ${wl}suppress' ;;
+-    darwin1.*)
++    *-darwin1.*)
+       _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-    darwin*) # darwin 5.x on
+-      # if running on 10.5 or later, the deployment target defaults
+-      # to the OS version, if on x86, and 10.4, the deployment
+-      # target defaults to 10.4. Don't you love it?
+-      case ${MACOSX_DEPLOYMENT_TARGET-10.0},$host in
+-	10.0,*86*-darwin8*|10.0,*-darwin[91]*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
++    *-darwin*)
++      # darwin 5.x (macOS 10.1) onwards we only need to adjust when the
++      # deployment target is forced to an earlier version.
++      case ${MACOSX_DEPLOYMENT_TARGET-UNSET},$host in
++	UNSET,*-darwin[89]*|UNSET,*-darwin[12][0123456789]*)
++	  ;;
+ 	10.[012][,.]*)
+-	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-	10.*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+-      esac
++	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress'
++	  ;;
++	*)
++	  ;;
++     esac
+     ;;
+   esac
+     if test "$lt_cv_apple_cc_single_mod" = "yes"; then
+diff --git a/libatomic/configure b/libatomic/configure
+index 3e2f2ff4f202..6e706e90636b 100755
+--- a/libatomic/configure
++++ b/libatomic/configure
+@@ -7589,23 +7589,25 @@ _LT_EOF
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $lt_cv_ld_force_load" >&5
+ $as_echo "$lt_cv_ld_force_load" >&6; }
+-    case $host_os in
+-    rhapsody* | darwin1.[012])
++    # Allow for Darwin 4-7 (macOS 10.0-10.3) although these are not expect to
++    # build without first building modern cctools / linker.
++    case $host_cpu-$host_os in
++    *-rhapsody* | *-darwin1.[012])
+       _lt_dar_allow_undefined='${wl}-undefined ${wl}suppress' ;;
+-    darwin1.*)
++    *-darwin1.*)
+       _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-    darwin*) # darwin 5.x on
+-      # if running on 10.5 or later, the deployment target defaults
+-      # to the OS version, if on x86, and 10.4, the deployment
+-      # target defaults to 10.4. Don't you love it?
+-      case ${MACOSX_DEPLOYMENT_TARGET-10.0},$host in
+-	10.0,*86*-darwin8*|10.0,*-darwin[91]*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
++    *-darwin*)
++      # darwin 5.x (macOS 10.1) onwards we only need to adjust when the
++      # deployment target is forced to an earlier version.
++      case ${MACOSX_DEPLOYMENT_TARGET-UNSET},$host in
++	UNSET,*-darwin[89]*|UNSET,*-darwin[12][0123456789]*)
++	  ;;
+ 	10.[012][,.]*)
+-	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-	10.*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+-      esac
++	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress'
++	  ;;
++	*)
++	  ;;
++     esac
+     ;;
+   esac
+     if test "$lt_cv_apple_cc_single_mod" = "yes"; then
+diff --git a/libbacktrace/configure b/libbacktrace/configure
+index 28b9593342a9..6a0dd7602fe1 100755
+--- a/libbacktrace/configure
++++ b/libbacktrace/configure
+@@ -7968,23 +7968,25 @@ _LT_EOF
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $lt_cv_ld_force_load" >&5
+ $as_echo "$lt_cv_ld_force_load" >&6; }
+-    case $host_os in
+-    rhapsody* | darwin1.[012])
++    # Allow for Darwin 4-7 (macOS 10.0-10.3) although these are not expect to
++    # build without first building modern cctools / linker.
++    case $host_cpu-$host_os in
++    *-rhapsody* | *-darwin1.[012])
+       _lt_dar_allow_undefined='${wl}-undefined ${wl}suppress' ;;
+-    darwin1.*)
++    *-darwin1.*)
+       _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-    darwin*) # darwin 5.x on
+-      # if running on 10.5 or later, the deployment target defaults
+-      # to the OS version, if on x86, and 10.4, the deployment
+-      # target defaults to 10.4. Don't you love it?
+-      case ${MACOSX_DEPLOYMENT_TARGET-10.0},$host in
+-	10.0,*86*-darwin8*|10.0,*-darwin[91]*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
++    *-darwin*)
++      # darwin 5.x (macOS 10.1) onwards we only need to adjust when the
++      # deployment target is forced to an earlier version.
++      case ${MACOSX_DEPLOYMENT_TARGET-UNSET},$host in
++	UNSET,*-darwin[89]*|UNSET,*-darwin[12][0123456789]*)
++	  ;;
+ 	10.[012][,.]*)
+-	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-	10.*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+-      esac
++	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress'
++	  ;;
++	*)
++	  ;;
++     esac
+     ;;
+   esac
+     if test "$lt_cv_apple_cc_single_mod" = "yes"; then
+diff --git a/libcc1/Makefile.am b/libcc1/Makefile.am
+index c005b0dad4a8..fe7b64cbc6fe 100644
+--- a/libcc1/Makefile.am
++++ b/libcc1/Makefile.am
+@@ -25,6 +25,9 @@ CPPFLAGS_FOR_C_FAMILY = -I $(srcdir)/../gcc/c-family \
+ CPPFLAGS_FOR_C = $(CPPFLAGS_FOR_C_FAMILY) -I $(srcdir)/../gcc/c
+ CPPFLAGS_FOR_CXX = $(CPPFLAGS_FOR_C_FAMILY) -I $(srcdir)/../gcc/cp
+ AM_CXXFLAGS = $(WARN_FLAGS) $(WERROR) $(visibility)
++if DARWIN_DYNAMIC_LOOKUP
++AM_CXXFLAGS += -Wl,-undefined,dynamic_lookup
++endif
+ override CXXFLAGS := $(filter-out -fsanitize=address,$(CXXFLAGS))
+ override LDFLAGS := $(filter-out -fsanitize=address,$(LDFLAGS))
+ # Can be simplified when libiberty becomes a normal convenience library.
+diff --git a/libcc1/Makefile.in b/libcc1/Makefile.in
+index 7104b649026b..2def836cb06a 100644
+--- a/libcc1/Makefile.in
++++ b/libcc1/Makefile.in
+@@ -89,6 +89,7 @@ POST_UNINSTALL = :
+ build_triplet = @build@
+ host_triplet = @host@
+ target_triplet = @target@
++@DARWIN_DYNAMIC_LOOKUP_TRUE@am__append_1 = -Wl,-undefined,dynamic_lookup
+ subdir = .
+ ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
+ am__aclocal_m4_deps = $(top_srcdir)/../config/acx.m4 \
+@@ -382,7 +383,7 @@ CPPFLAGS_FOR_C_FAMILY = -I $(srcdir)/../gcc/c-family \
+ 
+ CPPFLAGS_FOR_C = $(CPPFLAGS_FOR_C_FAMILY) -I $(srcdir)/../gcc/c
+ CPPFLAGS_FOR_CXX = $(CPPFLAGS_FOR_C_FAMILY) -I $(srcdir)/../gcc/cp
+-AM_CXXFLAGS = $(WARN_FLAGS) $(WERROR) $(visibility)
++AM_CXXFLAGS = $(WARN_FLAGS) $(WERROR) $(visibility) $(am__append_1)
+ # Can be simplified when libiberty becomes a normal convenience library.
+ libiberty_normal = ../libiberty/libiberty.a
+ libiberty_noasan = ../libiberty/noasan/libiberty.a
+diff --git a/libcc1/configure b/libcc1/configure
+index 64fdc4451630..f1c64d86b525 100755
+--- a/libcc1/configure
++++ b/libcc1/configure
+@@ -635,6 +635,8 @@ LTLIBOBJS
+ LIBOBJS
+ ENABLE_PLUGIN_FALSE
+ ENABLE_PLUGIN_TRUE
++DARWIN_DYNAMIC_LOOKUP_FALSE
++DARWIN_DYNAMIC_LOOKUP_TRUE
+ libsuffix
+ GMPINC
+ WERROR
+@@ -7250,23 +7252,25 @@ _LT_EOF
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $lt_cv_ld_force_load" >&5
+ $as_echo "$lt_cv_ld_force_load" >&6; }
+-    case $host_os in
+-    rhapsody* | darwin1.[012])
++    # Allow for Darwin 4-7 (macOS 10.0-10.3) although these are not expect to
++    # build without first building modern cctools / linker.
++    case $host_cpu-$host_os in
++    *-rhapsody* | *-darwin1.[012])
+       _lt_dar_allow_undefined='${wl}-undefined ${wl}suppress' ;;
+-    darwin1.*)
++    *-darwin1.*)
+       _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-    darwin*) # darwin 5.x on
+-      # if running on 10.5 or later, the deployment target defaults
+-      # to the OS version, if on x86, and 10.4, the deployment
+-      # target defaults to 10.4. Don't you love it?
+-      case ${MACOSX_DEPLOYMENT_TARGET-10.0},$host in
+-	10.0,*86*-darwin8*|10.0,*-darwin[91]*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
++    *-darwin*)
++      # darwin 5.x (macOS 10.1) onwards we only need to adjust when the
++      # deployment target is forced to an earlier version.
++      case ${MACOSX_DEPLOYMENT_TARGET-UNSET},$host in
++	UNSET,*-darwin[89]*|UNSET,*-darwin[12][0123456789]*)
++	  ;;
+ 	10.[012][,.]*)
+-	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-	10.*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+-      esac
++	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress'
++	  ;;
++	*)
++	  ;;
++     esac
+     ;;
+   esac
+     if test "$lt_cv_apple_cc_single_mod" = "yes"; then
+@@ -14781,6 +14785,19 @@ fi
+ $as_echo "$libcc1_cv_lib_sockets" >&6; }
+ LIBS="$LIBS $libcc1_cv_lib_sockets"
+ 
++case "$host" in
++  *-*-darwin*) darwin_dynamic_lookup=yes ;;
++  *) darwin_dynamic_lookup=no ;;
++esac
++ if test $darwin_dynamic_lookup = yes; then
++  DARWIN_DYNAMIC_LOOKUP_TRUE=
++  DARWIN_DYNAMIC_LOOKUP_FALSE='#'
++else
++  DARWIN_DYNAMIC_LOOKUP_TRUE='#'
++  DARWIN_DYNAMIC_LOOKUP_FALSE=
++fi
++
++
+ # If any of these functions are missing, simply don't bother building
+ # this plugin.
+ # Check for plugin support
+@@ -15149,6 +15166,10 @@ if test -z "${am__fastdepCXX_TRUE}" && test -z "${am__fastdepCXX_FALSE}"; then
+   as_fn_error $? "conditional \"am__fastdepCXX\" was never defined.
+ Usually this means the macro was only invoked conditionally." "$LINENO" 5
+ fi
++if test -z "${DARWIN_DYNAMIC_LOOKUP_TRUE}" && test -z "${DARWIN_DYNAMIC_LOOKUP_FALSE}"; then
++  as_fn_error $? "conditional \"DARWIN_DYNAMIC_LOOKUP\" was never defined.
++Usually this means the macro was only invoked conditionally." "$LINENO" 5
++fi
+ if test -z "${ENABLE_PLUGIN_TRUE}" && test -z "${ENABLE_PLUGIN_FALSE}"; then
+   as_fn_error $? "conditional \"ENABLE_PLUGIN\" was never defined.
+ Usually this means the macro was only invoked conditionally." "$LINENO" 5
+diff --git a/libcc1/configure.ac b/libcc1/configure.ac
+index 7f20f0b6f680..1a46989e3b6f 100644
+--- a/libcc1/configure.ac
++++ b/libcc1/configure.ac
+@@ -101,6 +101,12 @@ AC_CACHE_CHECK([for socket libraries], libcc1_cv_lib_sockets,
+ ])
+ LIBS="$LIBS $libcc1_cv_lib_sockets"
+ 
++case "$host" in
++  *-*-darwin*) darwin_dynamic_lookup=yes ;;
++  *) darwin_dynamic_lookup=no ;;
++esac
++AM_CONDITIONAL(DARWIN_DYNAMIC_LOOKUP, test $darwin_dynamic_lookup = yes)
++
+ # If any of these functions are missing, simply don't bother building
+ # this plugin.
+ GCC_ENABLE_PLUGINS
+diff --git a/libffi/configure b/libffi/configure
+index f0051505d104..b32e109f0302 100755
+--- a/libffi/configure
++++ b/libffi/configure
+@@ -7762,23 +7762,25 @@ _LT_EOF
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $lt_cv_ld_force_load" >&5
+ $as_echo "$lt_cv_ld_force_load" >&6; }
+-    case $host_os in
+-    rhapsody* | darwin1.[012])
++    # Allow for Darwin 4-7 (macOS 10.0-10.3) although these are not expect to
++    # build without first building modern cctools / linker.
++    case $host_cpu-$host_os in
++    *-rhapsody* | *-darwin1.[012])
+       _lt_dar_allow_undefined='${wl}-undefined ${wl}suppress' ;;
+-    darwin1.*)
++    *-darwin1.*)
+       _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-    darwin*) # darwin 5.x on
+-      # if running on 10.5 or later, the deployment target defaults
+-      # to the OS version, if on x86, and 10.4, the deployment
+-      # target defaults to 10.4. Don't you love it?
+-      case ${MACOSX_DEPLOYMENT_TARGET-10.0},$host in
+-	10.0,*86*-darwin8*|10.0,*-darwin[91]*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
++    *-darwin*)
++      # darwin 5.x (macOS 10.1) onwards we only need to adjust when the
++      # deployment target is forced to an earlier version.
++      case ${MACOSX_DEPLOYMENT_TARGET-UNSET},$host in
++	UNSET,*-darwin[89]*|UNSET,*-darwin[12][0123456789]*)
++	  ;;
+ 	10.[012][,.]*)
+-	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-	10.*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+-      esac
++	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress'
++	  ;;
++	*)
++	  ;;
++     esac
+     ;;
+   esac
+     if test "$lt_cv_apple_cc_single_mod" = "yes"; then
+diff --git a/libgfortran/configure b/libgfortran/configure
+index b4cf854ddb39..1b4a8b106096 100755
+--- a/libgfortran/configure
++++ b/libgfortran/configure
+@@ -9163,23 +9163,25 @@ _LT_EOF
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $lt_cv_ld_force_load" >&5
+ $as_echo "$lt_cv_ld_force_load" >&6; }
+-    case $host_os in
+-    rhapsody* | darwin1.[012])
++    # Allow for Darwin 4-7 (macOS 10.0-10.3) although these are not expect to
++    # build without first building modern cctools / linker.
++    case $host_cpu-$host_os in
++    *-rhapsody* | *-darwin1.[012])
+       _lt_dar_allow_undefined='${wl}-undefined ${wl}suppress' ;;
+-    darwin1.*)
++    *-darwin1.*)
+       _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-    darwin*) # darwin 5.x on
+-      # if running on 10.5 or later, the deployment target defaults
+-      # to the OS version, if on x86, and 10.4, the deployment
+-      # target defaults to 10.4. Don't you love it?
+-      case ${MACOSX_DEPLOYMENT_TARGET-10.0},$host in
+-	10.0,*86*-darwin8*|10.0,*-darwin[91]*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
++    *-darwin*)
++      # darwin 5.x (macOS 10.1) onwards we only need to adjust when the
++      # deployment target is forced to an earlier version.
++      case ${MACOSX_DEPLOYMENT_TARGET-UNSET},$host in
++	UNSET,*-darwin[89]*|UNSET,*-darwin[12][0123456789]*)
++	  ;;
+ 	10.[012][,.]*)
+-	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-	10.*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+-      esac
++	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress'
++	  ;;
++	*)
++	  ;;
++     esac
+     ;;
+   esac
+     if test "$lt_cv_apple_cc_single_mod" = "yes"; then
+diff --git a/libgomp/Makefile.in b/libgomp/Makefile.in
+index 7c426caeb682..ae5d9d547053 100644
+--- a/libgomp/Makefile.in
++++ b/libgomp/Makefile.in
+@@ -16,7 +16,7 @@
+ 
+ # Plugins for offload execution, Makefile.am fragment.
+ #
+-# Copyright (C) 2014-2019 Free Software Foundation, Inc.
++# Copyright (C) 2014-2020 Free Software Foundation, Inc.
+ #
+ # Contributed by Mentor Embedded.
+ #
+diff --git a/libgomp/configure b/libgomp/configure
+index d8d98f182d4c..69f57e315218 100755
+--- a/libgomp/configure
++++ b/libgomp/configure
+@@ -7634,23 +7634,25 @@ _LT_EOF
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $lt_cv_ld_force_load" >&5
+ $as_echo "$lt_cv_ld_force_load" >&6; }
+-    case $host_os in
+-    rhapsody* | darwin1.[012])
++    # Allow for Darwin 4-7 (macOS 10.0-10.3) although these are not expect to
++    # build without first building modern cctools / linker.
++    case $host_cpu-$host_os in
++    *-rhapsody* | *-darwin1.[012])
+       _lt_dar_allow_undefined='${wl}-undefined ${wl}suppress' ;;
+-    darwin1.*)
++    *-darwin1.*)
+       _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-    darwin*) # darwin 5.x on
+-      # if running on 10.5 or later, the deployment target defaults
+-      # to the OS version, if on x86, and 10.4, the deployment
+-      # target defaults to 10.4. Don't you love it?
+-      case ${MACOSX_DEPLOYMENT_TARGET-10.0},$host in
+-	10.0,*86*-darwin8*|10.0,*-darwin[91]*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
++    *-darwin*)
++      # darwin 5.x (macOS 10.1) onwards we only need to adjust when the
++      # deployment target is forced to an earlier version.
++      case ${MACOSX_DEPLOYMENT_TARGET-UNSET},$host in
++	UNSET,*-darwin[89]*|UNSET,*-darwin[12][0123456789]*)
++	  ;;
+ 	10.[012][,.]*)
+-	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-	10.*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+-      esac
++	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress'
++	  ;;
++	*)
++	  ;;
++     esac
+     ;;
+   esac
+     if test "$lt_cv_apple_cc_single_mod" = "yes"; then
+diff --git a/libhsail-rt/configure b/libhsail-rt/configure
+index 49d529c8f5fe..33e61484333f 100755
+--- a/libhsail-rt/configure
++++ b/libhsail-rt/configure
+@@ -7442,23 +7442,25 @@ _LT_EOF
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $lt_cv_ld_force_load" >&5
+ $as_echo "$lt_cv_ld_force_load" >&6; }
+-    case $host_os in
+-    rhapsody* | darwin1.[012])
++    # Allow for Darwin 4-7 (macOS 10.0-10.3) although these are not expect to
++    # build without first building modern cctools / linker.
++    case $host_cpu-$host_os in
++    *-rhapsody* | *-darwin1.[012])
+       _lt_dar_allow_undefined='${wl}-undefined ${wl}suppress' ;;
+-    darwin1.*)
++    *-darwin1.*)
+       _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-    darwin*) # darwin 5.x on
+-      # if running on 10.5 or later, the deployment target defaults
+-      # to the OS version, if on x86, and 10.4, the deployment
+-      # target defaults to 10.4. Don't you love it?
+-      case ${MACOSX_DEPLOYMENT_TARGET-10.0},$host in
+-	10.0,*86*-darwin8*|10.0,*-darwin[91]*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
++    *-darwin*)
++      # darwin 5.x (macOS 10.1) onwards we only need to adjust when the
++      # deployment target is forced to an earlier version.
++      case ${MACOSX_DEPLOYMENT_TARGET-UNSET},$host in
++	UNSET,*-darwin[89]*|UNSET,*-darwin[12][0123456789]*)
++	  ;;
+ 	10.[012][,.]*)
+-	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-	10.*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+-      esac
++	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress'
++	  ;;
++	*)
++	  ;;
++     esac
+     ;;
+   esac
+     if test "$lt_cv_apple_cc_single_mod" = "yes"; then
+diff --git a/libitm/configure b/libitm/configure
+index 97db1bc8845c..ea31a1d5cdda 100755
+--- a/libitm/configure
++++ b/libitm/configure
+@@ -8265,23 +8265,25 @@ _LT_EOF
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $lt_cv_ld_force_load" >&5
+ $as_echo "$lt_cv_ld_force_load" >&6; }
+-    case $host_os in
+-    rhapsody* | darwin1.[012])
++    # Allow for Darwin 4-7 (macOS 10.0-10.3) although these are not expect to
++    # build without first building modern cctools / linker.
++    case $host_cpu-$host_os in
++    *-rhapsody* | *-darwin1.[012])
+       _lt_dar_allow_undefined='${wl}-undefined ${wl}suppress' ;;
+-    darwin1.*)
++    *-darwin1.*)
+       _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-    darwin*) # darwin 5.x on
+-      # if running on 10.5 or later, the deployment target defaults
+-      # to the OS version, if on x86, and 10.4, the deployment
+-      # target defaults to 10.4. Don't you love it?
+-      case ${MACOSX_DEPLOYMENT_TARGET-10.0},$host in
+-	10.0,*86*-darwin8*|10.0,*-darwin[91]*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
++    *-darwin*)
++      # darwin 5.x (macOS 10.1) onwards we only need to adjust when the
++      # deployment target is forced to an earlier version.
++      case ${MACOSX_DEPLOYMENT_TARGET-UNSET},$host in
++	UNSET,*-darwin[89]*|UNSET,*-darwin[12][0123456789]*)
++	  ;;
+ 	10.[012][,.]*)
+-	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-	10.*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+-      esac
++	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress'
++	  ;;
++	*)
++	  ;;
++     esac
+     ;;
+   esac
+     if test "$lt_cv_apple_cc_single_mod" = "yes"; then
+diff --git a/libitm/configure.tgt b/libitm/configure.tgt
+index 04109160e91c..d1beb5c9ec85 100644
+--- a/libitm/configure.tgt
++++ b/libitm/configure.tgt
+@@ -43,6 +43,7 @@ if test "$gcc_cv_have_tls" = yes ; then
+     *-*-linux*)
+ 	XCFLAGS="${XCFLAGS} -ftls-model=initial-exec"
+ 	;;
++
+   esac
+ fi
+ 
+@@ -144,10 +145,16 @@ case "${target}" in
+   *-*-gnu* | *-*-k*bsd*-gnu \
+   | *-*-netbsd* | *-*-freebsd* | *-*-openbsd* \
+   | *-*-solaris2* | *-*-sysv4* | *-*-hpux11* \
+-  | *-*-darwin* | *-*-aix* | *-*-dragonfly*)
++  | *-*-aix* | *-*-dragonfly*)
+ 	# POSIX system.  The OS is supported.
+ 	;;
+ 
++  *-*-darwin*)
++	# The OS is supported, but we need dynamic lookup to support undefined
++	# weak symbols at link-time.
++	XLDFLAGS="${XLDFLAGS} -Wl,-undefined,dynamic_lookup"
++	;;
++
+   *)	# Non-POSIX, or embedded system
+ 	UNSUPPORTED=1
+ 	;;
+diff --git a/libobjc/configure b/libobjc/configure
+index 2f8924e5042f..32c389f13859 100755
+--- a/libobjc/configure
++++ b/libobjc/configure
+@@ -6952,23 +6952,25 @@ _LT_EOF
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $lt_cv_ld_force_load" >&5
+ $as_echo "$lt_cv_ld_force_load" >&6; }
+-    case $host_os in
+-    rhapsody* | darwin1.[012])
++    # Allow for Darwin 4-7 (macOS 10.0-10.3) although these are not expect to
++    # build without first building modern cctools / linker.
++    case $host_cpu-$host_os in
++    *-rhapsody* | *-darwin1.[012])
+       _lt_dar_allow_undefined='${wl}-undefined ${wl}suppress' ;;
+-    darwin1.*)
++    *-darwin1.*)
+       _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-    darwin*) # darwin 5.x on
+-      # if running on 10.5 or later, the deployment target defaults
+-      # to the OS version, if on x86, and 10.4, the deployment
+-      # target defaults to 10.4. Don't you love it?
+-      case ${MACOSX_DEPLOYMENT_TARGET-10.0},$host in
+-	10.0,*86*-darwin8*|10.0,*-darwin[91]*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
++    *-darwin*)
++      # darwin 5.x (macOS 10.1) onwards we only need to adjust when the
++      # deployment target is forced to an earlier version.
++      case ${MACOSX_DEPLOYMENT_TARGET-UNSET},$host in
++	UNSET,*-darwin[89]*|UNSET,*-darwin[12][0123456789]*)
++	  ;;
+ 	10.[012][,.]*)
+-	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-	10.*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+-      esac
++	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress'
++	  ;;
++	*)
++	  ;;
++     esac
+     ;;
+   esac
+     if test "$lt_cv_apple_cc_single_mod" = "yes"; then
+diff --git a/libphobos/configure b/libphobos/configure
+index e461c7442b29..29595b938f62 100755
+--- a/libphobos/configure
++++ b/libphobos/configure
+@@ -8117,23 +8117,25 @@ _LT_EOF
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $lt_cv_ld_force_load" >&5
+ $as_echo "$lt_cv_ld_force_load" >&6; }
+-    case $host_os in
+-    rhapsody* | darwin1.[012])
++    # Allow for Darwin 4-7 (macOS 10.0-10.3) although these are not expect to
++    # build without first building modern cctools / linker.
++    case $host_cpu-$host_os in
++    *-rhapsody* | *-darwin1.[012])
+       _lt_dar_allow_undefined='${wl}-undefined ${wl}suppress' ;;
+-    darwin1.*)
++    *-darwin1.*)
+       _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-    darwin*) # darwin 5.x on
+-      # if running on 10.5 or later, the deployment target defaults
+-      # to the OS version, if on x86, and 10.4, the deployment
+-      # target defaults to 10.4. Don't you love it?
+-      case ${MACOSX_DEPLOYMENT_TARGET-10.0},$host in
+-	10.0,*86*-darwin8*|10.0,*-darwin[91]*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
++    *-darwin*)
++      # darwin 5.x (macOS 10.1) onwards we only need to adjust when the
++      # deployment target is forced to an earlier version.
++      case ${MACOSX_DEPLOYMENT_TARGET-UNSET},$host in
++	UNSET,*-darwin[89]*|UNSET,*-darwin[12][0123456789]*)
++	  ;;
+ 	10.[012][,.]*)
+-	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-	10.*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+-      esac
++	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress'
++	  ;;
++	*)
++	  ;;
++     esac
+     ;;
+   esac
+     if test "$lt_cv_apple_cc_single_mod" = "yes"; then
+diff --git a/libquadmath/configure b/libquadmath/configure
+index 7b45eb7e805f..b5b212c06392 100755
+--- a/libquadmath/configure
++++ b/libquadmath/configure
+@@ -7256,23 +7256,25 @@ _LT_EOF
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $lt_cv_ld_force_load" >&5
+ $as_echo "$lt_cv_ld_force_load" >&6; }
+-    case $host_os in
+-    rhapsody* | darwin1.[012])
++    # Allow for Darwin 4-7 (macOS 10.0-10.3) although these are not expect to
++    # build without first building modern cctools / linker.
++    case $host_cpu-$host_os in
++    *-rhapsody* | *-darwin1.[012])
+       _lt_dar_allow_undefined='${wl}-undefined ${wl}suppress' ;;
+-    darwin1.*)
++    *-darwin1.*)
+       _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-    darwin*) # darwin 5.x on
+-      # if running on 10.5 or later, the deployment target defaults
+-      # to the OS version, if on x86, and 10.4, the deployment
+-      # target defaults to 10.4. Don't you love it?
+-      case ${MACOSX_DEPLOYMENT_TARGET-10.0},$host in
+-	10.0,*86*-darwin8*|10.0,*-darwin[91]*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
++    *-darwin*)
++      # darwin 5.x (macOS 10.1) onwards we only need to adjust when the
++      # deployment target is forced to an earlier version.
++      case ${MACOSX_DEPLOYMENT_TARGET-UNSET},$host in
++	UNSET,*-darwin[89]*|UNSET,*-darwin[12][0123456789]*)
++	  ;;
+ 	10.[012][,.]*)
+-	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-	10.*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+-      esac
++	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress'
++	  ;;
++	*)
++	  ;;
++     esac
+     ;;
+   esac
+     if test "$lt_cv_apple_cc_single_mod" = "yes"; then
+diff --git a/libsanitizer/configure b/libsanitizer/configure
+index 0c56bdf2d7d4..ed0c15e37fc7 100755
+--- a/libsanitizer/configure
++++ b/libsanitizer/configure
+@@ -8831,23 +8831,25 @@ _LT_EOF
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $lt_cv_ld_force_load" >&5
+ $as_echo "$lt_cv_ld_force_load" >&6; }
+-    case $host_os in
+-    rhapsody* | darwin1.[012])
++    # Allow for Darwin 4-7 (macOS 10.0-10.3) although these are not expect to
++    # build without first building modern cctools / linker.
++    case $host_cpu-$host_os in
++    *-rhapsody* | *-darwin1.[012])
+       _lt_dar_allow_undefined='${wl}-undefined ${wl}suppress' ;;
+-    darwin1.*)
++    *-darwin1.*)
+       _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-    darwin*) # darwin 5.x on
+-      # if running on 10.5 or later, the deployment target defaults
+-      # to the OS version, if on x86, and 10.4, the deployment
+-      # target defaults to 10.4. Don't you love it?
+-      case ${MACOSX_DEPLOYMENT_TARGET-10.0},$host in
+-	10.0,*86*-darwin8*|10.0,*-darwin[91]*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
++    *-darwin*)
++      # darwin 5.x (macOS 10.1) onwards we only need to adjust when the
++      # deployment target is forced to an earlier version.
++      case ${MACOSX_DEPLOYMENT_TARGET-UNSET},$host in
++	UNSET,*-darwin[89]*|UNSET,*-darwin[12][0123456789]*)
++	  ;;
+ 	10.[012][,.]*)
+-	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-	10.*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+-      esac
++	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress'
++	  ;;
++	*)
++	  ;;
++     esac
+     ;;
+   esac
+     if test "$lt_cv_apple_cc_single_mod" = "yes"; then
+diff --git a/libsanitizer/configure.tgt b/libsanitizer/configure.tgt
+index 79084e58afbc..fa30065b5954 100644
+--- a/libsanitizer/configure.tgt
++++ b/libsanitizer/configure.tgt
+@@ -62,6 +62,7 @@ case "${target}" in
+ 	;;
+   x86_64-*-darwin2* | x86_64-*-darwin1[2-9]* | i?86-*-darwin1[2-9]*)
+ 	TSAN_SUPPORTED=no
++	EXTRA_CXXFLAGS+="-Wl,-undefined,dynamic_lookup"
+ 	;;
+   x86_64-*-solaris2.11* | i?86-*-solaris2.11*)
+ 	;;
+diff --git a/libssp/configure b/libssp/configure
+index dd3b41da0f62..db527f475195 100755
+--- a/libssp/configure
++++ b/libssp/configure
+@@ -7438,23 +7438,25 @@ _LT_EOF
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $lt_cv_ld_force_load" >&5
+ $as_echo "$lt_cv_ld_force_load" >&6; }
+-    case $host_os in
+-    rhapsody* | darwin1.[012])
++    # Allow for Darwin 4-7 (macOS 10.0-10.3) although these are not expect to
++    # build without first building modern cctools / linker.
++    case $host_cpu-$host_os in
++    *-rhapsody* | *-darwin1.[012])
+       _lt_dar_allow_undefined='${wl}-undefined ${wl}suppress' ;;
+-    darwin1.*)
++    *-darwin1.*)
+       _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-    darwin*) # darwin 5.x on
+-      # if running on 10.5 or later, the deployment target defaults
+-      # to the OS version, if on x86, and 10.4, the deployment
+-      # target defaults to 10.4. Don't you love it?
+-      case ${MACOSX_DEPLOYMENT_TARGET-10.0},$host in
+-	10.0,*86*-darwin8*|10.0,*-darwin[91]*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
++    *-darwin*)
++      # darwin 5.x (macOS 10.1) onwards we only need to adjust when the
++      # deployment target is forced to an earlier version.
++      case ${MACOSX_DEPLOYMENT_TARGET-UNSET},$host in
++	UNSET,*-darwin[89]*|UNSET,*-darwin[12][0123456789]*)
++	  ;;
+ 	10.[012][,.]*)
+-	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-	10.*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+-      esac
++	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress'
++	  ;;
++	*)
++	  ;;
++     esac
+     ;;
+   esac
+     if test "$lt_cv_apple_cc_single_mod" = "yes"; then
+diff --git a/libstdc++-v3/configure b/libstdc++-v3/configure
+index b9c9b844c278..e7a069c567eb 100755
+--- a/libstdc++-v3/configure
++++ b/libstdc++-v3/configure
+@@ -8373,23 +8373,25 @@ _LT_EOF
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $lt_cv_ld_force_load" >&5
+ $as_echo "$lt_cv_ld_force_load" >&6; }
+-    case $host_os in
+-    rhapsody* | darwin1.[012])
++    # Allow for Darwin 4-7 (macOS 10.0-10.3) although these are not expect to
++    # build without first building modern cctools / linker.
++    case $host_cpu-$host_os in
++    *-rhapsody* | *-darwin1.[012])
+       _lt_dar_allow_undefined='${wl}-undefined ${wl}suppress' ;;
+-    darwin1.*)
++    *-darwin1.*)
+       _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-    darwin*) # darwin 5.x on
+-      # if running on 10.5 or later, the deployment target defaults
+-      # to the OS version, if on x86, and 10.4, the deployment
+-      # target defaults to 10.4. Don't you love it?
+-      case ${MACOSX_DEPLOYMENT_TARGET-10.0},$host in
+-	10.0,*86*-darwin8*|10.0,*-darwin[91]*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
++    *-darwin*)
++      # darwin 5.x (macOS 10.1) onwards we only need to adjust when the
++      # deployment target is forced to an earlier version.
++      case ${MACOSX_DEPLOYMENT_TARGET-UNSET},$host in
++	UNSET,*-darwin[89]*|UNSET,*-darwin[12][0123456789]*)
++	  ;;
+ 	10.[012][,.]*)
+-	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-	10.*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+-      esac
++	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress'
++	  ;;
++	*)
++	  ;;
++     esac
+     ;;
+   esac
+     if test "$lt_cv_apple_cc_single_mod" = "yes"; then
+diff --git a/libtool.m4 b/libtool.m4
+index e194e899fcfb..00206549f540 100644
+--- a/libtool.m4
++++ b/libtool.m4
+@@ -994,23 +994,25 @@ _LT_EOF
+         rm -f conftest.err libconftest.a conftest conftest.c
+         rm -rf conftest.dSYM
+     ])
+-    case $host_os in
+-    rhapsody* | darwin1.[[012]])
++    # Allow for Darwin 4-7 (macOS 10.0-10.3) although these are not expect to
++    # build without first building modern cctools / linker.
++    case $host_cpu-$host_os in
++    *-rhapsody* | *-darwin1.[[012]])
+       _lt_dar_allow_undefined='${wl}-undefined ${wl}suppress' ;;
+-    darwin1.*)
++    *-darwin1.*)
+       _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-    darwin*) # darwin 5.x on
+-      # if running on 10.5 or later, the deployment target defaults
+-      # to the OS version, if on x86, and 10.4, the deployment
+-      # target defaults to 10.4. Don't you love it?
+-      case ${MACOSX_DEPLOYMENT_TARGET-10.0},$host in
+-	10.0,*86*-darwin8*|10.0,*-darwin[[91]]*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
++    *-darwin*)
++      # darwin 5.x (macOS 10.1) onwards we only need to adjust when the
++      # deployment target is forced to an earlier version.
++      case ${MACOSX_DEPLOYMENT_TARGET-UNSET},$host in
++	UNSET,*-darwin[[89]]*|UNSET,*-darwin[[12]][[0123456789]]*)
++	  ;;
+ 	10.[[012]][[,.]]*)
+-	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-	10.*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+-      esac
++	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress'
++	  ;;
++	*)
++	  ;;
++     esac
+     ;;
+   esac
+     if test "$lt_cv_apple_cc_single_mod" = "yes"; then
+@@ -1033,7 +1035,7 @@ _LT_EOF
+ 
+ # _LT_DARWIN_LINKER_FEATURES
+ # --------------------------
+-# Checks for linker and compiler features on darwin
++# Checks for linker and compiler features on Darwin / macOS / iOS
+ m4_defun([_LT_DARWIN_LINKER_FEATURES],
+ [
+   m4_require([_LT_REQUIRED_DARWIN_CHECKS])
+diff --git a/libvtv/configure b/libvtv/configure
+index fc969525da01..4de60cf5e501 100755
+--- a/libvtv/configure
++++ b/libvtv/configure
+@@ -8732,23 +8732,25 @@ _LT_EOF
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $lt_cv_ld_force_load" >&5
+ $as_echo "$lt_cv_ld_force_load" >&6; }
+-    case $host_os in
+-    rhapsody* | darwin1.[012])
++    # Allow for Darwin 4-7 (macOS 10.0-10.3) although these are not expect to
++    # build without first building modern cctools / linker.
++    case $host_cpu-$host_os in
++    *-rhapsody* | *-darwin1.[012])
+       _lt_dar_allow_undefined='${wl}-undefined ${wl}suppress' ;;
+-    darwin1.*)
++    *-darwin1.*)
+       _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-    darwin*) # darwin 5.x on
+-      # if running on 10.5 or later, the deployment target defaults
+-      # to the OS version, if on x86, and 10.4, the deployment
+-      # target defaults to 10.4. Don't you love it?
+-      case ${MACOSX_DEPLOYMENT_TARGET-10.0},$host in
+-	10.0,*86*-darwin8*|10.0,*-darwin[91]*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
++    *-darwin*)
++      # darwin 5.x (macOS 10.1) onwards we only need to adjust when the
++      # deployment target is forced to an earlier version.
++      case ${MACOSX_DEPLOYMENT_TARGET-UNSET},$host in
++	UNSET,*-darwin[89]*|UNSET,*-darwin[12][0123456789]*)
++	  ;;
+ 	10.[012][,.]*)
+-	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-	10.*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+-      esac
++	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress'
++	  ;;
++	*)
++	  ;;
++     esac
+     ;;
+   esac
+     if test "$lt_cv_apple_cc_single_mod" = "yes"; then
+diff --git a/zlib/configure b/zlib/configure
+index 484a4938f4a8..46a35918ddbd 100755
+--- a/zlib/configure
++++ b/zlib/configure
+@@ -3400,11 +3400,11 @@ done
+ 
+ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+-
++#include <stdio.h>
+ int
+ main ()
+ {
+-
++printf ("hello world\n");
+   ;
+   return 0;
+ }
+@@ -6827,23 +6827,25 @@ _LT_EOF
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $lt_cv_ld_force_load" >&5
+ $as_echo "$lt_cv_ld_force_load" >&6; }
+-    case $host_os in
+-    rhapsody* | darwin1.[012])
++    # Allow for Darwin 4-7 (macOS 10.0-10.3) although these are not expect to
++    # build without first building modern cctools / linker.
++    case $host_cpu-$host_os in
++    *-rhapsody* | *-darwin1.[012])
+       _lt_dar_allow_undefined='${wl}-undefined ${wl}suppress' ;;
+-    darwin1.*)
++    *-darwin1.*)
+       _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-    darwin*) # darwin 5.x on
+-      # if running on 10.5 or later, the deployment target defaults
+-      # to the OS version, if on x86, and 10.4, the deployment
+-      # target defaults to 10.4. Don't you love it?
+-      case ${MACOSX_DEPLOYMENT_TARGET-10.0},$host in
+-	10.0,*86*-darwin8*|10.0,*-darwin[91]*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
++    *-darwin*)
++      # darwin 5.x (macOS 10.1) onwards we only need to adjust when the
++      # deployment target is forced to an earlier version.
++      case ${MACOSX_DEPLOYMENT_TARGET-UNSET},$host in
++	UNSET,*-darwin[89]*|UNSET,*-darwin[12][0123456789]*)
++	  ;;
+ 	10.[012][,.]*)
+-	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-	10.*)
+-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+-      esac
++	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress'
++	  ;;
++	*)
++	  ;;
++     esac
+     ;;
+   esac
+     if test "$lt_cv_apple_cc_single_mod" = "yes"; then
