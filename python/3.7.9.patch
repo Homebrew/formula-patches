@@ -1,0 +1,96 @@
+From 09a698b4743c669983d606595a1b2daeff6c3cf8 Mon Sep 17 00:00:00 2001
+From: "Miss Islington (bot)"
+ <31488909+miss-islington@users.noreply.github.com>
+Date: Wed, 2 Dec 2020 19:43:08 -0800
+Subject: [PATCH] bpo-42504: fix for MACOSX_DEPLOYMENT_TARGET=11 (GH-23556)
+
+macOS releases numbering has changed as of macOS 11 Big Sur.  Previously, major releases were of the form 10.x, 10.x+1, 10.x+2, etc; as of Big Sur, they are now x, x+1, etc, so, for example, 10.15, 10.15.1, ..., 10.15.7, 11, 11.0.1, 11.1, ..., 12, 12.1, etc. Allow Python to build with single-digit deployment target values. Patch provided by FX Coudert.
+(cherry picked from commit 5291639e611dc3f55a34666036f2c3424648ba50)
+
+Co-authored-by: FX Coudert <fxcoudert@gmail.com>
+Co-authored-by: Mitchell Hentges <mhentges@mozilla.com> (backported to 3.7)
+---
+ Lib/distutils/spawn.py                | 4 ++--
+ Lib/distutils/tests/test_build_ext.py | 9 ++++++---
+ Lib/test/test_posix.py                | 2 +-
+ setup.py                              | 2 +-
+ 4 files changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/Lib/distutils/spawn.py b/Lib/distutils/spawn.py
+index d3a12c2833..2cd3c4dfdc 100644
+--- a/Lib/distutils/spawn.py
++++ b/Lib/distutils/spawn.py
+@@ -95,8 +95,8 @@ def _spawn_posix(cmd, search_path=1, verbose=0, dry_run=0):
+     if sys.platform == 'darwin':
+         global _cfg_target, _cfg_target_split
+         if _cfg_target is None:
+-            _cfg_target = sysconfig.get_config_var(
+-                                  'MACOSX_DEPLOYMENT_TARGET') or ''
++            _cfg_target = str(sysconfig.get_config_var(
++                                  'MACOSX_DEPLOYMENT_TARGET') or '')
+             if _cfg_target:
+                 _cfg_target_split = [int(x) for x in _cfg_target.split('.')]
+         if _cfg_target:
+diff --git a/Lib/distutils/tests/test_build_ext.py b/Lib/distutils/tests/test_build_ext.py
+index d0428599a4..8d7a7831b1 100644
+--- a/Lib/distutils/tests/test_build_ext.py
++++ b/Lib/distutils/tests/test_build_ext.py
+@@ -433,7 +433,7 @@ class BuildExtTestCase(TempdirManager,
+         deptarget = sysconfig.get_config_var('MACOSX_DEPLOYMENT_TARGET')
+         if deptarget:
+             # increment the minor version number (i.e. 10.6 -> 10.7)
+-            deptarget = [int(x) for x in deptarget.split('.')]
++            deptarget = [int(x) for x in str(deptarget).split('.')]
+             deptarget[-1] += 1
+             deptarget = '.'.join(str(i) for i in deptarget)
+             self._try_compile_deployment_target('<', deptarget)
+@@ -466,7 +466,7 @@ class BuildExtTestCase(TempdirManager,
+
+         # get the deployment target that the interpreter was built with
+         target = sysconfig.get_config_var('MACOSX_DEPLOYMENT_TARGET')
+-        target = tuple(map(int, target.split('.')[0:2]))
++        target = tuple(map(int, str(target).split('.')[0:2]))
+         # format the target value as defined in the Apple
+         # Availability Macros.  We can't use the macro names since
+         # at least one value we test with will not exist yet.
+@@ -475,7 +475,10 @@ class BuildExtTestCase(TempdirManager,
+             target = '%02d%01d0' % target
+         else:
+             # for 10.10 and beyond -> "10nn00"
+-            target = '%02d%02d00' % target
++            if len(target) >= 2:
++                target = '%02d%02d00' % target
++            else:
++                target = '%02d0000' % target
+         deptarget_ext = Extension(
+             'deptarget',
+             [deptarget_c],
+diff --git a/Lib/test/test_posix.py b/Lib/test/test_posix.py
+index 1cd9e567b3..14da2ac569 100644
+--- a/Lib/test/test_posix.py
++++ b/Lib/test/test_posix.py
+@@ -1053,7 +1053,7 @@ class PosixTester(unittest.TestCase):
+         if sys.platform == 'darwin':
+             import sysconfig
+             dt = sysconfig.get_config_var('MACOSX_DEPLOYMENT_TARGET') or '10.0'
+-            if tuple(int(n) for n in dt.split('.')[0:2]) < (10, 6):
++            if tuple(int(n) for n in str(dt).split('.')[0:2]) < (10, 6):
+                 raise unittest.SkipTest("getgroups(2) is broken prior to 10.6")
+
+         # 'id -G' and 'os.getgroups()' should return the same
+diff --git a/setup.py b/setup.py
+index bf90600eaa..f70defaca1 100644
+--- a/setup.py
++++ b/setup.py
+@@ -865,7 +865,7 @@ class PyBuildExt(build_ext):
+             os_release = int(os.uname()[2].split('.')[0])
+             dep_target = sysconfig.get_config_var('MACOSX_DEPLOYMENT_TARGET')
+             if (dep_target and
+-                    (tuple(int(n) for n in dep_target.split('.')[0:2])
++                    (tuple(int(n) for n in str(dep_target).split('.')[0:2])
+                         < (10, 5) ) ):
+                 os_release = 8
+             if os_release < 9:
+--
+2.30.0
+
