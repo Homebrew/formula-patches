@@ -1,0 +1,118 @@
+diff --git a/lldb/source/Plugins/Platform/MacOSX/PlatformAppleTVSimulator.cpp b/lldb/source/Plugins/Platform/MacOSX/PlatformAppleTVSimulator.cpp
+index 461624a2adaa..cd29109ccc0b 100644
+--- a/lldb/source/Plugins/Platform/MacOSX/PlatformAppleTVSimulator.cpp
++++ b/lldb/source/Plugins/Platform/MacOSX/PlatformAppleTVSimulator.cpp
+@@ -282,7 +282,7 @@ Status PlatformAppleTVSimulator::GetSymbolFile(const FileSpec &platform_file,
+ Status PlatformAppleTVSimulator::GetSharedModule(
+     const ModuleSpec &module_spec, lldb_private::Process *process,
+     ModuleSP &module_sp, const FileSpecList *module_search_paths_ptr,
+-    ModuleSP *old_module_sp_ptr, bool *did_create_ptr) {
++    llvm::SmallVectorImpl<lldb::ModuleSP> *old_module, bool *did_create_ptr) {
+   // For AppleTV, the SDK files are all cached locally on the host system. So
+   // first we ask for the file in the cached SDK, then we attempt to get a
+   // shared module for the right architecture with the right UUID.
+@@ -297,7 +297,7 @@ Status PlatformAppleTVSimulator::GetSharedModule(
+   } else {
+     const bool always_create = false;
+     error = ModuleList::GetSharedModule(
+-        module_spec, module_sp, module_search_paths_ptr, old_module_sp_ptr,
++        module_spec, module_sp, module_search_paths_ptr, old_module,
+         did_create_ptr, always_create);
+   }
+   if (module_sp)
+diff --git a/lldb/source/Plugins/Platform/MacOSX/PlatformAppleTVSimulator.h b/lldb/source/Plugins/Platform/MacOSX/PlatformAppleTVSimulator.h
+index 5a7b0ee0d7dc..ce85398d0607 100644
+--- a/lldb/source/Plugins/Platform/MacOSX/PlatformAppleTVSimulator.h
++++ b/lldb/source/Plugins/Platform/MacOSX/PlatformAppleTVSimulator.h
+@@ -55,7 +55,7 @@ public:
+   GetSharedModule(const lldb_private::ModuleSpec &module_spec,
+                   lldb_private::Process *process, lldb::ModuleSP &module_sp,
+                   const lldb_private::FileSpecList *module_search_paths_ptr,
+-                  lldb::ModuleSP *old_module_sp_ptr,
++                  llvm::SmallVectorImpl<lldb::ModuleSP> *old_module,
+                   bool *did_create_ptr) override;
+ 
+   uint32_t
+diff --git a/lldb/source/Plugins/Platform/MacOSX/PlatformAppleWatchSimulator.cpp b/lldb/source/Plugins/Platform/MacOSX/PlatformAppleWatchSimulator.cpp
+index 03a8fcd31360..e6add2e8f44f 100644
+--- a/lldb/source/Plugins/Platform/MacOSX/PlatformAppleWatchSimulator.cpp
++++ b/lldb/source/Plugins/Platform/MacOSX/PlatformAppleWatchSimulator.cpp
+@@ -283,7 +283,7 @@ Status PlatformAppleWatchSimulator::GetSymbolFile(const FileSpec &platform_file,
+ Status PlatformAppleWatchSimulator::GetSharedModule(
+     const ModuleSpec &module_spec, lldb_private::Process *process,
+     ModuleSP &module_sp, const FileSpecList *module_search_paths_ptr,
+-    ModuleSP *old_module_sp_ptr, bool *did_create_ptr) {
++    llvm::SmallVectorImpl<lldb::ModuleSP> *old_module, bool *did_create_ptr) {
+   // For AppleWatch, the SDK files are all cached locally on the host system.
+   // So first we ask for the file in the cached SDK, then we attempt to get a
+   // shared module for the right architecture with the right UUID.
+@@ -298,7 +298,7 @@ Status PlatformAppleWatchSimulator::GetSharedModule(
+   } else {
+     const bool always_create = false;
+     error = ModuleList::GetSharedModule(
+-        module_spec, module_sp, module_search_paths_ptr, old_module_sp_ptr,
++        module_spec, module_sp, module_search_paths_ptr, old_module,
+         did_create_ptr, always_create);
+   }
+   if (module_sp)
+diff --git a/lldb/source/Plugins/Platform/MacOSX/PlatformAppleWatchSimulator.h b/lldb/source/Plugins/Platform/MacOSX/PlatformAppleWatchSimulator.h
+index 96dcd16ffa99..fe2389b51688 100644
+--- a/lldb/source/Plugins/Platform/MacOSX/PlatformAppleWatchSimulator.h
++++ b/lldb/source/Plugins/Platform/MacOSX/PlatformAppleWatchSimulator.h
+@@ -55,7 +55,7 @@ public:
+   GetSharedModule(const lldb_private::ModuleSpec &module_spec,
+                   lldb_private::Process *process, lldb::ModuleSP &module_sp,
+                   const lldb_private::FileSpecList *module_search_paths_ptr,
+-                  lldb::ModuleSP *old_module_sp_ptr,
++                  llvm::SmallVectorImpl<lldb::ModuleSP> *old_module,
+                   bool *did_create_ptr) override;
+ 
+   uint32_t
+diff --git a/lldb/source/Plugins/Platform/MacOSX/PlatformDarwinKernel.cpp b/lldb/source/Plugins/Platform/MacOSX/PlatformDarwinKernel.cpp
+index 79cbc940feb5..6d1cf804a0ae 100644
+--- a/lldb/source/Plugins/Platform/MacOSX/PlatformDarwinKernel.cpp
++++ b/lldb/source/Plugins/Platform/MacOSX/PlatformDarwinKernel.cpp
+@@ -730,7 +730,7 @@ Status PlatformDarwinKernel::GetSharedModule(
+     // framework on macOS systems, a chance.
+     error = PlatformDarwin::GetSharedModule(module_spec, process, module_sp,
+                                             module_search_paths_ptr,
+-                                            old_module_sp_ptr, did_create_ptr);
++                                            old_modules, did_create_ptr);
+     if (error.Success() && module_sp.get()) {
+       return error;
+     }
+diff --git a/lldb/source/Plugins/Platform/MacOSX/PlatformiOSSimulator.cpp b/lldb/source/Plugins/Platform/MacOSX/PlatformiOSSimulator.cpp
+index a890d0afdf1e..85407d622e73 100644
+--- a/lldb/source/Plugins/Platform/MacOSX/PlatformiOSSimulator.cpp
++++ b/lldb/source/Plugins/Platform/MacOSX/PlatformiOSSimulator.cpp
+@@ -286,7 +286,7 @@ Status PlatformiOSSimulator::GetSymbolFile(const FileSpec &platform_file,
+ 
+ Status PlatformiOSSimulator::GetSharedModule(
+     const ModuleSpec &module_spec, Process *process, ModuleSP &module_sp,
+-    const FileSpecList *module_search_paths_ptr, ModuleSP *old_module_sp_ptr,
++    const FileSpecList *module_search_paths_ptr, llvm::SmallVectorImpl<lldb::ModuleSP> *old_module,
+     bool *did_create_ptr) {
+   // For iOS, the SDK files are all cached locally on the host system. So first
+   // we ask for the file in the cached SDK, then we attempt to get a shared
+@@ -302,7 +302,7 @@ Status PlatformiOSSimulator::GetSharedModule(
+   } else {
+     const bool always_create = false;
+     error = ModuleList::GetSharedModule(
+-        module_spec, module_sp, module_search_paths_ptr, old_module_sp_ptr,
++        module_spec, module_sp, module_search_paths_ptr, old_module,
+         did_create_ptr, always_create);
+   }
+   if (module_sp)
+diff --git a/lldb/source/Plugins/Platform/MacOSX/PlatformiOSSimulator.h b/lldb/source/Plugins/Platform/MacOSX/PlatformiOSSimulator.h
+index 4d416d759bd2..da425fc1dd26 100644
+--- a/lldb/source/Plugins/Platform/MacOSX/PlatformiOSSimulator.h
++++ b/lldb/source/Plugins/Platform/MacOSX/PlatformiOSSimulator.h
+@@ -57,7 +57,7 @@ public:
+   GetSharedModule(const lldb_private::ModuleSpec &module_spec,
+                   lldb_private::Process *process, lldb::ModuleSP &module_sp,
+                   const lldb_private::FileSpecList *module_search_paths_ptr,
+-                  lldb::ModuleSP *old_module_sp_ptr,
++                  llvm::SmallVectorImpl<lldb::ModuleSP> *old_module,
+                   bool *did_create_ptr) override;
+ 
+   uint32_t
