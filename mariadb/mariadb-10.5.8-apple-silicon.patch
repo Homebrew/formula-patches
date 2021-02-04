@@ -1,0 +1,56 @@
+diff --git a/include/my_global.h b/include/my_global.h
+index 86ef5f882f6..3502922b74b 100644
+--- a/include/my_global.h
++++ b/include/my_global.h
+@@ -159,7 +159,7 @@
+ #  if defined(__i386__) || defined(__ppc__)
+ #    define SIZEOF_CHARP 4
+ #    define SIZEOF_LONG 4
+-#  elif defined(__x86_64__) || defined(__ppc64__)
++# elif defined(__x86_64__) || defined(__ppc64__) || defined(__aarch64__) || defined(__arm64__)
+ #    define SIZEOF_CHARP 8
+ #    define SIZEOF_LONG 8
+ #  else
+diff --git a/mysys/crc32/crc32_arm64.c b/mysys/crc32/crc32_arm64.c
+index b82d4701e6f..890e3f64e00 100644
+--- a/mysys/crc32/crc32_arm64.c
++++ b/mysys/crc32/crc32_arm64.c
+@@ -4,6 +4,30 @@
+ 
+ #if defined(__GNUC__) && defined(HAVE_ARMV8_CRC)
+ 
++#if defined(__APPLE__)
++#include <sys/sysctl.h>
++
++static int pmull_supported;
++
++int crc32_aarch64_available(void)
++{
++  int ret;
++  size_t len = sizeof(ret);
++  if (sysctlbyname("hw.optional.armv8_crc32", &ret, &len, NULL, 0) == -1)
++    return 0;
++  return ret;
++}
++
++const char *crc32c_aarch64_available(void)
++{
++  if (crc32_aarch64_available() == 0)
++    return NULL;
++  pmull_supported = 1;
++  return "Using ARMv8 crc32 + pmull instructions";
++}
++
++#else
++
+ #include <sys/auxv.h>
+ #include <asm/hwcap.h>
+ 
+@@ -40,6 +64,7 @@ const char *crc32c_aarch64_available(void)
+     return "Using ARMv8 crc32 instructions";
+ }
+ 
++#endif /* __APPLE__ */
+ #endif /* __GNUC__ && HAVE_ARMV8_CRC */
+ 
+ #ifndef HAVE_ARMV8_CRC_CRYPTO_INTRINSICS
