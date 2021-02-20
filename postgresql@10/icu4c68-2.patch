@@ -1,0 +1,113 @@
+diff --git a/contrib/btree_gist/btree_utils_var.c b/contrib/btree_gist/btree_utils_var.c
+index 2c636ad..3df1596 100644
+--- a/contrib/btree_gist/btree_utils_var.c
++++ b/contrib/btree_gist/btree_utils_var.c
+@@ -5,6 +5,7 @@
+ 
+ #include "btree_gist.h"
+ 
++#include <stdbool.h>
+ #include <math.h>
+ #include <limits.h>
+ #include <float.h>
+diff --git a/contrib/pg_trgm/trgm_op.c b/contrib/pg_trgm/trgm_op.c
+index 5394a09..58a7b97 100644
+--- a/contrib/pg_trgm/trgm_op.c
++++ b/contrib/pg_trgm/trgm_op.c
+@@ -3,6 +3,7 @@
+  */
+ #include "postgres.h"
+ 
++#include <stdbool.h>
+ #include <ctype.h>
+ 
+ #include "trgm.h"
+diff --git a/contrib/pg_trgm/trgm_regexp.c b/contrib/pg_trgm/trgm_regexp.c
+index 1d474e2..50af1d3 100644
+--- a/contrib/pg_trgm/trgm_regexp.c
++++ b/contrib/pg_trgm/trgm_regexp.c
+@@ -191,6 +191,8 @@
+  */
+ #include "postgres.h"
+ 
++#include <stdbool.h>
++
+ #include "trgm.h"
+ 
+ #include "regex/regexport.h"
+diff --git a/src/backend/catalog/pg_collation.c b/src/backend/catalog/pg_collation.c
+index ca62896..b4f50f1 100644
+--- a/src/backend/catalog/pg_collation.c
++++ b/src/backend/catalog/pg_collation.c
+@@ -14,6 +14,8 @@
+  */
+ #include "postgres.h"
+ 
++#include <stdbool.h>
++
+ #include "access/genam.h"
+ #include "access/heapam.h"
+ #include "access/htup_details.h"
+diff --git a/src/backend/commands/collationcmds.c b/src/backend/commands/collationcmds.c
+index 9437731..ca2c192 100644
+--- a/src/backend/commands/collationcmds.c
++++ b/src/backend/commands/collationcmds.c
+@@ -14,6 +14,8 @@
+  */
+ #include "postgres.h"
+ 
++#include <stdbool.h>
++
+ #include "access/heapam.h"
+ #include "access/htup_details.h"
+ #include "access/xact.h"
+diff --git a/src/backend/commands/dbcommands.c b/src/backend/commands/dbcommands.c
+index e138539..69deea8 100644
+--- a/src/backend/commands/dbcommands.c
++++ b/src/backend/commands/dbcommands.c
+@@ -19,6 +19,7 @@
+  */
+ #include "postgres.h"
+ 
++#include <stdbool.h>
+ #include <fcntl.h>
+ #include <unistd.h>
+ #include <sys/stat.h>
+diff --git a/src/backend/optimizer/path/indxpath.c b/src/backend/optimizer/path/indxpath.c
+index 5ca62b2..8fb939e 100644
+--- a/src/backend/optimizer/path/indxpath.c
++++ b/src/backend/optimizer/path/indxpath.c
+@@ -15,6 +15,7 @@
+  */
+ #include "postgres.h"
+ 
++#include <stdbool.h>
+ #include <math.h>
+ 
+ #include "access/stratnum.h"
+diff --git a/src/backend/tsearch/regis.c b/src/backend/tsearch/regis.c
+index 2b89f59..20ec4c0 100644
+--- a/src/backend/tsearch/regis.c
++++ b/src/backend/tsearch/regis.c
+@@ -14,6 +14,8 @@
+ 
+ #include "postgres.h"
+ 
++#include <stdbool.h>
++
+ #include "tsearch/dicts/regis.h"
+ #include "tsearch/ts_locale.h"
+ 
+diff --git a/src/backend/utils/misc/guc.c b/src/backend/utils/misc/guc.c
+index 9f47bd0..e2b740a 100644
+--- a/src/backend/utils/misc/guc.c
++++ b/src/backend/utils/misc/guc.c
+@@ -16,6 +16,8 @@
+  */
+ #include "postgres.h"
+ 
++#include <stdbool.h>
++
+ #include <ctype.h>
+ #include <float.h>
+ #include <math.h>
