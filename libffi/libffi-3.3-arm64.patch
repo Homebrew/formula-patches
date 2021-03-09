@@ -8956,20 +8956,20 @@ diff -ur libffi-3.3/src/aarch64/ffi.c libffi-3.3.new/src/aarch64/ffi.c
  	      }
  	  }
  	  break;
-@@ -765,6 +770,8 @@
+@@ -756,6 +761,8 @@
+   ffi_call_int (cif, fn, rvalue, avalue, NULL);
  }
- #endif /* FFI_GO_CLOSURES */
  
 +#if FFI_CLOSURES
 +
- /* Build a trampoline.  */
- 
- extern void ffi_closure_SYSV (void) FFI_HIDDEN;
+ #ifdef FFI_GO_CLOSURES
+ void
+ ffi_call_go (ffi_cif *cif, void (*fn) (void), void *rvalue,
 @@ -789,7 +796,14 @@
  
  #if FFI_EXEC_TRAMPOLINE_TABLE
  #ifdef __MACH__
-+#if HAVE_PTRAUTH
++#ifdef HAVE_PTRAUTH
 +  codeloc = ptrauth_auth_data(codeloc, ptrauth_key_function_pointer, 0);
 +#endif
 +#ifdef FFI_TRAMPOLINE_WHOLE_DYLIB
@@ -9050,7 +9050,7 @@ diff -ur libffi-3.3/src/aarch64/sysv.S libffi-3.3.new/src/aarch64/sysv.S
 +
  	/* Use a stack frame allocated by our caller.  */
 -	cfi_def_cfa(x1, 32);
-+#ifdef HAVE_PTRAUTH && defined(__APPLE__)
++#if defined(HAVE_PTRAUTH) && defined(__APPLE__)
 +	/* darwin's libunwind assumes that the cfa is the sp and that's the data
 +	 * used to sign the lr.  In order to allow unwinding through this
 +	 * function it is necessary to point the cfa at the signing register.
@@ -9317,13 +9317,8 @@ diff -ur libffi-3.3/src/arm/sysv.S libffi-3.3.new/src/arm/sysv.S
 diff -ur libffi-3.3/src/closures.c libffi-3.3.new/src/closures.c
 --- libffi-3.3/src/closures.c	2019-11-20 04:15:41.000000000 -0700
 +++ libffi-3.3.new/src/closures.c	2021-01-04 19:39:16.000000000 -0700
-@@ -146,13 +146,17 @@
+@@ -148,10 +148,19 @@
  
- #ifdef __MACH__
- 
-+#include <assert.h>
-+#include <dispatch/dispatch.h>
-+#include <dlfcn.h>
  #include <mach/mach.h>
  #include <pthread.h>
 +#ifdef HAVE_PTRAUTH
@@ -9332,12 +9327,17 @@ diff -ur libffi-3.3/src/closures.c libffi-3.3.new/src/closures.c
  #include <stdio.h>
  #include <stdlib.h>
  
--extern void *ffi_closure_trampoline_table_page;
--
++#ifdef FFI_TRAMPOLINE_WHOLE_DYLIB
++#include <assert.h>
++#include <dispatch/dispatch.h>
++#include <dlfcn.h>
++#else
+ extern void *ffi_closure_trampoline_table_page;
++#endif
+ 
  typedef struct ffi_trampoline_table ffi_trampoline_table;
  typedef struct ffi_trampoline_table_entry ffi_trampoline_table_entry;
- 
-@@ -160,7 +164,6 @@
+@@ -160,7 +169,6 @@
  {
    /* contiguous writable and executable pages */
    vm_address_t config_page;
@@ -9345,17 +9345,16 @@ diff -ur libffi-3.3/src/closures.c libffi-3.3.new/src/closures.c
  
    /* free list tracking */
    uint16_t free_count;
-@@ -180,6 +183,22 @@
+@@ -180,6 +188,21 @@ struct ffi_trampoline_table_entry
  /* Total number of trampolines that fit in one trampoline table */
  #define FFI_TRAMPOLINE_COUNT (PAGE_MAX_SIZE / FFI_TRAMPOLINE_SIZE)
  
-+/* The trampoline dylib has one page for the MACHO_HEADER and one page for the trampolines.
-+ * iOS 12.0 and later require that the entire dylib needs to be remapped as a unit.
++/* The trampoline dylib has one page for the MACHO_HEADER and one page for the
++ * trampolines. iOS 12.0 and later, and macOS on Apple Silicon require that
++ * the entire dylib needs to be remapped as a unit.
 + *
 + * arm (legacy): Allocate two pages -- a config page and a placeholder for the trampolines
 + * arm64 (modern): Allocate three pages -- a config page and two placeholders for the trampoline dylib
-+ *
-+ * TODO: Update arm to be consistent with arm64.  Note that iOS12 does not support armv7.
 + */
 +#ifdef FFI_TRAMPOLINE_WHOLE_DYLIB
 +#define FFI_TRAMPOLINE_ALLOCATION_PAGE_COUNT 3
@@ -9368,7 +9367,7 @@ diff -ur libffi-3.3/src/closures.c libffi-3.3.new/src/closures.c
  static pthread_mutex_t ffi_trampoline_lock = PTHREAD_MUTEX_INITIALIZER;
  static ffi_trampoline_table *ffi_trampoline_tables = NULL;
  
-@@ -195,34 +214,61 @@
+@@ -195,34 +218,67 @@
    kern_return_t kt;
    uint16_t i;
  
@@ -9391,22 +9390,28 @@ diff -ur libffi-3.3/src/closures.c libffi-3.3.new/src/closures.c
 -  /* Remap the trampoline table on top of the placeholder page */
 -  trampoline_page = config_page + PAGE_MAX_SIZE;
 -  trampoline_page_template = (vm_address_t)&ffi_closure_trampoline_table_page;
++  static void *trampoline_table_page;
++
++#ifdef FFI_TRAMPOLINE_WHOLE_DYLIB
 +  static dispatch_once_t trampoline_template_init_once;
-+  static void *ffi_closure_trampoline_table_page;
 +
 +  dispatch_once(&trampoline_template_init_once, ^{
 +    void * const trampoline_handle = dlopen("/usr/lib/libffi-trampolines.dylib", RTLD_NOW | RTLD_LOCAL | RTLD_FIRST);
 +    assert(trampoline_handle);
 +
-+    ffi_closure_trampoline_table_page = dlsym(trampoline_handle, "ffi_closure_trampoline_table_page");
-+    assert(ffi_closure_trampoline_table_page);
++    trampoline_table_page = dlsym(trampoline_handle, "ffi_closure_trampoline_table_page");
++    assert(trampoline_table_page);
 +  });
++#else
++  trampoline_table_page = &ffi_closure_trampoline_table_page;
++#endif
 +
 +#ifdef HAVE_PTRAUTH
-+  trampoline_page_template = (uintptr_t)ptrauth_auth_data((void *)ffi_closure_trampoline_table_page, ptrauth_key_function_pointer, 0);
++  trampoline_page_template = (uintptr_t)ptrauth_auth_data(trampoline_table_page, ptrauth_key_function_pointer, 0);
 +#else
-+  trampoline_page_template = (uintptr_t)ffi_closure_trampoline_table_page;
++  trampoline_page_template = (uintptr_t)trampoline_table_page;
 +#endif
++
  #ifdef __arm__
    /* ffi_closure_trampoline_table_page can be thumb-biased on some ARM archs */
    trampoline_page_template &= ~1UL;
@@ -9452,18 +9457,6 @@ diff -ur libffi-3.3/src/closures.c libffi-3.3.new/src/closures.c
  
        if (i < table->free_count - 1)
  	entry->next = &table->free_list_pool[i + 1];
-diff -ur libffi-3.3/src/prep_cif.c libffi-3.3.new/src/prep_cif.c
---- libffi-3.3/src/prep_cif.c	2019-10-31 08:49:54.000000000 -0600
-+++ libffi-3.3.new/src/prep_cif.c	2021-01-04 19:39:16.000000000 -0700
-@@ -234,7 +234,7 @@
-   return ffi_prep_cif_core(cif, abi, 1, nfixedargs, ntotalargs, rtype, atypes);
- }
- 
--#if FFI_CLOSURES
-+#if FFI_CLOSURES && FFI_LEGACY_CLOSURE_API
- 
- ffi_status
- ffi_prep_closure (ffi_closure* closure,
 diff -ur libffi-3.3/src/x86/ffi.c libffi-3.3.new/src/x86/ffi.c
 --- libffi-3.3/src/x86/ffi.c	2019-10-31 08:49:54.000000000 -0600
 +++ libffi-3.3.new/src/x86/ffi.c	2021-01-04 19:38:38.000000000 -0700
