@@ -1,0 +1,15 @@
+diff --git a/util/osdep.c b/util/osdep.c
+index 66d01b9160..76be8c295b 100644
+--- a/util/osdep.c
++++ b/util/osdep.c
+@@ -110,6 +110,9 @@ int qemu_mprotect_none(void *addr, size_t size)
+ {
+ #ifdef _WIN32
+     return qemu_mprotect__osdep(addr, size, PAGE_NOACCESS);
++#elif defined(__APPLE__) && defined(__arm64__)
++    /* Workaround mprotect (RWX->NONE) issue on Big Sur 11.2 */
++    return 0;
+ #else
+     return qemu_mprotect__osdep(addr, size, PROT_NONE);
+ #endif
+
