@@ -1,0 +1,55 @@
+From 0b82f14151dad5f106c208d25818816a8f782a54 Mon Sep 17 00:00:00 2001
+From: Misty De Meo <mistydemeo@gmail.com>
+Date: Fri, 26 Mar 2021 19:20:22 -0700
+Subject: [PATCH] Add a check for term.h
+
+If term.h is present, use that instead of defining prototypes for the
+terminfo functions in terminfo-core.c. This causes problems on certain
+platforms (e.g. Apple aarch64) due to the functions being prototyped as
+non-variadic but called as variadic. If term.h isn't found, it falls
+back to the old behaviour.
+
+Fixes #1238.
+---
+ configure.ac                | 4 ++++
+ src/fe-text/terminfo-core.c | 5 +++++
+ 3 files changed, 10 insertions(+)
+
+diff --git a/configure.ac b/configure.ac
+index cafd29700de95275c93b2c4f51614e513c70c9f1..87baddecd084c48867b7278aed2d5735d9f2fdb3 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -355,6 +355,10 @@ if test "x$want_textui" != "xno"; then
+ 	AC_SUBST(TEXTUI_LIBS)
+ 	LIBS="$TEXTUI_NO_LIBS"
+ 
++	AC_CHECK_HEADER([term.h], [
++		AC_DEFINE(HAVE_TERM_H, [], [Define to 1 if you have the `term.h' header.])
++	])
++
+ fi
+ 
+ dnl **
+diff --git a/src/fe-text/terminfo-core.c b/src/fe-text/terminfo-core.c
+index d2273d71a0b4e346103a2b90d66bebc6907cadba..6be54c32aeb7e59595e77e40e1bd2dbd7deca28b 100644
+--- a/src/fe-text/terminfo-core.c
++++ b/src/fe-text/terminfo-core.c
+@@ -12,6 +12,9 @@ inline static int term_putchar(int c)
+         return fputc(c, current_term->out);
+ }
+ 
++#ifdef HAVE_TERM_H
++#include <term.h>
++#else
+ /* Don't bother including curses.h because of these -
+    they might not even be defined there */
+ char *tparm();
+@@ -21,6 +24,8 @@ int setupterm();
+ char *tigetstr();
+ int tigetnum();
+ int tigetflag();
++#endif
++
+ #define term_getstr(x, buffer) tigetstr(x.ti_name)
+ #define term_getnum(x) tigetnum(x.ti_name);
+ #define term_getflag(x) tigetflag(x.ti_name);
