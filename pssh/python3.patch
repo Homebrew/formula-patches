@@ -152,6 +152,15 @@ index 9b5686d..5d61d88 100644
          self.register_read(wakeup_readfd, self.wakeup_handler)
          # TODO: remove test when we stop supporting Python <2.5
          if hasattr(signal, 'set_wakeup_fd'):
+@@ -299,7 +301,7 @@ class Writer(threading.Thread):
+                 return
+
+             if data == self.OPEN:
+-                self.files[filename] = open(filename, 'wb', buffering=1)
++                self.files[filename] = open(filename, 'wb')
+                 psshutil.set_cloexec(self.files[filename])
+             else:
+                 dest = self.files[filename]
 -- 
 2.31.1
 
