@@ -1,0 +1,265 @@
+commit 7594829587a1fa678f3350bb93cf34bfb2917951
+Author: difegue <sugoi@cock.li>
+Date:   Tue Jun 1 16:34:04 2021 +0200
+
+    (#469) Use Prefork instead of Hypnotoad to easily move the pid_file
+
+diff --git a/.gitignore b/.gitignore
+index 59c4cec..24d1f03 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -7,9 +7,6 @@ package-lock.json
+ .vstags
+ *qemu-*-static*
+ Dockerfile.*
+-script/hypnotoad.pid
+-script/shinobu.pid
+-script/minion.pid
+ .DS_Store
+ config.log
+ autobackup.json
+\ No newline at end of file
+diff --git a/lib/LANraragi.pm b/lib/LANraragi.pm
+index bed200f..814c257 100644
+--- a/lib/LANraragi.pm
++++ b/lib/LANraragi.pm
+@@ -15,6 +15,7 @@ use LANraragi::Utils::Generic qw(start_shinobu start_minion);
+ use LANraragi::Utils::Logging qw(get_logger);
+ use LANraragi::Utils::Plugins qw(get_plugins);
+ use LANraragi::Utils::Database qw(invalidate_cache);
++use LANraragi::Utils::TempFolder qw(get_temp);
+ use LANraragi::Utils::Routing;
+ use LANraragi::Utils::Minion;
+
+@@ -124,10 +125,7 @@ sub startup {
+     }
+
+     # Enable Minion capabilities in the app
+-    shutdown_from_pid("./script/minion.pid");
+-
+-    # Delete old SQLite DB if it still exists
+-    unlink("./.minion.db");
++    shutdown_from_pid( get_temp . "/minion.pid" );
+
+     my $miniondb = $self->LRR_CONF->get_redisad . "/" . $self->LRR_CONF->get_miniondb;
+     say "Minion will use the Redis database at $miniondb";
+@@ -148,7 +146,7 @@ sub startup {
+     start_minion($self);
+
+     # Start File Watcher
+-    shutdown_from_pid("./script/shinobu.pid");
++    shutdown_from_pid( get_temp . "/shinobu.pid" );
+     start_shinobu($self);
+
+     # Hook to SIGTERM to cleanly kill minion+shinobu on server shutdown
+@@ -182,8 +180,8 @@ sub shutdown_from_pid {
+ sub add_sigint_handler {
+     my $old_int = $SIG{INT};
+     $SIG{INT} = sub {
+-        shutdown_from_pid("script/shinobu.pid");
+-        shutdown_from_pid("script/minion.pid");
++        shutdown_from_pid( get_temp . "/shinobu.pid" );
++        shutdown_from_pid( get_temp . "/minion.pid" );
+
+         \&$old_int;    # Calling the old handler to cleanly exit the server
+     }
+diff --git a/lib/LANraragi/Controller/Api/Shinobu.pm b/lib/LANraragi/Controller/Api/Shinobu.pm
+index 541e520..9fa6f77 100644
+--- a/lib/LANraragi/Controller/Api/Shinobu.pm
++++ b/lib/LANraragi/Controller/Api/Shinobu.pm
+@@ -3,10 +3,11 @@ use Mojo::Base 'Mojolicious::Controller';
+ use Storable;
+
+ use LANraragi::Utils::Generic qw(start_shinobu render_api_response);
++use LANraragi::Utils::TempFolder qw(get_temp);
+
+ sub shinobu_status {
+     my $self    = shift;
+-    my $shinobu = ${ retrieve("./script/shinobu.pid") };
++    my $shinobu = ${ retrieve( get_temp . "/shinobu.pid" ) };
+
+     $self->render(
+         json => {
+@@ -20,7 +21,7 @@ sub shinobu_status {
+
+ sub stop_shinobu {
+     my $self    = shift;
+-    my $shinobu = ${ retrieve("./script/shinobu.pid") };
++    my $shinobu = ${ retrieve( get_temp . "/shinobu.pid" ) };
+
+     #commit sudoku
+     $shinobu->kill();
+@@ -29,12 +30,12 @@ sub stop_shinobu {
+
+ sub restart_shinobu {
+     my $self    = shift;
+-    my $shinobu = ${ retrieve("./script/shinobu.pid") };
++    my $shinobu = ${ retrieve( get_temp . "/shinobu.pid" ) };
+
+     #commit sudoku
+     $shinobu->kill();
+
+-    # Create a new Process, automatically stored in script/shinobu.pid
++    # Create a new Process, automatically stored in TEMP_FOLDER/shinobu.pid
+     my $proc = start_shinobu($self);
+
+     $self->render(
+diff --git a/lib/LANraragi/Utils/Generic.pm b/lib/LANraragi/Utils/Generic.pm
+index 104ceb5..f573660 100644
+--- a/lib/LANraragi/Utils/Generic.pm
++++ b/lib/LANraragi/Utils/Generic.pm
+@@ -14,6 +14,7 @@ use Logfile::Rotate;
+ use Proc::Simple;
+ use Sys::CpuAffinity;
+
++use LANraragi::Utils::TempFolder qw(get_temp);
+ use LANraragi::Utils::Logging qw(get_logger);
+
+ # Generic Utility Functions.
+@@ -136,7 +137,7 @@ sub start_minion {
+     $proc->kill_on_destroy(0);
+
+     # Freeze the process object in the PID file
+-    store \$proc, 'script/minion.pid';
++    store \$proc, get_temp . "/minion.pid";
+     return $proc;
+ }
+
+@@ -158,7 +159,7 @@ sub start_shinobu {
+     $mojo->LRR_LOGGER->debug( "Shinobu Worker new PID is " . $proc->pid );
+
+     # Freeze the process object in the PID file
+-    store \$proc, 'script/shinobu.pid';
++    store \$proc, get_temp . "/shinobu.pid";
+     return $proc;
+ }
+
+diff --git a/script/launcher.pl b/script/launcher.pl
+index 14e84e6..210c24e 100644
+--- a/script/launcher.pl
++++ b/script/launcher.pl
+@@ -2,11 +2,11 @@
+
+ use strict;
+ use warnings;
+-use Cwd;
++use Cwd 'abs_path';
+
+ use Mojo::Base -strict;
+ use Mojo::Server::Morbo;
+-use Mojo::Server::Hypnotoad;
++use Mojo::Server::Prefork;
+ use Mojo::Util qw(extract_usage getopt);
+ use File::Path qw(make_path);
+
+@@ -37,24 +37,44 @@ if ( $ENV{LRR_NETWORK} ) {
+     @listen = ["http://*:3000"];
+ }
+
++# Relocate the Prefork PID file
++my $hypno_pid;
++if ( $ENV{LRR_TEMP_DIRECTORY} ) {
++    $hypno_pid = $ENV{LRR_TEMP_DIRECTORY} . "/server.pid";
++} else {
++    $hypno_pid = "./public/temp/server.pid";
++}
++$hypno_pid = abs_path($hypno_pid);
++
+ my $backend;
+ if ($morbo) {
+     $backend = Mojo::Server::Morbo->new( keep_alive_timeout => 30 );
+     $ENV{MOJO_MODE} = "development";
+     $backend->daemon->listen(@listen);
++    $backend->run($app);
+ } else {
+-    $backend = Mojo::Server::Hypnotoad->new( keep_alive_timeout => 30 );
+-    $backend->prefork->listen(@listen);
++    print "Server PID will be at " . $hypno_pid . "\n";
++
++    $backend = Mojo::Server::Prefork->new( keep_alive_timeout => 30 );
++    $backend->pid_file($hypno_pid);
++    $backend->listen(@listen);
++
++    $backend->load_app($app);
++
++    $backend->start;
++    $backend->daemonize if !$ENV{HYPNOTOAD_FOREGROUND};
++
++    # Start accepting connections
++    $backend->cleanup(1)->run;
+ }
+
+-$backend->run($app);
+ exit;
+
+ =encoding utf8
+
+ =head1 NAME
+
+-LRR launcher using either morbo or hypnotoad. Morbo always starts in dev mode.
++LRR launcher using either morbo or Prefork. Morbo always starts in dev mode.
+ To change the listen port, use the LRR_NETWORK environment variable.
+
+ =head1 SYNOPSIS
+@@ -62,8 +82,8 @@ To change the listen port, use the LRR_NETWORK environment variable.
+   Usage: perl launcher.pl [OPTIONS] lanraragi
+
+   Options:
+-    -m, --morbo        Use morbo instead of hypnotoad
+-    -f, --foreground   Keep manager process in foreground (hypnotoad)
++    -m, --morbo        Use morbo instead of Prefork
++    -f, --foreground   Keep manager process in foreground (Prefork)
+     -v, --verbose      Print details about what files changed to
+                        STDOUT (morbo)
+     -h, --help         Show this message
+@@ -71,7 +91,7 @@ To change the listen port, use the LRR_NETWORK environment variable.
+ =head1 DESCRIPTION
+
+ Start L<Mojolicious> and L<Mojolicious::Lite> applications with the
+-L<Hypnotoad|Mojo::Server::Hypnotoad> web server.
++L<Prefork|Mojo::Server::Prefork> web server.
+
+ =head1 SEE ALSO
+
+diff --git a/tools/Documentation/extending-lanraragi/architecture.md b/tools/Documentation/extending-lanraragi/architecture.md
+index ea2f010..7674e51 100644
+--- a/tools/Documentation/extending-lanraragi/architecture.md
++++ b/tools/Documentation/extending-lanraragi/architecture.md
+@@ -88,14 +88,14 @@ root/
+ |     |- *.js
+ |     +- vendor        <- Third-party JS obtained through NPM
+ |  |- temp          <- Archives are extracted in this folder to be served to clients. Also used for thumbnail creation.
++|  |  |- server.pid <- PID of the currently running Prefork Manager process, if existing
++|  |  |- shinobu.pid   <- Last known PID of the Shinobu File Watcher (Serialized Proc::Simple object)
++|  |  +- minion.pid    <- Last known PID of the Minion Job Queue (Serialized Proc::Simple object)
+ |  +- themes        <- Contains CSS sheets for Themes.
+ |
+ |- script
+ |  |- backup        <- Standalone script for running database backups.
+-|  |- launcher.pl   <- Launcher, uses either Morbo or Hypnotoad to run the bootstrap script
+-|  |- hypnotoad.pid <- PID of the currently running Hypnotoad Manager process, if existing
+-|  |- shinobu.pid   <- Last known PID of the Shinobu File Watcher (Serialized Proc::Simple object)
+-|  |- minion.pid    <- Last known PID of the Minion Job Queue (Serialized Proc::Simple object)
++|  |- launcher.pl   <- Launcher, uses either Morbo or Prefork to run the bootstrap script
+ |  +- lanraragi     <- Bootstrap script, starts LANraragi.pm
+ |
+ |- tests         <- Tests go here
+diff --git a/tools/build/docker/s6/cont-init.d/01-lrr-setup b/tools/build/docker/s6/cont-init.d/01-lrr-setup
+index f598ae4..d7dca09 100644
+--- a/tools/build/docker/s6/cont-init.d/01-lrr-setup
++++ b/tools/build/docker/s6/cont-init.d/01-lrr-setup
+@@ -39,10 +39,10 @@ mkdir /home/koyomi/lanraragi/public/temp
+ chown -R koyomi /home/koyomi/lanraragi/public/temp
+ chmod u+rwx /home/koyomi/lanraragi/public/temp
+
+-#Remove hypnotoad, minion and shinobu pid files
+-rm /home/koyomi/lanraragi/script/hypnotoad.pid
+-rm /home/koyomi/lanraragi/script/shinobu.pid
+-rm /home/koyomi/lanraragi/script/minion.pid
++#Remove mojo, minion and shinobu pid files
++rm /home/koyomi/lanraragi/public/temp/server.pid
++rm /home/koyomi/lanraragi/public/temp/shinobu.pid
++rm /home/koyomi/lanraragi/public/temp/minion.pid
+
+ # https://redis.io/topics/faq#background-saving-fails-with-a-fork-error-under-linux-even-if-i-have-a-lot-of-free-ram
+ OVERCOMMIT=$(cat /proc/sys/vm/overcommit_memory)
