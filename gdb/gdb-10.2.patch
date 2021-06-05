@@ -1,0 +1,48 @@
+diff --git a/gdb/ChangeLog b/gdb/ChangeLog
+index 186076a220c87f4f6bb672194ddc154047437c44..eb2badc9a810706b92ca8bd63f05ab9a4462eb94 100644
+--- a/gdb/ChangeLog
++++ b/gdb/ChangeLog
+@@ -245,6 +245,11 @@
+ 	* tui/tui-layout.c (tui_apply_current_layout): Don't delete the
+ 	static locator win info.
+ 
++2020-11-28  Alex Richardson  <Alexander.Richardson@cl.cam.ac.uk>
++
++	* acincludde.m4 (GDB_AC_CHECK_BFD): Include string.h in the test
++	program.
++
+ 2020-11-06  Romain Geissler  <romain.geissler@amadeus.com>
+ 
+ 	PR python/26832
+diff --git a/gdb/acinclude.m4 b/gdb/acinclude.m4
+index aed9730a6df1e2b88e078fab41da6dca34c9b4ae..0f54eef9d643e4673f61d9ad31a971621ab29c5f 100644
+--- a/gdb/acinclude.m4
++++ b/gdb/acinclude.m4
+@@ -362,6 +362,7 @@ AC_DEFUN([GDB_AC_CHECK_BFD], [
+   AC_CACHE_CHECK([$1], [$2],
+   [AC_TRY_LINK(
+   [#include <stdlib.h>
++  #include <string.h>
+   #include "bfd.h"
+   #include "$4"
+   ],
+diff --git a/gdb/configure b/gdb/configure
+index 03464ae50a2d3c9cb83b271a658ef6b22e22cf6b..3a2592e445780f234f5a9ec1f4cf29bf0fb2857b 100755
+--- a/gdb/configure
++++ b/gdb/configure
+@@ -16818,6 +16818,7 @@ else
+   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+ #include <stdlib.h>
++  #include "string.h"
+   #include "bfd.h"
+   #include "elf-bfd.h"
+ 
+@@ -16929,6 +16930,7 @@ else
+   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+ #include <stdlib.h>
++  #include <string.h>
+   #include "bfd.h"
+   #include "mach-o.h"
+ 
