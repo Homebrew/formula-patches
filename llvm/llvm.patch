@@ -12,7 +12,7 @@ index fa067b7..39ab908 100644
 +  NativeRegisterContextLinux(NativeThreadProtocol &thread)
 +      : NativeRegisterContextRegisterInfo(thread, nullptr) {}
 +
-   lldb::yteOrder GetByteOrder() const;
+   lldb::ByteOrder GetByteOrder() const;
 
    virtual Status ReadRegisterRaw(uint32_t reg_index, RegisterValue &reg_value);
 diff --git a/lldb/source/Plugins/Process/Linux/NativeRegisterContextLinux_x86_64.cpp b/lldb/source/Plugins/Process/Linux/NativeRegisterContextLinux_x86_64.cpp
