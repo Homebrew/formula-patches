@@ -1,4 +1,20 @@
 diff --git a/Makefile b/Makefile
+index fed75b3..66691ea 100644
+--- a/Makefile
++++ b/Makefile
+@@ -12,9 +12,9 @@ PLAT= guess
+ # LUA_ROOT, LUA_LDIR, and LUA_CDIR in luaconf.h.
+ INSTALL_TOP= /usr/local
+ INSTALL_BIN= $(INSTALL_TOP)/bin
+-INSTALL_INC= $(INSTALL_TOP)/include
++INSTALL_INC= $(INSTALL_TOP)/include/lua
+ INSTALL_LIB= $(INSTALL_TOP)/lib
+-INSTALL_MAN= $(INSTALL_TOP)/man/man1
++INSTALL_MAN= $(INSTALL_TOP)/share/man/man1
+ INSTALL_LMOD= $(INSTALL_TOP)/share/lua/$V
+ INSTALL_CMOD= $(INSTALL_TOP)/lib/lua/$V
+
+diff --git a/Makefile b/Makefile
 index 36447a0..5f93891 100644
 --- a/Makefile
 +++ b/Makefile
