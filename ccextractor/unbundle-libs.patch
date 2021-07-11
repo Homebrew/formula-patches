@@ -111,7 +111,7 @@ diff -urN ./mac/Makefile.am ./mac/Makefile.am
  				../src/lib_ccx/ccx_common_common.h \
  				../src/lib_ccx/ccx_common_option.h \
  				../src/lib_ccx/utility.h \
-@@ -229,99 +126,16 @@
+@@ -229,99 +126,28 @@
  				../src/lib_ccx/ts_tables_epg.c \
  				../src/lib_ccx/wtv_constants.h \
  				../src/lib_ccx/wtv_functions.c \
@@ -144,7 +144,7 @@ diff -urN ./mac/Makefile.am ./mac/Makefile.am
 -				../src/thirdparty/utf8proc/utf8proc.c \
 -				../src/thirdparty/utf8proc/utf8proc.h \
  				../src/thirdparty/lib_hash/sha2.c \
--				../src/thirdparty/lib_hash/sha2.h \
+ 				../src/thirdparty/lib_hash/sha2.h \
 -				../src/thirdparty/protobuf-c/protobuf-c.c \
 -				../src/thirdparty/protobuf-c/protobuf-c.h \
 -				../src/thirdparty/zvbi/bcd.h \
@@ -200,25 +200,36 @@ diff -urN ./mac/Makefile.am ./mac/Makefile.am
 -				../src/thirdparty/freetype/type1/type1.c \
 -				../src/thirdparty/freetype/type42/type42.c \
 -				../src/thirdparty/freetype/winfonts/winfnt.c
-+				../src/thirdparty/lib_hash/sha2.h
++				../src/lib_ccx/zvbi/bcd.h \
++				../src/lib_ccx/zvbi/bit_slicer.c \
++				../src/lib_ccx/zvbi/bit_slicer.h \
++				../src/lib_ccx/zvbi/decoder.c \
++				../src/lib_ccx/zvbi/macros.h \
++				../src/lib_ccx/zvbi/misc.h \
++				../src/lib_ccx/zvbi/raw_decoder.c \
++				../src/lib_ccx/zvbi/raw_decoder.h \
++				../src/lib_ccx/zvbi/sampling_par.c \
++				../src/lib_ccx/zvbi/sampling_par.h \
++				../src/lib_ccx/zvbi/sliced.h \
++				../src/lib_ccx/zvbi/zvbi_decoder.h
  				
  
 -ccextractor_CFLAGS = -std=gnu99 -Wno-write-strings -Wno-pointer-sign -D_FILE_OFFSET_BITS=64 -DVERSION_FILE_PRESENT -DFT2_BUILD_LIBRARY -DGPAC_DISABLE_VTT -DGPAC_DISABLE_OD_DUMP -DGPAC_DISABLE_REMOTERY -DNO_GZIP -DGPAC_HAVE_CONFIG_H
-+ccextractor_CFLAGS = -std=gnu99 -Wno-write-strings -Wno-pointer-sign -DVERSION_FILE_PRESENT
++ccextractor_CFLAGS = -std=gnu99 -Wno-write-strings -Wno-pointer-sign -D_FILE_OFFSET_BITS=64 -DVERSION_FILE_PRESENT
  
 -ccextractor_CPPFLAGS =-I../src/lib_ccx/ -I../src/thirdparty/gpacmp4/ -I../src/thirdparty/libpng/ -I../src/thirdparty/zlib/ -I../src/thirdparty/zvbi/ -I../src/thirdparty/lib_hash/ -I../src/thirdparty/protobuf-c -I../src/thirdparty -I../src  -I../src/thirdparty/freetype/include
-+ccextractor_CPPFLAGS =-I../src/lib_ccx/ -I../src/thirdparty/gpacmp4/ -I../src/thirdparty/lib_hash/ -I../src/thirdparty -I../src ${freetype_CFLAGS} ${gpac_CFLAGS} ${libpng_CFLAGS} ${libprotobuf_CFLAGS} ${libutf8proc_CFLAGS} ${zlib_CFLAGS} ${zvbi_CFLAGS}
++ccextractor_CPPFLAGS =-I../src/lib_ccx/ -I../src/lib_ccx/zvbi/ -I../src/thirdparty/lib_hash/ -I../src/thirdparty -I../src ${freetype_CFLAGS} ${gpac_CFLAGS} ${libpng_CFLAGS} ${libprotobuf_CFLAGS} ${libutf8proc_CFLAGS} ${zlib_CFLAGS}
  
  
 -ccextractor_LDADD=-lm -lpthread -ldl
-+ccextractor_LDADD=-lm -lpthread -ldl ${freetype_LIBS} ${gpac_LIBS} ${libpng_LIBS} ${libprotobuf_LIBS} ${libutf8proc_LIBS} ${zlib_LIBS} ${zvbi_LIBS}
++ccextractor_LDADD=-lm -lpthread -ldl ${freetype_LIBS} ${gpac_LIBS} ${libpng_LIBS} ${libprotobuf_LIBS} ${libutf8proc_LIBS} ${zlib_LIBS}
  
  if SYS_IS_LINUX
  ccextractor_CFLAGS += -O3 -s -DGPAC_CONFIG_LINUX
 diff -urN ./mac/configure.ac ./mac/configure.ac
 --- ./mac/configure.ac
 +++ ./mac/configure.ac
-@@ -32,6 +32,14 @@
+@@ -32,6 +32,13 @@
  AC_CHECK_LIB([avutil], [avutil_version], [HAS_AVUTIL=1 && PKG_CHECK_MODULES([libavutil], [libavutil])], [HAS_AVUTIL=0])
  AC_CHECK_LIB([swscale], [swscale_version], [HAS_SWSCALE=1 && PKG_CHECK_MODULES([libswscale], [libswscale])], [HAS_SWSCALE=0])
  
@@ -228,7 +239,6 @@ diff -urN ./mac/configure.ac ./mac/configure.ac
 +PKG_CHECK_MODULES([libprotobuf], [libprotobuf-c])
 +PKG_CHECK_MODULES([libutf8proc], [libutf8proc])
 +PKG_CHECK_MODULES([zlib], [zlib])
-+PKG_CHECK_MODULES([zvbi], [zvbi-0.2])
 +
  # Checks for header files.
  AC_CHECK_HEADERS([arpa/inet.h fcntl.h float.h inttypes.h limits.h locale.h malloc.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h sys/socket.h sys/time.h sys/timeb.h termios.h unistd.h wchar.h])
