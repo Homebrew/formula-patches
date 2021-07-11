@@ -1,0 +1,45 @@
+OpenLDAP 2.5 merged the `ldap_r` and `ldap` libraries, so all per-handle
+routines are now thread-safe by default. However, the removal of `ldap_r`
+results in the following `configure` error:
+```
+checking for ldap_bind in -lldap... yes
+checking for ldap_simple_bind in -lldap_r... no
+configure: error: library 'ldap_r' is required for LDAP
+```
+This patch therefore fixes and clarifies the LDAP library detection
+logic, by first selecting on thread-safety requirements, then looking
+for the appropriate libraries. The underlying assumption is that for a
+pre-2.5 setup, both `ldap` and `ldap_r` libraries are installed, so it
+should only fall back to (thread-safe) `ldap` in a 2.5.x installation.
+
+diff --git a/configure.in b/configure.in
+index 14a6be6..02ad260 100644
+--- a/configure.in
++++ b/configure.in
+@@ -1241,17 +1241,19 @@ fi
+ if test "$with_ldap" = yes ; then
+   _LIBS="$LIBS"
+   if test "$PORTNAME" != "win32"; then
+-    AC_CHECK_LIB(ldap, ldap_bind, [],
+-		 [AC_MSG_ERROR([library 'ldap' is required for LDAP])],
+-		 [$EXTRA_LDAP_LIBS])
+-    LDAP_LIBS_BE="-lldap $EXTRA_LDAP_LIBS"
+     if test "$enable_thread_safety" = yes; then
+       # on some platforms ldap_r fails to link without PTHREAD_LIBS
+-      AC_CHECK_LIB(ldap_r, ldap_simple_bind, [],
+-		   [AC_MSG_ERROR([library 'ldap_r' is required for LDAP])],
++      # OpenLDAP 2.5 merged ldap_r with ldap
++      AC_SEARCH_LIBS(ldap_simple_bind, [ldap_r ldap], [],
++		   [AC_MSG_ERROR([not found in any LDAP library])],
+ 		   [$PTHREAD_CFLAGS $PTHREAD_LIBS $EXTRA_LDAP_LIBS])
+-      LDAP_LIBS_FE="-lldap_r $EXTRA_LDAP_LIBS"
++      LDAP_LIBS_BE="-lldap $EXTRA_LDAP_LIBS"
++      LDAP_LIBS_FE="${ac_lib:+-l}$ac_lib $EXTRA_LDAP_LIBS"
+     else
++      AC_CHECK_LIB(ldap, ldap_bind, [],
++		   [AC_MSG_ERROR([library 'ldap' is required for LDAP])],
++		   [$EXTRA_LDAP_LIBS])
++      LDAP_LIBS_BE="-lldap $EXTRA_LDAP_LIBS"
+       LDAP_LIBS_FE="-lldap $EXTRA_LDAP_LIBS"
+     fi
+     AC_CHECK_FUNCS([ldap_initialize])
