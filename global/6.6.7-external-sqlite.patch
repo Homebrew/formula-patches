@@ -1,0 +1,69 @@
+global 6.6.7 and earlier versions hardcode the use of a 7-year-old version
+of SQLite. This patch adds an optional argument to `--with-sqlite3` to
+allow linking against an external SQLite library, which should generally
+Just Work, thanks to Dr. Richard Hipp's relentless commitment to backward
+compatibility. (Plain `--with-sqlite3` still links against vendored SQLite.)
+
+diff --git a/configure.ac b/configure.ac
+index bc31bcc..eebbc46 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -217,14 +217,35 @@ dnl Use sqlite3 API.
+ dnl
+ AC_MSG_CHECKING(for sqlite3 support)
+ AC_ARG_WITH(sqlite3,
+-[  --with-sqlite3          use sqlite3 API ],
++[  --with-sqlite3[[=DIR]]    use sqlite3 API ],
+ [
+-	#LDFLAGS="$LDFLAGS -lsqlite3"
++	AM_CONDITIONAL(USE_SQLITE3_VENDORED, true)
++	if test "$withval" != no; then
++		case "$withval" in
++		''|yes)
++			;;
++		*)
++			if ! test -d "$withval"; then
++				AC_MSG_ERROR([directory $withval not found.])
++			fi
++			if ! test -r "$withval/include/sqlite3.h"; then
++				AC_MSG_ERROR([header $withval/include/sqlite3.h not found.])
++			fi
++			if ! test -r "$withval/lib/libsqlite3.so" && ! test -r "$withval/lib/libsqlite3.dylib"; then
++				AC_MSG_ERROR([library $withval/lib/libsqlite3.* not found.])
++			fi
++			AM_CONDITIONAL(USE_SQLITE3_VENDORED, false)
++			AM_CPPFLAGS="$AM_CPPFLAGS -I$withval/include"
++			LIBS="$LIBS -L$withval/lib -lsqlite3"
++			;;
++		esac
++	fi
+ 	AC_DEFINE(USE_SQLITE3,1,[Define if you use sqlite3 API.])
+ 	AM_CONDITIONAL(USE_SQLITE3, true)
+ 	AC_MSG_RESULT(yes)
+ ],[
+ 	AM_CONDITIONAL(USE_SQLITE3, false)
++	AM_CONDITIONAL(USE_SQLITE3_VENDORED, false)
+ 	AC_MSG_RESULT(no)
+ ])
+ 
+@@ -379,6 +400,7 @@ AC_SUBST(POSIX_SORT)
+ AC_SUBST(AM_CPPFLAGS)
+ AC_SUBST(LDADD)
+ AC_SUBST(LDFLAGS)
++AC_SUBST(LIBS)
+ 
+ dnl
+ dnl The definition of config variable skip and suffixes.
+diff --git a/libdb/Makefile.am b/libdb/Makefile.am
+index dcccb1d..c51a5ca 100644
+--- a/libdb/Makefile.am
++++ b/libdb/Makefile.am
+@@ -16,7 +16,7 @@ INCS = btree.h db.h extern.h mpool.h queue.h compat.h
+ SRCS = bt_close.c bt_conv.c bt_debug.c bt_delete.c bt_get.c bt_open.c bt_overflow.c \
+         bt_page.c bt_put.c bt_search.c bt_seq.c bt_split.c bt_utils.c db.c mpool.c
+ 
+-if USE_SQLITE3
++if USE_SQLITE3_VENDORED
+ INCS += sqlite3.h
+ SRCS += sqlite3.c
+ AM_CPPFLAGS += -DSQLITE_THREADSAFE=0 -DSQLITE_OMIT_LOAD_EXTENSION
