@@ -1,5 +1,6 @@
---- Makefile
-+++ Makefile
+diff -urNad libgsm-1.0.12~/Makefile libgsm-1.0.12/Makefile
+--- libgsm-1.0.12~/Makefile 2007-11-01 15:37:52.000000000 +0100
++++ libgsm-1.0.12/Makefile	2007-11-01 15:43:06.000000000 +0100
 @@ -96,7 +96,7 @@
  #  Other tools
 
