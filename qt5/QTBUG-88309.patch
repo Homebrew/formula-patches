@@ -1,0 +1,36 @@
+From 7371d3ae92b06eb7d88c6bf795c6cd82ef044964 Mon Sep 17 00:00:00 2001
+From: Zhang Yu <zhangyub@uniontech.com>
+Date: Tue, 17 Nov 2020 21:05:39 +0800
+Subject: [PATCH] Fix QGraphicsItem crash if click right button of mouse
+
+In this case, the 'parent' is QGraphicsTextItem which isn't a object
+inheriting from QWidget. Converting QGraphicsTextItem to QWidget
+by static_cast and using it as QWidget leads to crash.
+
+Fixes: QTBUG-88309
+Change-Id: I3c583f43125eb36841848434d1fa9a135b0e9f57
+Reviewed-by: Volker Hilsheimer <volker.hilsheimer@qt.io>
+(cherry picked from commit 4df5f93018344f6cdc6cd5a08a084b1c61e0c076)
+---
+
+diff --git a/src/widgets/widgets/qwidgettextcontrol.cpp b/src/widgets/widgets/qwidgettextcontrol.cpp
+index 40b8af6..e2a07c0 100644
+--- a/src/widgets/widgets/qwidgettextcontrol.cpp
++++ b/src/widgets/widgets/qwidgettextcontrol.cpp
+@@ -1942,10 +1942,14 @@
+     if (!menu)
+         return;
+     menu->setAttribute(Qt::WA_DeleteOnClose);
+-    if (auto *window = static_cast<QWidget *>(parent)->window()->windowHandle()) {
+-        QMenuPrivate::get(menu)->topData()->initialScreenIndex =
++
++    if (auto *widget = qobject_cast<QWidget *>(parent)) {
++        if (auto *window = widget->window()->windowHandle()) {
++            QMenuPrivate::get(menu)->topData()->initialScreenIndex =
+                 QGuiApplication::screens().indexOf(window->screen());
++        }
+     }
++
+     menu->popup(screenPos);
+ #endif
+ }
