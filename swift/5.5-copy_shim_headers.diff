@@ -1,0 +1,13 @@
+diff --git a/stdlib/public/SwiftShims/CMakeLists.txt b/stdlib/public/SwiftShims/CMakeLists.txt
+index 5ee8a9c9206..12e9ccc7783 100644
+--- a/stdlib/public/SwiftShims/CMakeLists.txt
++++ b/stdlib/public/SwiftShims/CMakeLists.txt
+@@ -98,7 +98,7 @@ endforeach()
+ # Put the output dir itself last so that it isn't considered the primary output.
+ list(APPEND outputs "${output_dir}")
+ 
+-add_custom_target("copy_shim_headers"
++add_custom_target("copy_shim_headers" ALL
+     DEPENDS "${outputs}"
+     COMMENT "Copying SwiftShims module to ${output_dir}")
+ 
