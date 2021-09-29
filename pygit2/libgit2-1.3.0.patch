@@ -1,7 +1,7 @@
 From dcde9eff5950492ab0d2565a07fd18d765332a96 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?J=2E=20David=20Ib=C3=A1=C3=B1ez?= <jdavid.ibp@gmail.com>
 Date: Thu, 16 Sep 2021 11:19:04 +0200
-Subject: [PATCH] Upgrade to libgit2 1.2
+Subject: [PATCH] Upgrade to libgit2 1.3
 
 Closes #1089
 ---
@@ -20,7 +20,7 @@ index aa463bb1654f8049f0d5ca6142d5442a2695b34e..05115cdb984eee1b011ff0b092ce850f
 
  build:
 -	LIBSSH2_VERSION=1.9.0 LIBGIT2_VERSION=1.1.0 sh build.sh
-+	LIBSSH2_VERSION=1.9.0 LIBGIT2_VERSION=1.2.0 sh build.sh
++	LIBSSH2_VERSION=1.10.0 LIBGIT2_VERSION=1.3.0 sh build.sh
 
  html:
  	cd docs && find . -name "*rst" | entr make html
@@ -33,24 +33,24 @@ index a24fa02fa10d377352f4a859e03510f7ba493bcc..18320996600bad04bca1931e2027f6bb
  #   sh build.sh
  #
 -# Build libgit2 1.1.0 (will use libssh2 if available), then build pygit2
-+# Build libgit2 1.2.0 (will use libssh2 if available), then build pygit2
++# Build libgit2 1.3.0 (will use libssh2 if available), then build pygit2
  # inplace:
  #
 -#   LIBGIT2_VERSION=1.1.0 sh build.sh
-+#   LIBGIT2_VERSION=1.2.0 sh build.sh
++#   LIBGIT2_VERSION=1.3.0 sh build.sh
  #
 -# Build libssh2 1.9.0 and libgit2 1.1.0, then build pygit2 inplace:
-+# Build libssh2 1.9.0 and libgit2 1.2.0, then build pygit2 inplace:
++# Build libssh2 1.10.0 and libgit2 1.3.0, then build pygit2 inplace:
  #
 -#   LIBSSH2_VERSION=1.9.0 LIBGIT2_VERSION=1.1.0 sh build.sh
-+#   LIBSSH2_VERSION=1.9.0 LIBGIT2_VERSION=1.2.0 sh build.sh
++#   LIBSSH2_VERSION=1.10.0 LIBGIT2_VERSION=1.3.0 sh build.sh
  #
 -# Tell where libssh2 is installed, build libgit2 1.1.0, then build pygit2
-+# Tell where libssh2 is installed, build libgit2 1.2.0, then build pygit2
++# Tell where libssh2 is installed, build libgit2 1.3.0, then build pygit2
  # inplace:
  #
 -#   LIBSSH2_PREFIX=/usr/local LIBGIT2_VERSION=1.1.0 sh build.sh
-+#   LIBSSH2_PREFIX=/usr/local LIBGIT2_VERSION=1.2.0 sh build.sh
++#   LIBSSH2_PREFIX=/usr/local LIBGIT2_VERSION=1.3.0 sh build.sh
  #
  # Build inplace and run the tests:
  #
@@ -93,8 +93,8 @@ index ff967b81f76688f8f0958638d99a06f7bbacb99c..89ad3a00149a1326c3edfa20d2d69d62
 
 -#if !(LIBGIT2_VER_MAJOR == 1 && LIBGIT2_VER_MINOR == 1)
 -#error You need a compatible libgit2 version (1.1.x)
-+#if !(LIBGIT2_VER_MAJOR == 1 && LIBGIT2_VER_MINOR == 2)
-+#error You need a compatible libgit2 version (1.2.x)
++#if !(LIBGIT2_VER_MAJOR == 1 && LIBGIT2_VER_MINOR == 3)
++#error You need a compatible libgit2 version (1.3.x)
  #endif
 
  /*
