@@ -1,0 +1,17 @@
+diff -ru a/mk/beforeauto.mk.in b/mk/beforeauto.mk.in
+--- a/mk/beforeauto.mk.in	2018-05-09 01:57:00.000000000 +0900
++++ b/mk/beforeauto.mk.in	2021-11-06 23:12:10.000000000 +0900
+@@ -1096,10 +1096,9 @@
+ SharedLibraryLibNameTemplate = lib$$1$$2.$(SHAREDLIB_SUFFIX)
+ SharedLibraryPlatformLinkFlagsTemplate = -dynamiclib \
+                                          -install_name $(INSTALLLIBDIR)/$(SharedLibraryFullNameTemplate) \
+-                                         -flat_namespace \
+-                                         -undefined suppress
+-PythonLibraryPlatformLinkFlagsTemplate = -bundle -flat_namespace \
+-                                         -undefined suppress
++                                          -undefined dynamic_lookup
++PythonLibraryPlatformLinkFlagsTemplate = -bundle \
++                                          -undefined dynamic_lookup
+ PythonSHAREDLIB_SUFFIX = so
+ 
+ 
