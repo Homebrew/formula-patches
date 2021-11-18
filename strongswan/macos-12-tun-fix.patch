@@ -1,0 +1,71 @@
+diff -u -r a/conf/plugins/kernel-pfroute.conf b/conf/plugins/kernel-pfroute.conf
+--- a/conf/plugins/kernel-pfroute.conf	2021-09-27 12:08:35.000000000 +0200
++++ b/conf/plugins/kernel-pfroute.conf	2021-11-09 09:49:32.000000000 +0100
+@@ -4,6 +4,9 @@
+     # priority of this plugin.
+     load = yes
+ 
++    # MTU to set on TUN devices created for virtual IPs.
++    # mtu = 1400
++
+     # Time in ms to wait until virtual IP addresses appear/disappear before
+     # failing.
+     # vip_wait = 1000
+diff -u -r a/conf/strongswan.conf.5.main b/conf/strongswan.conf.5.main
+--- a/conf/strongswan.conf.5.main	2021-10-12 08:55:53.000000000 +0200
++++ b/conf/strongswan.conf.5.main	2021-11-09 09:49:32.000000000 +0100
+@@ -1198,6 +1198,10 @@
+ routes.
+ 
+ .TP
++.BR charon.plugins.kernel-pfroute.mtu " [1400]"
++MTU to set on TUN devices created for virtual IPs.
++
++.TP
+ .BR charon.plugins.kernel-pfroute.vip_wait " [1000]"
+ Time in ms to wait until virtual IP addresses appear/disappear before failing.
+ 
+diff -u -r a/src/libcharon/plugins/kernel_pfroute/kernel_pfroute_net.c b/src/libcharon/plugins/kernel_pfroute/kernel_pfroute_net.c
+--- a/src/libcharon/plugins/kernel_pfroute/kernel_pfroute_net.c	2020-09-13 19:44:03.000000000 +0200
++++ b/src/libcharon/plugins/kernel_pfroute/kernel_pfroute_net.c	2021-11-09 09:45:02.000000000 +0100
+@@ -58,6 +58,9 @@
+ /** delay before reinstalling routes (ms) */
+ #define ROUTE_DELAY 100
+ 
++/** default MTU for TUN devices */
++#define TUN_DEFAULT_MTU 1400
++
+ typedef struct addr_entry_t addr_entry_t;
+ 
+ /**
+@@ -411,6 +414,11 @@
+ 	int vip_wait;
+ 
+ 	/**
++	 * MTU to set on TUN devices
++	 */
++	uint32_t mtu;
++
++	/**
+ 	 * whether to actually install virtual IPs
+ 	 */
+ 	bool install_virtual_ip;
+@@ -1235,7 +1243,8 @@
+ 	{
+ 		prefix = vip->get_address(vip).len * 8;
+ 	}
+-	if (!tun->up(tun) || !tun->set_address(tun, vip, prefix))
++	if (!tun->up(tun) || !tun->set_address(tun, vip, prefix) ||
++		!tun->set_mtu(tun, this->mtu))
+ 	{
+ 		tun->destroy(tun);
+ 		return FAILED;
+@@ -2088,6 +2097,8 @@
+ 		.roam_lock = spinlock_create(),
+ 		.vip_wait = lib->settings->get_int(lib->settings,
+ 						"%s.plugins.kernel-pfroute.vip_wait", 1000, lib->ns),
++		.mtu = lib->settings->get_int(lib->settings,
++						"%s.plugins.kernel-pfroute.mtu", TUN_DEFAULT_MTU, lib->ns),
+ 		.install_virtual_ip = lib->settings->get_bool(lib->settings,
+ 						"%s.install_virtual_ip", TRUE, lib->ns),
+ 	);
