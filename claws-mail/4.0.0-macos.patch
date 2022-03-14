@@ -1,0 +1,92 @@
+From bffd0d56364e44877d038b13545353749c5d7f61 Mon Sep 17 00:00:00 2001
+From: Bo Anderson <mail@boanderson.me>
+Date: Mon, 14 Mar 2022 19:30:01 +0000
+Subject: [PATCH] Fix compile on non-X11 platforms.
+
+GtkSocket is only available under X11.
+---
+ src/compose.c | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/compose.c b/src/compose.c
+index 5643deb54..a0baf2a74 100644
+--- a/src/compose.c
++++ b/src/compose.c
+@@ -369,11 +369,11 @@ static void compose_set_ext_editor_sensitive	(Compose	*compose,
+ 						 gboolean	 sensitive);
+ static gboolean compose_get_ext_editor_cmd_valid();
+ static gboolean compose_get_ext_editor_uses_socket();
+-#ifndef G_OS_WIN32
++#ifdef GDK_WINDOWING_X11
+ static gboolean compose_ext_editor_plug_removed_cb
+ 						(GtkSocket      *socket,
+ 						 Compose        *compose);
+-#endif /* G_OS_WIN32 */
++#endif /* GDK_WINDOWING_X11 */
+ 
+ static void compose_undo_state_changed		(UndoMain	*undostruct,
+ 						 gint		 undo_state,
+@@ -9593,9 +9593,9 @@ static void compose_exec_ext_editor(Compose *compose)
+ {
+ 	gchar *tmp;
+ 	GtkWidget *socket;
+-#ifndef G_OS_WIN32
++#ifdef GDK_WINDOWING_X11
+ 	Window socket_wid = 0;
+-#endif /* G_OS_WIN32 */
++#endif /* GDK_WINDOWING_X11 */
+ 	GPid pid;
+ 	GError *error = NULL;
+ 	gchar *cmd;
+@@ -9613,7 +9613,7 @@ static void compose_exec_ext_editor(Compose *compose)
+ 	}
+ 
+ 	if (compose_get_ext_editor_uses_socket()) {
+-#ifndef G_OS_WIN32
++#ifdef GDK_WINDOWING_X11
+ 		/* Only allow one socket */
+ 		if (compose->exteditor_socket != NULL) {
+ 			if (gtk_widget_is_focus(compose->exteditor_socket)) {
+@@ -9634,12 +9634,12 @@ static void compose_exec_ext_editor(Compose *compose)
+ 		gtk_widget_realize(socket);
+ 		socket_wid = gtk_socket_get_id(GTK_SOCKET (socket));
+ 		compose->exteditor_socket = socket;
+-#endif /* G_OS_WIN32 */
++#endif /* GDK_WINDOWING_X11 */
+ 	}
+ 
+ 	if (compose_get_ext_editor_cmd_valid()) {
+ 		if (compose_get_ext_editor_uses_socket()) {
+-#ifndef G_OS_WIN32
++#ifdef GDK_WINDOWING_X11
+ 			p = g_strdup(prefs_common_get_ext_editor_cmd());
+ 			s = strstr(p, "%w");
+ 			s[1] = 'u';
+@@ -9648,7 +9648,7 @@ static void compose_exec_ext_editor(Compose *compose)
+ 			else
+ 				cmd = g_strdup_printf(p, socket_wid, tmp);
+ 			g_free(p);
+-#endif /* G_OS_WIN32 */
++#endif /* GDK_WINDOWING_X11 */
+ 		} else {
+ 			cmd = g_strdup_printf(prefs_common_get_ext_editor_cmd(), tmp);
+ 		}
+@@ -9889,14 +9889,14 @@ static gboolean compose_get_ext_editor_uses_socket()
+ 	        strstr(prefs_common_get_ext_editor_cmd(), "%w"));
+ }
+ 
+-#ifndef G_OS_WIN32
++#ifdef GDK_WINDOWING_X11
+ static gboolean compose_ext_editor_plug_removed_cb(GtkSocket *socket, Compose *compose)
+ {
+ 	compose->exteditor_socket = NULL;
+ 	/* returning FALSE allows destruction of the socket */
+ 	return FALSE;
+ }
+-#endif /* G_OS_WIN32 */
++#endif /* GDK_WINDOWING_X11 */
+ 
+ /**
+  * compose_undo_state_changed:
+-- 
+2.35.1
