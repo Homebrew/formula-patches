@@ -1,64 +1,37 @@
-From 68fa785c233f8a1702749ea0e40157012d1ea8b3 Mon Sep 17 00:00:00 2001
+From 9e704dd19dbf9508159695510dd0e4c07c69f874 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
-Date: Wed, 1 Dec 2021 16:39:38 +0000
-Subject: [PATCH 01/90] testsuite, PCH: Add -Winvalid-pch to tests.
+Date: Thu, 6 Jan 2022 08:37:18 +0000
+Subject: [PATCH 01/88] fix g++ -static-libstdc++
 
-This would seem to be a good place to check this.
-
-Signed-off-by: Iain Sandoe <iain@sandoe.co.uk>
-
-gcc/testsuite/ChangeLog:
-
-	* g++.dg/pch/pch.exp:
-	* gcc.dg/pch/pch.exp:
 ---
- gcc/testsuite/g++.dg/pch/pch.exp | 2 +-
- gcc/testsuite/gcc.dg/pch/pch.exp | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ gcc/cp/g++spec.cc | 5 +++++
+ 1 file changed, 5 insertions(+)
 
-diff --git a/gcc/testsuite/g++.dg/pch/pch.exp b/gcc/testsuite/g++.dg/pch/pch.exp
-index 766969a471a..4a6bbaa7d76 100644
---- a/gcc/testsuite/g++.dg/pch/pch.exp
-+++ b/gcc/testsuite/g++.dg/pch/pch.exp
-@@ -31,7 +31,7 @@ set old_dg_do_what_default "${dg-do-what-default}"
- foreach test [lsort [glob -nocomplain $srcdir/$subdir/*.C]] {
-     # We don't try to use the loop-optimizing options, since they are highly
-     # unlikely to make any difference to PCH.
--    dg-pch $subdir $test [list "-g" "-O2 -g" "-O2"] ".H"
-+    dg-pch $subdir $test [list "-g -Winvalid-pch" "-O2 -g -Winvalid-pch" "-O2 -Winvalid-pch"] ".H"
- }
+diff --git a/gcc/cp/g++spec.cc b/gcc/cp/g++spec.cc
+index 8174d652776..2e1e06e6ac9 100644
+--- a/gcc/cp/g++spec.cc
++++ b/gcc/cp/g++spec.cc
+@@ -222,7 +222,12 @@ lang_specific_driver (struct cl_decoded_option **in_decoded_options,
  
- set dg-do-what-default "$old_dg_do_what_default"
-diff --git a/gcc/testsuite/gcc.dg/pch/pch.exp b/gcc/testsuite/gcc.dg/pch/pch.exp
-index 78cc422d76f..7df75a1aa3d 100644
---- a/gcc/testsuite/gcc.dg/pch/pch.exp
-+++ b/gcc/testsuite/gcc.dg/pch/pch.exp
-@@ -38,7 +38,7 @@ foreach test [lsort [glob -nocomplain $srcdir/$subdir/*.c]] {
-     # unlikely to make any difference to PCH.  However, we do want to
-     # add -O0 -g, since users who want PCH usually want debugging and quick
-     # compiles.
--    dg-pch $subdir $test [concat [list {-O0 -g}] $torture_without_loops] ".h"
-+    dg-pch $subdir $test [concat [list {-O0 -g  -Winvalid-pch}] $torture_without_loops] ".h"
- }
+ 	case OPT_static_libstdc__:
+ 	  library = library >= 0 ? 2 : library;
++#ifdef HAVE_LD_STATIC_DYNAMIC
++	  /* Remove -static-libstdc++ from the command only if target supports
++	     LD_STATIC_DYNAMIC.  When not supported, it is left in so that a
++	     back-end target can use outfile substitution.  */
+ 	  args[i] |= SKIPOPT;
++#endif
+ 	  break;
  
- set test "largefile.c"
-@@ -53,7 +53,7 @@ puts $f "#include \"largefile.h\""
- close $f
- set f [open $testh w]
- close $f
--dg-pch $subdir $test [concat [list {-O0 -g}] $torture_without_loops] ".h"    
-+dg-pch $subdir $test [concat [list {-O0 -g  -Winvalid-pch}] $torture_without_loops] ".h"    
- file delete $test
- file delete $testh
- 
+ 	case OPT_stdlib_:
 -- 
 2.30.2
 
 
-From 5c854198f9dbaf13b88a3ba566a82719f3c2e5f7 Mon Sep 17 00:00:00 2001
+From eb14185227d67b9345c06c33d7502a957c5d961e Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Fri, 12 Nov 2021 17:01:50 +0000
-Subject: [PATCH 02/90] configure, gcc: Add --enable-pie-tools.
+Subject: [PATCH 02/88] configure, gcc: Add --enable-pie-tools.
 
 This adds a configure option to allow a configurer to choose
 to build the compilers and other supporting tools as PIE.
@@ -172,7 +145,7 @@ index 64c27c9cfac..d4484203794 100644
  #ifndef USED_FOR_TARGET
  #undef ICONV_CONST
 diff --git a/gcc/configure b/gcc/configure
-index 1c1195e95cb..f730d34b004 100755
+index 5ce0557719a..8f5d98ab34a 100755
 --- a/gcc/configure
 +++ b/gcc/configure
 @@ -634,6 +634,7 @@ LIBOBJS
@@ -218,7 +191,7 @@ index 1c1195e95cb..f730d34b004 100755
  #include "confdefs.h"
  
  #if HAVE_DLFCN_H
-@@ -32423,6 +32427,22 @@ $as_echo "#define ENABLE_DEFAULT_PIE 1" >>confdefs.h
+@@ -32429,6 +32433,22 @@ $as_echo "#define ENABLE_DEFAULT_PIE 1" >>confdefs.h
  fi
  
  
@@ -242,10 +215,10 @@ index 1c1195e95cb..f730d34b004 100755
  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -fno-PIE option" >&5
  $as_echo_n "checking for -fno-PIE option... " >&6; }
 diff --git a/gcc/configure.ac b/gcc/configure.ac
-index ea67fb62292..53516f52044 100644
+index 23bee7010a3..28ca91c45e3 100644
 --- a/gcc/configure.ac
 +++ b/gcc/configure.ac
-@@ -7640,6 +7640,19 @@ if test x$enable_default_pie = xyes ; then
+@@ -7646,6 +7646,19 @@ if test x$enable_default_pie = xyes ; then
  fi
  AC_SUBST([enable_default_pie])
  
@@ -269,10 +242,10 @@ index ea67fb62292..53516f52044 100644
 2.30.2
 
 
-From 32250388cb399416324b9aa902b64ae71bd7abd8 Mon Sep 17 00:00:00 2001
+From 0d7e81f0b15b0875990243cc67f265b8e1f814e3 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Fri, 12 Nov 2021 17:06:25 +0000
-Subject: [PATCH 03/90] configure: Add top-level configure support for
+Subject: [PATCH 03/88] configure: Add top-level configure support for
  --enable-pie-tools.
 
 This recognises and validates the --enable-pie-tools configure
@@ -566,10 +539,10 @@ index 85977482aee..853439cd0c0 100644
 2.30.2
 
 
-From bf39e30cc47dac5b60a9cd8313e1d41229825bfa Mon Sep 17 00:00:00 2001
+From e559aff9c4b1be614e907bb8bc96dea0515937cf Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Thu, 20 Dec 2018 09:00:38 +0000
-Subject: [PATCH 04/90] Driver : Provide a spec to insert rpaths for compiler
+Subject: [PATCH 04/88] Driver : Provide a spec to insert rpaths for compiler
  lib dirs.
 
 This provides a spec to insert "-rpath DDD" for each DDD corresponding
@@ -587,7 +560,7 @@ gcc/ChangeLog:
  1 file changed, 18 insertions(+)
 
 diff --git a/gcc/gcc.cc b/gcc/gcc.cc
-index a4d863ca457..6180898eee8 100644
+index bb07cc244e3..c300a74f65d 100644
 --- a/gcc/gcc.cc
 +++ b/gcc/gcc.cc
 @@ -572,6 +572,7 @@ or with constant text in a single argument.
@@ -609,7 +582,7 @@ index a4d863ca457..6180898eee8 100644
  static const char *asm_debug = ASM_DEBUG_SPEC;
  static const char *asm_debug_option = ASM_DEBUG_OPTION_SPEC;
  static const char *cpp_spec = CPP_SPEC;
-@@ -6139,6 +6144,19 @@ do_spec_1 (const char *spec, int inswitch, const char *soft_matched_part)
+@@ -6140,6 +6145,19 @@ do_spec_1 (const char *spec, int inswitch, const char *soft_matched_part)
  	    }
  	    break;
  
@@ -633,10 +606,10 @@ index a4d863ca457..6180898eee8 100644
 2.30.2
 
 
-From 5cad113bc79c23ba5d197dfacc7171aac00ea73a Mon Sep 17 00:00:00 2001
+From 9742026860d71331700e99d0400b166fe2369249 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Sun, 28 Mar 2021 14:48:17 +0100
-Subject: [PATCH 05/90] Darwin : Handle rpaths given on the command line.
+Subject: [PATCH 05/88] Darwin : Handle rpaths given on the command line.
 
 We want to produce a situation where a default rpath can be added
 to each executable (or dylib), but that can be overridden by any
@@ -748,10 +721,10 @@ index cc7d14c2e4d..39388b76726 100644
 2.30.2
 
 
-From 8e45c74c8815997574cb51d3e34809f195e21e78 Mon Sep 17 00:00:00 2001
+From 9377c2943344c37c43ffb64afd6beb7936914224 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Tue, 18 Dec 2018 13:00:04 +0000
-Subject: [PATCH 06/90] Darwin : Allow for configuring Darwin to use embedded
+Subject: [PATCH 06/88] Darwin : Allow for configuring Darwin to use embedded
  runpath.
 
 Recent Darwin versions place contraints on the use of run paths
@@ -1000,7 +973,7 @@ available, the value should be set to ${libdir}.
  libssp/Makefile.in                        |   3 +-
  libssp/configure                          |  82 +++++++-
  libssp/configure.ac                       |   2 +
- libstdc++-v3/configure                    | 157 +++++++++++++--
+ libstdc++-v3/configure                    | 155 +++++++++++++--
  libstdc++-v3/configure.ac                 |   1 +
  libstdc++-v3/src/Makefile.am              |   6 +-
  libstdc++-v3/src/Makefile.in              |   3 +-
@@ -1011,7 +984,7 @@ available, the value should be set to ${libdir}.
  lto-plugin/configure.ac                   |   1 +
  zlib/configure                            |  81 +++++++-
  zlib/configure.ac                         |   1 +
- 101 files changed, 2843 insertions(+), 548 deletions(-)
+ 101 files changed, 2842 insertions(+), 547 deletions(-)
  create mode 100644 aclocal.m4
  create mode 100644 libgcc/config/t-darwin-rpath
 
@@ -1823,7 +1796,7 @@ index 39388b76726..b1cb8464d57 100644
  nofixprebinding
  Driver RejectNegative
 diff --git a/gcc/configure b/gcc/configure
-index 1c1195e95cb..30aacbe75c7 100755
+index 5ce0557719a..7917fdf264d 100755
 --- a/gcc/configure
 +++ b/gcc/configure
 @@ -740,6 +740,8 @@ ORIGINAL_PLUGIN_LD_FOR_TARGET
@@ -2037,7 +2010,7 @@ index 1c1195e95cb..30aacbe75c7 100755
  # Identify the assembler which will work hand-in-glove with the newly
  # built GCC, so that we can examine its features.  This is the assembler
  # which will be driven by the driver program.
-@@ -32960,6 +33078,10 @@ LTLIBOBJS=$ac_ltlibobjs
+@@ -32966,6 +33084,10 @@ LTLIBOBJS=$ac_ltlibobjs
  
  
  
@@ -2049,7 +2022,7 @@ index 1c1195e95cb..30aacbe75c7 100755
  : "${CONFIG_STATUS=./config.status}"
  ac_write_fail=0
 diff --git a/gcc/configure.ac b/gcc/configure.ac
-index ea67fb62292..93b0a3cd253 100644
+index 23bee7010a3..a1a00ff5374 100644
 --- a/gcc/configure.ac
 +++ b/gcc/configure.ac
 @@ -2559,6 +2559,8 @@ AC_PROG_LIBTOOL
@@ -3605,7 +3578,7 @@ index 22cb2136a08..14d1714c32c 100644
  libgomp_la_DEPENDENCIES = $(libgomp_version_dep)
  libgomp_la_LINK = $(LINK) $(libgomp_la_LDFLAGS)
 diff --git a/libgomp/configure b/libgomp/configure
-index bdbe3d142d1..3d156497530 100755
+index 5ef071ea046..722ce7ac56e 100755
 --- a/libgomp/configure
 +++ b/libgomp/configure
 @@ -692,6 +692,8 @@ FC
@@ -3811,7 +3784,7 @@ index bdbe3d142d1..3d156497530 100755
  
    else
    ld_shlibs_FC=no
-@@ -17214,6 +17327,10 @@ if test -z "${BUILD_INFO_TRUE}" && test -z "${BUILD_INFO_FALSE}"; then
+@@ -17213,6 +17326,10 @@ if test -z "${BUILD_INFO_TRUE}" && test -z "${BUILD_INFO_FALSE}"; then
    as_fn_error $? "conditional \"BUILD_INFO\" was never defined.
  Usually this means the macro was only invoked conditionally." "$LINENO" 5
  fi
@@ -5359,7 +5332,7 @@ index 31209ba2920..cc372587939 100644
  # libtool variables for Phobos shared and position-independent compiles.
  #
 diff --git a/libphobos/libdruntime/Makefile.am b/libphobos/libdruntime/Makefile.am
-index ba641315664..ed50019fe77 100644
+index 6ca4012b713..861ec0ebc03 100644
 --- a/libphobos/libdruntime/Makefile.am
 +++ b/libphobos/libdruntime/Makefile.am
 @@ -128,8 +128,11 @@ ALL_DRUNTIME_SOURCES = $(DRUNTIME_DSOURCES) $(DRUNTIME_CSOURCES) \
@@ -5376,10 +5349,10 @@ index ba641315664..ed50019fe77 100644
  libgdruntime_la_DEPENDENCIES = $(DRTSTUFF)
  # Also override library link commands: This is not strictly
 diff --git a/libphobos/libdruntime/Makefile.in b/libphobos/libdruntime/Makefile.in
-index 1c64d35b164..84aa179694a 100644
+index f7f78d71ff7..9f3361c7702 100644
 --- a/libphobos/libdruntime/Makefile.in
 +++ b/libphobos/libdruntime/Makefile.in
-@@ -804,8 +804,9 @@ ALL_DRUNTIME_SOURCES = $(DRUNTIME_DSOURCES) $(DRUNTIME_CSOURCES) \
+@@ -805,8 +805,9 @@ ALL_DRUNTIME_SOURCES = $(DRUNTIME_DSOURCES) $(DRUNTIME_CSOURCES) \
  toolexeclib_LTLIBRARIES = libgdruntime.la
  libgdruntime_la_SOURCES = $(ALL_DRUNTIME_SOURCES)
  libgdruntime_la_LIBTOOLFLAGS = 
@@ -5391,7 +5364,7 @@ index 1c64d35b164..84aa179694a 100644
  libgdruntime_la_LIBADD = $(LIBATOMIC) $(LIBBACKTRACE)
  libgdruntime_la_DEPENDENCIES = $(DRTSTUFF)
 diff --git a/libphobos/src/Makefile.am b/libphobos/src/Makefile.am
-index 75f83974e99..f50f5940f69 100644
+index da7a2004ff8..a47d985c5b7 100644
 --- a/libphobos/src/Makefile.am
 +++ b/libphobos/src/Makefile.am
 @@ -44,8 +44,11 @@ toolexeclib_DATA = libgphobos.spec
@@ -5408,10 +5381,10 @@ index 75f83974e99..f50f5940f69 100644
  libgphobos_la_LIBADD = ../libdruntime/libgdruntime_convenience.la
  else
 diff --git a/libphobos/src/Makefile.in b/libphobos/src/Makefile.in
-index f2395e2caf7..ef33c731fd6 100644
+index 6f58fee01ac..212ea2469f2 100644
 --- a/libphobos/src/Makefile.in
 +++ b/libphobos/src/Makefile.in
-@@ -527,8 +527,9 @@ toolexeclib_DATA = libgphobos.spec
+@@ -528,8 +528,9 @@ toolexeclib_DATA = libgphobos.spec
  toolexeclib_LTLIBRARIES = libgphobos.la
  libgphobos_la_SOURCES = $(ALL_PHOBOS_SOURCES)
  libgphobos_la_LIBTOOLFLAGS = 
@@ -6497,7 +6470,7 @@ index f30f81c54f6..90778e2355d 100644
  # Also toolexecdir, though it's only used in toolexeclibdir
  case ${version_specific_libs} in
 diff --git a/libstdc++-v3/configure b/libstdc++-v3/configure
-index ef80912d0b9..eb606283afc 100755
+index 9b94fd71e42..260b8d3a950 100755
 --- a/libstdc++-v3/configure
 +++ b/libstdc++-v3/configure
 @@ -786,6 +786,8 @@ GLIBCXX_HOSTED_TRUE
@@ -6746,34 +6719,25 @@ index ef80912d0b9..eb606283afc 100755
  int main()
  {
    typedef long long atomic_type;
-@@ -16190,7 +16307,7 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
- 
-     ac_save_CXXFLAGS="$CXXFLAGS"
- 
--        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-+                cat confdefs.h - <<_ACEOF >conftest.$ac_ext
- /* end confdefs.h.  */
- 
-     #if ! defined __GCC_HAVE_SYNC_COMPARE_AND_SWAP_2
-@@ -16240,7 +16357,7 @@ $as_echo "mutex" >&6; }
+@@ -16243,7 +16360,7 @@ $as_echo "mutex" >&6; }
    # unnecessary for this test.
  
      cat > conftest.$ac_ext << EOF
--#line 16243 "configure"
-+#line 16360 "configure"
+-#line 16246 "configure"
++#line 16363 "configure"
  int main()
  {
    _Decimal32 d1;
-@@ -16282,7 +16399,7 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
+@@ -16285,7 +16402,7 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
    # unnecessary for this test.
  
    cat > conftest.$ac_ext << EOF
--#line 16285 "configure"
-+#line 16402 "configure"
+-#line 16288 "configure"
++#line 16405 "configure"
  template<typename T1, typename T2>
    struct same
    { typedef T2 type; };
-@@ -78937,6 +79054,10 @@ if test -z "${MAINTAINER_MODE_TRUE}" && test -z "${MAINTAINER_MODE_FALSE}"; then
+@@ -78983,6 +79100,10 @@ if test -z "${MAINTAINER_MODE_TRUE}" && test -z "${MAINTAINER_MODE_FALSE}"; then
    as_fn_error $? "conditional \"MAINTAINER_MODE\" was never defined.
  Usually this means the macro was only invoked conditionally." "$LINENO" 5
  fi
@@ -6797,7 +6761,7 @@ index e59bcdb2944..f3dda5a4ff9 100644
  if test "$enable_vtable_verify" = yes; then
    predep_objects_CXX="${predep_objects_CXX} ${glibcxx_builddir}/../libgcc/vtv_start.o"
 diff --git a/libstdc++-v3/src/Makefile.am b/libstdc++-v3/src/Makefile.am
-index 18f57632c3d..6022fae8c50 100644
+index 9c3f4aca655..c695ee7eb7e 100644
 --- a/libstdc++-v3/src/Makefile.am
 +++ b/libstdc++-v3/src/Makefile.am
 @@ -133,8 +133,12 @@ libstdc___la_DEPENDENCIES = \
@@ -6815,7 +6779,7 @@ index 18f57632c3d..6022fae8c50 100644
  libstdc___la_LINK = $(CXXLINK) $(libstdc___la_LDFLAGS) $(lt_host_flags)
  
 diff --git a/libstdc++-v3/src/Makefile.in b/libstdc++-v3/src/Makefile.in
-index eeafb892386..766a3d1748e 100644
+index 4a06f6cfec1..e3dfcde1335 100644
 --- a/libstdc++-v3/src/Makefile.in
 +++ b/libstdc++-v3/src/Makefile.in
 @@ -546,8 +546,9 @@ libstdc___la_DEPENDENCIES = \
@@ -7528,10 +7492,415 @@ index be1cfe29651..2327d003a05 100644
 2.30.2
 
 
-From 0182a08511d2d3e8ef9294e0fd5cfab9b56da796 Mon Sep 17 00:00:00 2001
+From 68d2f3d17e82365cb22ca55d31685305c2f1a1d4 Mon Sep 17 00:00:00 2001
+From: Iain Sandoe <iain@sandoe.co.uk>
+Date: Sun, 3 Jan 2021 12:24:45 +0000
+Subject: [PATCH 07/88] Darwin, libgcc : Adjust min version supported for the
+ OS.
+
+Tools from later versions of the OS deprecate or fail to support
+earlier OS revisions.
+
+libgcc/
+	* config.host: Arrange to set min Darwin OS versions from
+	the configured host version.
+        * config/i386/t-darwin: Amend to handle configured min OS
+	versions.
+        * config/t-darwin : Use the configured min OS versions.
+        * config/t-darwin-min-1: New.
+        * config/t-darwin-min-4: New.
+        * config/t-darwin-min-5: New.
+        * config/t-darwin-min-8: New.
+---
+ libgcc/config.host           | 18 ++++++++++++++++++
+ libgcc/config/t-darwin       | 11 ++++++-----
+ libgcc/config/t-darwin-min-1 |  3 +++
+ libgcc/config/t-darwin-min-4 |  3 +++
+ libgcc/config/t-darwin-min-5 |  3 +++
+ libgcc/config/t-darwin-min-8 |  3 +++
+ libgcc/config/t-darwin-rpath |  3 ---
+ 7 files changed, 36 insertions(+), 8 deletions(-)
+ create mode 100644 libgcc/config/t-darwin-min-1
+ create mode 100644 libgcc/config/t-darwin-min-4
+ create mode 100644 libgcc/config/t-darwin-min-5
+ create mode 100644 libgcc/config/t-darwin-min-8
+
+diff --git a/libgcc/config.host b/libgcc/config.host
+index 7a641e2fb0d..9a3cd039714 100644
+--- a/libgcc/config.host
++++ b/libgcc/config.host
+@@ -257,11 +257,29 @@ case ${host} in
+       *-darwin*)
+         echo "but is needed after macOS 10.11 (setting it on)" 1>&2
+         tmake_file="$tmake_file t-darwin-rpath "
++        enable_darwin_at_rpath=yes
+         ;;
+     esac
+   else
+     echo "enable_darwin_at_rpath is '$enable_darwin_at_rpath'" 1>&2
+   fi
++  case ${host} in
++    *-*-darwin2* | *-*-darwin1[89]* | aarch64*-*-darwin*)
++      tmake_file="t-darwin-min-8 $tmake_file"
++      ;;
++    *-*-darwin9* | *-*-darwin1[0-7]*)
++      tmake_file="t-darwin-min-5 $tmake_file"
++      ;;
++    *-*-darwin[4-8]*)
++      tmake_file="t-darwin-min-1 $tmake_file"
++      ;;
++    *)
++      # Fall back to configuring for the oldest system known to work with
++      # all archs and the current sources.
++      tmake_file="t-darwin-min-5 $tmake_file"
++      echo "Warning: libgcc configured to support macOS 10.5" 1>&2
++      ;;
++  esac
+   extra_parts="crt3.o libd10-uwfef.a crttms.o crttme.o libemutls_w.a"
+   ;;
+ *-*-dragonfly*)
+diff --git a/libgcc/config/t-darwin b/libgcc/config/t-darwin
+index 299d26c2c96..a708583d965 100644
+--- a/libgcc/config/t-darwin
++++ b/libgcc/config/t-darwin
+@@ -1,15 +1,15 @@
+ # Set this as a minimum (unless overriden by arch t-files) since it's a
+ # reasonable lowest common denominator that works for all our archs.
+-HOST_LIBGCC2_CFLAGS += -mmacosx-version-min=10.4
++HOST_LIBGCC2_CFLAGS += $(DARWIN_MIN_LIB_VERSION)
+ 
+ crt3.o: $(srcdir)/config/darwin-crt3.c
+-	$(crt_compile) -mmacosx-version-min=10.4 -c $<
++	$(crt_compile) $(DARWIN_MIN_CRT_VERSION) -c $<
+ 
+ crttms.o: $(srcdir)/config/darwin-crt-tm.c
+-	$(crt_compile) -mmacosx-version-min=10.4 -DSTART -c $<
++	$(crt_compile) $(DARWIN_MIN_CRT_VERSION) -DSTART -c $<
+ 
+ crttme.o: $(srcdir)/config/darwin-crt-tm.c
+-	$(crt_compile) -mmacosx-version-min=10.4 -DEND -c $<
++	$(crt_compile) $(DARWIN_MIN_CRT_VERSION) -DEND -c $<
+ 
+ # Make emutls weak so that we can deal with -static-libgcc, override the
+ # hidden visibility when this is present in libgcc_eh.
+@@ -24,7 +24,8 @@ libemutls_w.a: emutls_s.o
+ 	$(AR_CREATE_FOR_TARGET) $@ $<
+ 	$(RANLIB_FOR_TARGET) $@
+ 
+-# Patch to __Unwind_Find_Enclosing_Function for Darwin10.
++# This has to be built for 10.6, even if the toolchain will not target that
++# version
+ d10-uwfef.o: $(srcdir)/config/darwin10-unwind-find-enc-func.c libgcc_tm.h
+ 	$(crt_compile) -mmacosx-version-min=10.6 -c $<
+ 
+diff --git a/libgcc/config/t-darwin-min-1 b/libgcc/config/t-darwin-min-1
+new file mode 100644
+index 00000000000..8c2cf8acd39
+--- /dev/null
++++ b/libgcc/config/t-darwin-min-1
+@@ -0,0 +1,3 @@
++# Support building with -mmacosx-version-min back to 10.1.
++DARWIN_MIN_LIB_VERSION = -mmacosx-version-min=10.4
++DARWIN_MIN_CRT_VERSION = -mmacosx-version-min=10.1
+diff --git a/libgcc/config/t-darwin-min-4 b/libgcc/config/t-darwin-min-4
+new file mode 100644
+index 00000000000..04e980de4d5
+--- /dev/null
++++ b/libgcc/config/t-darwin-min-4
+@@ -0,0 +1,3 @@
++# Support building with -mmacosx-version-min back to 10.4.
++DARWIN_MIN_LIB_VERSION = -mmacosx-version-min=10.4
++DARWIN_MIN_CRT_VERSION = -mmacosx-version-min=10.4
+diff --git a/libgcc/config/t-darwin-min-5 b/libgcc/config/t-darwin-min-5
+new file mode 100644
+index 00000000000..138193151e7
+--- /dev/null
++++ b/libgcc/config/t-darwin-min-5
+@@ -0,0 +1,3 @@
++# Support building with -mmacosx-version-min back to 10.5.
++DARWIN_MIN_LIB_VERSION = -mmacosx-version-min=10.5
++DARWIN_MIN_CRT_VERSION = -mmacosx-version-min=10.5
+diff --git a/libgcc/config/t-darwin-min-8 b/libgcc/config/t-darwin-min-8
+new file mode 100644
+index 00000000000..9efc9dc0257
+--- /dev/null
++++ b/libgcc/config/t-darwin-min-8
+@@ -0,0 +1,3 @@
++# Support building with -mmacosx-version-min back to 10.8.
++DARWIN_MIN_LIB_VERSION = -mmacosx-version-min=10.8
++DARWIN_MIN_CRT_VERSION = -mmacosx-version-min=10.8
+diff --git a/libgcc/config/t-darwin-rpath b/libgcc/config/t-darwin-rpath
+index 7cf63d9cb6b..e73d7f378b0 100644
+--- a/libgcc/config/t-darwin-rpath
++++ b/libgcc/config/t-darwin-rpath
+@@ -1,5 +1,2 @@
+ # Use @rpath and add a search path to exes and dylibs that depend on this.
+ SHLIB_RPATH = @rpath
+-
+-# Which does not work for Darwin < 9
+-HOST_LIBGCC2_CFLAGS += -mmacosx-version-min=10.5
+-- 
+2.30.2
+
+
+From 4e34756791de1a208f4c29fd1d2b71ceda444dda Mon Sep 17 00:00:00 2001
+From: Iain Sandoe <iain@sandoe.co.uk>
+Date: Fri, 16 Apr 2021 20:01:40 +0100
+Subject: [PATCH 08/88] WIP for @path testsuite non-installed.
+
+---
+ gcc/Makefile.in                           |  3 +++
+ gcc/testsuite/gfortran.dg/coarray/caf.exp | 18 ++++++++++++++++--
+ gcc/testsuite/gfortran.dg/dg.exp          | 23 +++++++++++++++++++++--
+ gcc/testsuite/lib/asan-dg.exp             |  2 +-
+ gcc/testsuite/lib/atomic-dg.exp           |  2 +-
+ gcc/testsuite/lib/target-libpath.exp      | 23 +++++++++++++++++++----
+ libatomic/testsuite/lib/libatomic.exp     |  1 +
+ libitm/testsuite/lib/libitm.exp           |  1 +
+ libitm/testsuite/libitm.c++/c++.exp       |  4 +++-
+ 9 files changed, 66 insertions(+), 11 deletions(-)
+
+diff --git a/gcc/Makefile.in b/gcc/Makefile.in
+index f806286aa1e..d44b08d818f 100644
+--- a/gcc/Makefile.in
++++ b/gcc/Makefile.in
+@@ -4121,6 +4121,9 @@ site.exp: ./config.status Makefile
+ 	  echo "set COMPAT_OPTIONS \"$(COMPAT_OPTIONS)\"" >> ./site.tmp; \
+ 	else true; \
+ 	fi
++	@if test "x@enable_darwin_at_rpath@" = "xyes" ; then \
++	  echo "set ENABLE_DARWIN_AT_RPATH 1" >> ./site.tmp; \
++	fi
+ 	@echo "## All variables above are generated by configure. Do Not Edit ##" >> ./site.tmp
+ 	@cat ./site.tmp > site.exp
+ 	@cat site.bak | sed \
+diff --git a/gcc/testsuite/gfortran.dg/coarray/caf.exp b/gcc/testsuite/gfortran.dg/coarray/caf.exp
+index 8683a2ab435..e76cb69dcd9 100644
+--- a/gcc/testsuite/gfortran.dg/coarray/caf.exp
++++ b/gcc/testsuite/gfortran.dg/coarray/caf.exp
+@@ -28,6 +28,7 @@
+ 
+ # Load procedures from common libraries. 
+ load_lib gfortran-dg.exp
++load_lib atomic-dg.exp
+ 
+ # If a testcase doesn't have special options, use these.
+ global DEFAULT_FFLAGS
+@@ -47,6 +48,7 @@ global gfortran_test_path
+ global gfortran_aux_module_flags
+ set gfortran_test_path $srcdir/$subdir
+ set gfortran_aux_module_flags $DEFAULT_FFLAGS
++
+ proc dg-compile-aux-modules { args } {
+     global gfortran_test_path
+     global gfortran_aux_module_flags
+@@ -69,9 +71,21 @@ proc dg-compile-aux-modules { args } {
+ }
+ 
+ # Add -latomic only where supported.  Assume built-in support elsewhere.
+-set maybe_atomic_lib ""
+ if [check_effective_target_libatomic_available] {
+-    set maybe_atomic_lib "-latomic"
++    #set maybe_atomic_lib "-latomic"
++    if ![is_remote host] {
++	if [info exists TOOL_OPTIONS] {
++	    set maybe_atomic_lib "[atomic_link_flags [get_multilibs ${TOOL_OPTIONS}]]"
++	} else {
++	    set maybe_atomic_lib "[atomic_link_flags [get_multilibs]]"
++	}
++    } else {
++        set maybe_atomic_lib ""
++    }
++  set t [get_multilibs]
++  puts "maybe al $maybe_atomic_lib ml $t"
++} else {
++    set maybe_atomic_lib ""
+ }
+ 
+ # Main loop.
+diff --git a/gcc/testsuite/gfortran.dg/dg.exp b/gcc/testsuite/gfortran.dg/dg.exp
+index bd7ad95ad0d..36fc2972b2e 100644
+--- a/gcc/testsuite/gfortran.dg/dg.exp
++++ b/gcc/testsuite/gfortran.dg/dg.exp
+@@ -18,6 +18,7 @@
+ 
+ # Load support procs.
+ load_lib gfortran-dg.exp
++load_lib atomic-dg.exp
+ 
+ # If a testcase doesn't have special options, use these.
+ global DEFAULT_FFLAGS
+@@ -53,12 +54,30 @@ proc dg-compile-aux-modules { args } {
+     }
+ }
+ 
++# coarray tests might need libatomic.  Assume that it is either not needed or
++# provided by builtins if it's not available.
++if [check_effective_target_libatomic_available] {
++    if ![is_remote host] {
++	if [info exists TOOL_OPTIONS] {
++	    set maybe_atomic_lib "[atomic_link_flags [get_multilibs ${TOOL_OPTIONS}]]"
++	} else {
++	    set maybe_atomic_lib "[atomic_link_flags [get_multilibs]]"
++	}
++    } else {
++        set maybe_atomic_lib ""
++    }
++  set t [get_multilibs]
++  puts "dg set al $maybe_atomic_lib ml $t"
++}
++
++puts "DEFAULT_FFLAGS $DEFAULT_FFLAGS"
++
+ # Main loop.
+ gfortran-dg-runtest [lsort \
+-       [glob -nocomplain $srcdir/$subdir/*.\[fF\]{,90,95,03,08} ] ] "" $DEFAULT_FFLAGS
++       [glob -nocomplain $srcdir/$subdir/*.\[fF\]{,90,95,03,08} ] ] $maybe_atomic_lib $DEFAULT_FFLAGS
+ 
+ gfortran-dg-runtest [lsort \
+-       [glob -nocomplain $srcdir/$subdir/g77/*.\[fF\] ] ] "" $DEFAULT_FFLAGS
++       [glob -nocomplain $srcdir/$subdir/g77/*.\[fF\] ] ] $maybe_atomic_lib $DEFAULT_FFLAGS
+ 
+ 
+ # All done.
+diff --git a/gcc/testsuite/lib/asan-dg.exp b/gcc/testsuite/lib/asan-dg.exp
+index 7e0f85dc9b0..88c6ece8caa 100644
+--- a/gcc/testsuite/lib/asan-dg.exp
++++ b/gcc/testsuite/lib/asan-dg.exp
+@@ -78,7 +78,7 @@ proc asan_link_flags_1 { paths lib } {
+ 	   || [file exists "${gccpath}/libsanitizer/${lib}/.libs/lib${lib}.${shlib_ext}"] } {
+ 	  append flags " -B${gccpath}/libsanitizer/ "
+ 	  append flags " -B${gccpath}/libsanitizer/${lib}/ "
+-	  append flags " -L${gccpath}/libsanitizer/${lib}/.libs "
++	  append flags " -B${gccpath}/libsanitizer/${lib}/.libs "
+ 	  append ld_library_path ":${gccpath}/libsanitizer/${lib}/.libs"
+       }
+     } else {
+diff --git a/gcc/testsuite/lib/atomic-dg.exp b/gcc/testsuite/lib/atomic-dg.exp
+index 86dcfa674ea..c9244fb6cac 100644
+--- a/gcc/testsuite/lib/atomic-dg.exp
++++ b/gcc/testsuite/lib/atomic-dg.exp
+@@ -33,7 +33,7 @@ proc atomic_link_flags { paths } {
+       if { [file exists "${gccpath}/libatomic/.libs/libatomic.a"]
+ 	   || [file exists "${gccpath}/libatomic/.libs/libatomic.${shlib_ext}"] } {
+ 	  append flags " -B${gccpath}/libatomic/ "
+-	  append flags " -L${gccpath}/libatomic/.libs"
++	  append flags " -B${gccpath}/libatomic/.libs"
+ 	  append ld_library_path ":${gccpath}/libatomic/.libs"
+       }
+     } else {
+diff --git a/gcc/testsuite/lib/target-libpath.exp b/gcc/testsuite/lib/target-libpath.exp
+index d09cd515d20..29bfbaf4726 100644
+--- a/gcc/testsuite/lib/target-libpath.exp
++++ b/gcc/testsuite/lib/target-libpath.exp
+@@ -67,6 +67,7 @@ proc set_ld_library_path_env_vars { } {
+   global orig_dyld_library_path
+   global orig_path
+   global orig_gcc_exec_prefix
++  global ENABLE_DARWIN_AT_RPATH
+   global env
+ 
+   # Save the original GCC_EXEC_PREFIX.
+@@ -133,6 +134,7 @@ proc set_ld_library_path_env_vars { } {
+   #
+   # Doing this is somewhat of a hack as ld_library_path gets repeated in
+   # SHLIB_PATH and LD_LIBRARY_PATH when unix_load sets these variables.
++  if { ![istarget *-*-darwin*] } {
+   if { $orig_ld_library_path_saved } {
+     setenv LD_LIBRARY_PATH "$ld_library_path:$orig_ld_library_path"
+   } else {
+@@ -166,11 +168,23 @@ proc set_ld_library_path_env_vars { } {
+   } else {
+     setenv LD_LIBRARY_PATH_64 "$ld_library_path"
+   }
+-  if { $orig_dyld_library_path_saved } {
+-    setenv DYLD_LIBRARY_PATH "$ld_library_path:$orig_dyld_library_path"
+-  } else {
+-    setenv DYLD_LIBRARY_PATH "$ld_library_path"
+   }
++  if { [istarget *-*-darwin*] } {
++    if { [info exists ENABLE_DARWIN_AT_RPATH] || [istarget *-*-darwin1\[5-9\]*]
++         || [istarget *-*-darwin20*] } {
++      # Either we are not using DYLD_LIBRARY_PATH or we're on a version of the
++      # OS for which it is not passed through system exes.
++      if [info exists env(DYLD_LIBRARY_PATH)] {
++        unsetenv DYLD_LIBRARY_PATH
++      }
++    } else {
++      if { $orig_dyld_library_path_saved } {
++        setenv DYLD_LIBRARY_PATH "$ld_library_path:$orig_dyld_library_path"
++      } else {
++        setenv DYLD_LIBRARY_PATH "$ld_library_path"
++      }
++    }
++  } 
+   if { [istarget *-*-cygwin*] || [istarget *-*-mingw*] } {
+     if { $orig_path_saved } {
+       setenv PATH "$ld_library_path:$orig_path"
+@@ -179,6 +193,7 @@ proc set_ld_library_path_env_vars { } {
+     }
+   }
+ 
++  verbose -log "set paths"
+   verbose -log "LD_LIBRARY_PATH=[getenv LD_LIBRARY_PATH]"
+   verbose -log "LD_RUN_PATH=[getenv LD_RUN_PATH]"
+   verbose -log "SHLIB_PATH=[getenv SHLIB_PATH]"
+diff --git a/libatomic/testsuite/lib/libatomic.exp b/libatomic/testsuite/lib/libatomic.exp
+index 38f3e5673e2..300e5096f79 100644
+--- a/libatomic/testsuite/lib/libatomic.exp
++++ b/libatomic/testsuite/lib/libatomic.exp
+@@ -152,6 +152,7 @@ proc libatomic_init { args } {
+     lappend ALWAYS_CFLAGS "additional_flags=-I${srcdir}/.."
+ 
+     if [istarget *-*-darwin*] {
++	lappend ALWAYS_CFLAGS "additional_flags=-B${blddir}/.libs"
+ 	lappend ALWAYS_CFLAGS "additional_flags=-shared-libgcc"
+     }
+ 
+diff --git a/libitm/testsuite/lib/libitm.exp b/libitm/testsuite/lib/libitm.exp
+index 6d8e3e71310..906534022eb 100644
+--- a/libitm/testsuite/lib/libitm.exp
++++ b/libitm/testsuite/lib/libitm.exp
+@@ -158,6 +158,7 @@ proc libitm_init { args } {
+     }
+ 
+     if [istarget *-*-darwin*] {
++	lappend ALWAYS_CFLAGS "additional_flags=-B${blddir}/.libs"
+ 	lappend ALWAYS_CFLAGS "additional_flags=-shared-libgcc"
+     }
+ 
+diff --git a/libitm/testsuite/libitm.c++/c++.exp b/libitm/testsuite/libitm.c++/c++.exp
+index f92aa096104..295c5bd4703 100644
+--- a/libitm/testsuite/libitm.c++/c++.exp
++++ b/libitm/testsuite/libitm.c++/c++.exp
+@@ -56,8 +56,10 @@ if { $lang_test_file_found } {
+     # Gather a list of all tests.
+     set tests [lsort [glob -nocomplain $srcdir/$subdir/*.C]]
+ 
++    set stdcxxadder ""
+     if { $blddir != "" } {
+ 	set ld_library_path "$always_ld_library_path:${blddir}/${lang_library_path}"
++	set stdcxxadder "-B ${blddir}/${lang_library_path}"
+     } else {
+ 	set ld_library_path "$always_ld_library_path"
+     }
+@@ -72,7 +74,7 @@ if { $lang_test_file_found } {
+     }
+ 
+     # Main loop.
+-    dg-runtest $tests "" $libstdcxx_includes
++    dg-runtest $tests $stdcxxadder $libstdcxx_includes
+ }
+ 
+ # All done.
+-- 
+2.30.2
+
+
+From 7b791e07c225eb86041d2ef326bc953bce7f4b87 Mon Sep 17 00:00:00 2001
 From: Maxim Blinov <maxim.blinov@embecosm.com>
 Date: Sat, 13 Nov 2021 04:39:53 +0000
-Subject: [PATCH 07/90] Generate off-stack nested function trampolines
+Subject: [PATCH 09/88] Generate off-stack nested function trampolines
 
 Add support for allocating nested function trampolines on an
 executable heap rather than on the stack. This is motivated by targets
@@ -7612,7 +7981,7 @@ index 005976f34e9..e2cd65eed7b 100644
  /* Implementing __builtin_setjmp.  */
  DEF_BUILTIN_STUB (BUILT_IN_SETJMP_SETUP, "__builtin_setjmp_setup")
 diff --git a/gcc/common.opt b/gcc/common.opt
-index 8b6513de47c..812276469b4 100644
+index 8a0dafc522d..69b5f6157b3 100644
 --- a/gcc/common.opt
 +++ b/gcc/common.opt
 @@ -2173,6 +2173,10 @@ foffload-abi=
@@ -7636,7 +8005,7 @@ index 8b6513de47c..812276469b4 100644
  generate them instead of using descriptors.
  
 diff --git a/gcc/config.gcc b/gcc/config.gcc
-index 7b58e1314ff..6fc97e44dd1 100644
+index c5064dd3766..cd088e98921 100644
 --- a/gcc/config.gcc
 +++ b/gcc/config.gcc
 @@ -1086,6 +1086,13 @@ case ${target} in
@@ -7654,7 +8023,7 @@ index 7b58e1314ff..6fc97e44dd1 100644
  aarch64*-*-elf | aarch64*-*-fuchsia* | aarch64*-*-rtems*)
  	tm_file="${tm_file} dbxelf.h elfos.h newlib-stdint.h"
 diff --git a/gcc/doc/invoke.texi b/gcc/doc/invoke.texi
-index 3936aef69d0..513ea5cfe3d 100644
+index 07b440190c3..9a97f4e0697 100644
 --- a/gcc/doc/invoke.texi
 +++ b/gcc/doc/invoke.texi
 @@ -670,6 +670,7 @@ Objective-C and Objective-C++ Dialects}.
@@ -7665,7 +8034,7 @@ index 3936aef69d0..513ea5cfe3d 100644
  -fasynchronous-unwind-tables @gol
  -fno-gnu-unique @gol
  -finhibit-size-directive  -fcommon  -fno-ident @gol
-@@ -17121,6 +17122,19 @@ instructions.  It does not allow exceptions to be thrown from
+@@ -17129,6 +17130,19 @@ instructions.  It does not allow exceptions to be thrown from
  arbitrary signal handlers such as @code{SIGALRM}.  This enables
  @option{-fexceptions}.
  
@@ -7848,10 +8217,10 @@ index 078ceab3ca3..07c7c4a66a9 100644
  
    /* If a chain_decl was created, then it needs to be registered with
 diff --git a/gcc/tree.cc b/gcc/tree.cc
-index ec200e9a7eb..3be93ff20d7 100644
+index 3c39be4f501..4b3d0e5cc04 100644
 --- a/gcc/tree.cc
 +++ b/gcc/tree.cc
-@@ -9671,6 +9671,23 @@ build_common_builtin_nodes (void)
+@@ -9745,6 +9745,23 @@ build_common_builtin_nodes (void)
  			"__builtin_nonlocal_goto",
  			ECF_NORETURN | ECF_NOTHROW);
  
@@ -8030,10 +8399,10 @@ index fc24ac34502..536e517b62f 100644
 2.30.2
 
 
-From 5baa6156043ccfb91dd9846ab267804738d9f80c Mon Sep 17 00:00:00 2001
+From 0785285b7f592db69c9c89a9ff387a9d8c847813 Mon Sep 17 00:00:00 2001
 From: Maxim Blinov <maxim.blinov@embecosm.com>
 Date: Sat, 13 Nov 2021 04:44:59 +0000
-Subject: [PATCH 08/90] Add x86_64-linux support for off-stack trampolines
+Subject: [PATCH 10/88] Add x86_64-linux support for off-stack trampolines
 
 Implement the __builtin_nested_func_ptr_{created,deleted} functions
 for the x86_64-linux platform. This serves to exercise the
@@ -8288,10 +8657,10 @@ index 518ade74186..956f6de1ef9 100644
 2.30.2
 
 
-From e72c32899da97a125b15f545ff35e675c5f45540 Mon Sep 17 00:00:00 2001
+From 32b4859b316ed1a35079b46a0fdcfa0e50ddd3ca Mon Sep 17 00:00:00 2001
 From: Maxim Blinov <maxim.blinov@embecosm.com>
 Date: Sat, 13 Nov 2021 04:47:42 +0000
-Subject: [PATCH 09/90] Add aarch64-linux support for off-stack trampolines
+Subject: [PATCH 11/88] Add aarch64-linux support for off-stack trampolines
 
 Implement the __builtin_nested_func_ptr_{created,deleted} functions
 for the aarch64-linux platform. This serves to exercise the
@@ -8536,10 +8905,10 @@ index 956f6de1ef9..762f70147bf 100644
 2.30.2
 
 
-From 8f2ca598a920398e050fc2651b133c16142e4791 Mon Sep 17 00:00:00 2001
+From 5f085e65cd7aec858a65c94af3f450050bb304a2 Mon Sep 17 00:00:00 2001
 From: Maxim Blinov <maxim.blinov@embecosm.com>
 Date: Sat, 13 Nov 2021 06:00:34 +0000
-Subject: [PATCH 10/90] Darwin, aarch64, x86_64: Support heap trampolines.
+Subject: [PATCH 12/88] Darwin, aarch64, x86_64: Support heap trampolines.
 
 Implement the __builtin_nested_func_ptr_{created,deleted} functions for
 x86_64 and aarch64 Darwin.
@@ -8585,7 +8954,7 @@ libgcc/ChangeLog:
  12 files changed, 138 insertions(+), 42 deletions(-)
 
 diff --git a/gcc/config.gcc b/gcc/config.gcc
-index 6fc97e44dd1..2c37a2b5fca 100644
+index cd088e98921..f7dbd9138c7 100644
 --- a/gcc/config.gcc
 +++ b/gcc/config.gcc
 @@ -1086,8 +1086,12 @@ case ${target} in
@@ -8618,10 +8987,10 @@ index a55f6b2b874..36a32867281 100644
 +  (!flag_off_stack_trampolines && !flag_trampolines) ? 1 : 0
 +
 diff --git a/gcc/config/i386/i386.cc b/gcc/config/i386/i386.cc
-index d84047a4bc1..7daddf3aa2f 100644
+index b16df5b183e..7e035598025 100644
 --- a/gcc/config/i386/i386.cc
 +++ b/gcc/config/i386/i386.cc
-@@ -24661,7 +24661,7 @@ ix86_libgcc_floating_mode_supported_p
+@@ -24726,7 +24726,7 @@ ix86_libgcc_floating_mode_supported_p
  #define TARGET_HARD_REGNO_SCRATCH_OK ix86_hard_regno_scratch_ok
  
  #undef TARGET_CUSTOM_FUNCTION_DESCRIPTORS
@@ -9023,445 +9392,10 @@ index 762f70147bf..7d11bf00142 100644
 2.30.2
 
 
-From e566e4e13c440b6a105c70937b42a1c60cd41044 Mon Sep 17 00:00:00 2001
-From: Iain Sandoe <iain@sandoe.co.uk>
-Date: Sun, 3 Jan 2021 12:24:45 +0000
-Subject: [PATCH 11/90] Darwin, libgcc : Adjust min version supported for the
- OS.
-
-Tools from later versions of the OS deprecate or fail to support
-earlier OS revisions.
-
-libgcc/
-	* config.host: Arrange to set min Darwin OS versions from
-	the configured host version.
-        * config/i386/t-darwin: Amend to handle configured min OS
-	versions.
-        * config/t-darwin : Use the configured min OS versions.
-        * config/t-darwin-min-1: New.
-        * config/t-darwin-min-4: New.
-        * config/t-darwin-min-5: New.
-        * config/t-darwin-min-8: New.
----
- libgcc/config.host           | 18 ++++++++++++++++++
- libgcc/config/t-darwin       | 11 ++++++-----
- libgcc/config/t-darwin-min-1 |  3 +++
- libgcc/config/t-darwin-min-4 |  3 +++
- libgcc/config/t-darwin-min-5 |  3 +++
- libgcc/config/t-darwin-min-8 |  3 +++
- libgcc/config/t-darwin-rpath |  3 ---
- 7 files changed, 36 insertions(+), 8 deletions(-)
- create mode 100644 libgcc/config/t-darwin-min-1
- create mode 100644 libgcc/config/t-darwin-min-4
- create mode 100644 libgcc/config/t-darwin-min-5
- create mode 100644 libgcc/config/t-darwin-min-8
-
-diff --git a/libgcc/config.host b/libgcc/config.host
-index 7a641e2fb0d..9a3cd039714 100644
---- a/libgcc/config.host
-+++ b/libgcc/config.host
-@@ -257,11 +257,29 @@ case ${host} in
-       *-darwin*)
-         echo "but is needed after macOS 10.11 (setting it on)" 1>&2
-         tmake_file="$tmake_file t-darwin-rpath "
-+        enable_darwin_at_rpath=yes
-         ;;
-     esac
-   else
-     echo "enable_darwin_at_rpath is '$enable_darwin_at_rpath'" 1>&2
-   fi
-+  case ${host} in
-+    *-*-darwin2* | *-*-darwin1[89]* | aarch64*-*-darwin*)
-+      tmake_file="t-darwin-min-8 $tmake_file"
-+      ;;
-+    *-*-darwin9* | *-*-darwin1[0-7]*)
-+      tmake_file="t-darwin-min-5 $tmake_file"
-+      ;;
-+    *-*-darwin[4-8]*)
-+      tmake_file="t-darwin-min-1 $tmake_file"
-+      ;;
-+    *)
-+      # Fall back to configuring for the oldest system known to work with
-+      # all archs and the current sources.
-+      tmake_file="t-darwin-min-5 $tmake_file"
-+      echo "Warning: libgcc configured to support macOS 10.5" 1>&2
-+      ;;
-+  esac
-   extra_parts="crt3.o libd10-uwfef.a crttms.o crttme.o libemutls_w.a"
-   ;;
- *-*-dragonfly*)
-diff --git a/libgcc/config/t-darwin b/libgcc/config/t-darwin
-index 299d26c2c96..a708583d965 100644
---- a/libgcc/config/t-darwin
-+++ b/libgcc/config/t-darwin
-@@ -1,15 +1,15 @@
- # Set this as a minimum (unless overriden by arch t-files) since it's a
- # reasonable lowest common denominator that works for all our archs.
--HOST_LIBGCC2_CFLAGS += -mmacosx-version-min=10.4
-+HOST_LIBGCC2_CFLAGS += $(DARWIN_MIN_LIB_VERSION)
- 
- crt3.o: $(srcdir)/config/darwin-crt3.c
--	$(crt_compile) -mmacosx-version-min=10.4 -c $<
-+	$(crt_compile) $(DARWIN_MIN_CRT_VERSION) -c $<
- 
- crttms.o: $(srcdir)/config/darwin-crt-tm.c
--	$(crt_compile) -mmacosx-version-min=10.4 -DSTART -c $<
-+	$(crt_compile) $(DARWIN_MIN_CRT_VERSION) -DSTART -c $<
- 
- crttme.o: $(srcdir)/config/darwin-crt-tm.c
--	$(crt_compile) -mmacosx-version-min=10.4 -DEND -c $<
-+	$(crt_compile) $(DARWIN_MIN_CRT_VERSION) -DEND -c $<
- 
- # Make emutls weak so that we can deal with -static-libgcc, override the
- # hidden visibility when this is present in libgcc_eh.
-@@ -24,7 +24,8 @@ libemutls_w.a: emutls_s.o
- 	$(AR_CREATE_FOR_TARGET) $@ $<
- 	$(RANLIB_FOR_TARGET) $@
- 
--# Patch to __Unwind_Find_Enclosing_Function for Darwin10.
-+# This has to be built for 10.6, even if the toolchain will not target that
-+# version
- d10-uwfef.o: $(srcdir)/config/darwin10-unwind-find-enc-func.c libgcc_tm.h
- 	$(crt_compile) -mmacosx-version-min=10.6 -c $<
- 
-diff --git a/libgcc/config/t-darwin-min-1 b/libgcc/config/t-darwin-min-1
-new file mode 100644
-index 00000000000..8c2cf8acd39
---- /dev/null
-+++ b/libgcc/config/t-darwin-min-1
-@@ -0,0 +1,3 @@
-+# Support building with -mmacosx-version-min back to 10.1.
-+DARWIN_MIN_LIB_VERSION = -mmacosx-version-min=10.4
-+DARWIN_MIN_CRT_VERSION = -mmacosx-version-min=10.1
-diff --git a/libgcc/config/t-darwin-min-4 b/libgcc/config/t-darwin-min-4
-new file mode 100644
-index 00000000000..04e980de4d5
---- /dev/null
-+++ b/libgcc/config/t-darwin-min-4
-@@ -0,0 +1,3 @@
-+# Support building with -mmacosx-version-min back to 10.4.
-+DARWIN_MIN_LIB_VERSION = -mmacosx-version-min=10.4
-+DARWIN_MIN_CRT_VERSION = -mmacosx-version-min=10.4
-diff --git a/libgcc/config/t-darwin-min-5 b/libgcc/config/t-darwin-min-5
-new file mode 100644
-index 00000000000..138193151e7
---- /dev/null
-+++ b/libgcc/config/t-darwin-min-5
-@@ -0,0 +1,3 @@
-+# Support building with -mmacosx-version-min back to 10.5.
-+DARWIN_MIN_LIB_VERSION = -mmacosx-version-min=10.5
-+DARWIN_MIN_CRT_VERSION = -mmacosx-version-min=10.5
-diff --git a/libgcc/config/t-darwin-min-8 b/libgcc/config/t-darwin-min-8
-new file mode 100644
-index 00000000000..9efc9dc0257
---- /dev/null
-+++ b/libgcc/config/t-darwin-min-8
-@@ -0,0 +1,3 @@
-+# Support building with -mmacosx-version-min back to 10.8.
-+DARWIN_MIN_LIB_VERSION = -mmacosx-version-min=10.8
-+DARWIN_MIN_CRT_VERSION = -mmacosx-version-min=10.8
-diff --git a/libgcc/config/t-darwin-rpath b/libgcc/config/t-darwin-rpath
-index 7cf63d9cb6b..e73d7f378b0 100644
---- a/libgcc/config/t-darwin-rpath
-+++ b/libgcc/config/t-darwin-rpath
-@@ -1,5 +1,2 @@
- # Use @rpath and add a search path to exes and dylibs that depend on this.
- SHLIB_RPATH = @rpath
--
--# Which does not work for Darwin < 9
--HOST_LIBGCC2_CFLAGS += -mmacosx-version-min=10.5
--- 
-2.30.2
-
-
-From cedc7274e992e01a487c951a21ee6fb9c6909111 Mon Sep 17 00:00:00 2001
-From: Iain Sandoe <iain@sandoe.co.uk>
-Date: Fri, 16 Apr 2021 20:01:40 +0100
-Subject: [PATCH 12/90] WIP for @path testsuite non-installed.
-
----
- gcc/Makefile.in                           |  3 +++
- gcc/testsuite/gfortran.dg/coarray/caf.exp | 18 ++++++++++++++++--
- gcc/testsuite/gfortran.dg/dg.exp          | 23 +++++++++++++++++++++--
- gcc/testsuite/lib/asan-dg.exp             |  2 +-
- gcc/testsuite/lib/atomic-dg.exp           |  2 +-
- gcc/testsuite/lib/target-libpath.exp      | 23 +++++++++++++++++++----
- libatomic/testsuite/lib/libatomic.exp     |  1 +
- libitm/testsuite/lib/libitm.exp           |  1 +
- libitm/testsuite/libitm.c++/c++.exp       |  4 +++-
- 9 files changed, 66 insertions(+), 11 deletions(-)
-
-diff --git a/gcc/Makefile.in b/gcc/Makefile.in
-index 0a167a10a5f..255a10c2ce8 100644
---- a/gcc/Makefile.in
-+++ b/gcc/Makefile.in
-@@ -4126,6 +4126,9 @@ site.exp: ./config.status Makefile
- 	  echo "set COMPAT_OPTIONS \"$(COMPAT_OPTIONS)\"" >> ./site.tmp; \
- 	else true; \
- 	fi
-+	@if test "x@enable_darwin_at_rpath@" = "xyes" ; then \
-+	  echo "set ENABLE_DARWIN_AT_RPATH 1" >> ./site.tmp; \
-+	fi
- 	@echo "## All variables above are generated by configure. Do Not Edit ##" >> ./site.tmp
- 	@cat ./site.tmp > site.exp
- 	@cat site.bak | sed \
-diff --git a/gcc/testsuite/gfortran.dg/coarray/caf.exp b/gcc/testsuite/gfortran.dg/coarray/caf.exp
-index 8683a2ab435..e76cb69dcd9 100644
---- a/gcc/testsuite/gfortran.dg/coarray/caf.exp
-+++ b/gcc/testsuite/gfortran.dg/coarray/caf.exp
-@@ -28,6 +28,7 @@
- 
- # Load procedures from common libraries. 
- load_lib gfortran-dg.exp
-+load_lib atomic-dg.exp
- 
- # If a testcase doesn't have special options, use these.
- global DEFAULT_FFLAGS
-@@ -47,6 +48,7 @@ global gfortran_test_path
- global gfortran_aux_module_flags
- set gfortran_test_path $srcdir/$subdir
- set gfortran_aux_module_flags $DEFAULT_FFLAGS
-+
- proc dg-compile-aux-modules { args } {
-     global gfortran_test_path
-     global gfortran_aux_module_flags
-@@ -69,9 +71,21 @@ proc dg-compile-aux-modules { args } {
- }
- 
- # Add -latomic only where supported.  Assume built-in support elsewhere.
--set maybe_atomic_lib ""
- if [check_effective_target_libatomic_available] {
--    set maybe_atomic_lib "-latomic"
-+    #set maybe_atomic_lib "-latomic"
-+    if ![is_remote host] {
-+	if [info exists TOOL_OPTIONS] {
-+	    set maybe_atomic_lib "[atomic_link_flags [get_multilibs ${TOOL_OPTIONS}]]"
-+	} else {
-+	    set maybe_atomic_lib "[atomic_link_flags [get_multilibs]]"
-+	}
-+    } else {
-+        set maybe_atomic_lib ""
-+    }
-+  set t [get_multilibs]
-+  puts "maybe al $maybe_atomic_lib ml $t"
-+} else {
-+    set maybe_atomic_lib ""
- }
- 
- # Main loop.
-diff --git a/gcc/testsuite/gfortran.dg/dg.exp b/gcc/testsuite/gfortran.dg/dg.exp
-index bd7ad95ad0d..36fc2972b2e 100644
---- a/gcc/testsuite/gfortran.dg/dg.exp
-+++ b/gcc/testsuite/gfortran.dg/dg.exp
-@@ -18,6 +18,7 @@
- 
- # Load support procs.
- load_lib gfortran-dg.exp
-+load_lib atomic-dg.exp
- 
- # If a testcase doesn't have special options, use these.
- global DEFAULT_FFLAGS
-@@ -53,12 +54,30 @@ proc dg-compile-aux-modules { args } {
-     }
- }
- 
-+# coarray tests might need libatomic.  Assume that it is either not needed or
-+# provided by builtins if it's not available.
-+if [check_effective_target_libatomic_available] {
-+    if ![is_remote host] {
-+	if [info exists TOOL_OPTIONS] {
-+	    set maybe_atomic_lib "[atomic_link_flags [get_multilibs ${TOOL_OPTIONS}]]"
-+	} else {
-+	    set maybe_atomic_lib "[atomic_link_flags [get_multilibs]]"
-+	}
-+    } else {
-+        set maybe_atomic_lib ""
-+    }
-+  set t [get_multilibs]
-+  puts "dg set al $maybe_atomic_lib ml $t"
-+}
-+
-+puts "DEFAULT_FFLAGS $DEFAULT_FFLAGS"
-+
- # Main loop.
- gfortran-dg-runtest [lsort \
--       [glob -nocomplain $srcdir/$subdir/*.\[fF\]{,90,95,03,08} ] ] "" $DEFAULT_FFLAGS
-+       [glob -nocomplain $srcdir/$subdir/*.\[fF\]{,90,95,03,08} ] ] $maybe_atomic_lib $DEFAULT_FFLAGS
- 
- gfortran-dg-runtest [lsort \
--       [glob -nocomplain $srcdir/$subdir/g77/*.\[fF\] ] ] "" $DEFAULT_FFLAGS
-+       [glob -nocomplain $srcdir/$subdir/g77/*.\[fF\] ] ] $maybe_atomic_lib $DEFAULT_FFLAGS
- 
- 
- # All done.
-diff --git a/gcc/testsuite/lib/asan-dg.exp b/gcc/testsuite/lib/asan-dg.exp
-index 7e0f85dc9b0..88c6ece8caa 100644
---- a/gcc/testsuite/lib/asan-dg.exp
-+++ b/gcc/testsuite/lib/asan-dg.exp
-@@ -78,7 +78,7 @@ proc asan_link_flags_1 { paths lib } {
- 	   || [file exists "${gccpath}/libsanitizer/${lib}/.libs/lib${lib}.${shlib_ext}"] } {
- 	  append flags " -B${gccpath}/libsanitizer/ "
- 	  append flags " -B${gccpath}/libsanitizer/${lib}/ "
--	  append flags " -L${gccpath}/libsanitizer/${lib}/.libs "
-+	  append flags " -B${gccpath}/libsanitizer/${lib}/.libs "
- 	  append ld_library_path ":${gccpath}/libsanitizer/${lib}/.libs"
-       }
-     } else {
-diff --git a/gcc/testsuite/lib/atomic-dg.exp b/gcc/testsuite/lib/atomic-dg.exp
-index 86dcfa674ea..c9244fb6cac 100644
---- a/gcc/testsuite/lib/atomic-dg.exp
-+++ b/gcc/testsuite/lib/atomic-dg.exp
-@@ -33,7 +33,7 @@ proc atomic_link_flags { paths } {
-       if { [file exists "${gccpath}/libatomic/.libs/libatomic.a"]
- 	   || [file exists "${gccpath}/libatomic/.libs/libatomic.${shlib_ext}"] } {
- 	  append flags " -B${gccpath}/libatomic/ "
--	  append flags " -L${gccpath}/libatomic/.libs"
-+	  append flags " -B${gccpath}/libatomic/.libs"
- 	  append ld_library_path ":${gccpath}/libatomic/.libs"
-       }
-     } else {
-diff --git a/gcc/testsuite/lib/target-libpath.exp b/gcc/testsuite/lib/target-libpath.exp
-index d09cd515d20..29bfbaf4726 100644
---- a/gcc/testsuite/lib/target-libpath.exp
-+++ b/gcc/testsuite/lib/target-libpath.exp
-@@ -67,6 +67,7 @@ proc set_ld_library_path_env_vars { } {
-   global orig_dyld_library_path
-   global orig_path
-   global orig_gcc_exec_prefix
-+  global ENABLE_DARWIN_AT_RPATH
-   global env
- 
-   # Save the original GCC_EXEC_PREFIX.
-@@ -133,6 +134,7 @@ proc set_ld_library_path_env_vars { } {
-   #
-   # Doing this is somewhat of a hack as ld_library_path gets repeated in
-   # SHLIB_PATH and LD_LIBRARY_PATH when unix_load sets these variables.
-+  if { ![istarget *-*-darwin*] } {
-   if { $orig_ld_library_path_saved } {
-     setenv LD_LIBRARY_PATH "$ld_library_path:$orig_ld_library_path"
-   } else {
-@@ -166,11 +168,23 @@ proc set_ld_library_path_env_vars { } {
-   } else {
-     setenv LD_LIBRARY_PATH_64 "$ld_library_path"
-   }
--  if { $orig_dyld_library_path_saved } {
--    setenv DYLD_LIBRARY_PATH "$ld_library_path:$orig_dyld_library_path"
--  } else {
--    setenv DYLD_LIBRARY_PATH "$ld_library_path"
-   }
-+  if { [istarget *-*-darwin*] } {
-+    if { [info exists ENABLE_DARWIN_AT_RPATH] || [istarget *-*-darwin1\[5-9\]*]
-+         || [istarget *-*-darwin20*] } {
-+      # Either we are not using DYLD_LIBRARY_PATH or we're on a version of the
-+      # OS for which it is not passed through system exes.
-+      if [info exists env(DYLD_LIBRARY_PATH)] {
-+        unsetenv DYLD_LIBRARY_PATH
-+      }
-+    } else {
-+      if { $orig_dyld_library_path_saved } {
-+        setenv DYLD_LIBRARY_PATH "$ld_library_path:$orig_dyld_library_path"
-+      } else {
-+        setenv DYLD_LIBRARY_PATH "$ld_library_path"
-+      }
-+    }
-+  } 
-   if { [istarget *-*-cygwin*] || [istarget *-*-mingw*] } {
-     if { $orig_path_saved } {
-       setenv PATH "$ld_library_path:$orig_path"
-@@ -179,6 +193,7 @@ proc set_ld_library_path_env_vars { } {
-     }
-   }
- 
-+  verbose -log "set paths"
-   verbose -log "LD_LIBRARY_PATH=[getenv LD_LIBRARY_PATH]"
-   verbose -log "LD_RUN_PATH=[getenv LD_RUN_PATH]"
-   verbose -log "SHLIB_PATH=[getenv SHLIB_PATH]"
-diff --git a/libatomic/testsuite/lib/libatomic.exp b/libatomic/testsuite/lib/libatomic.exp
-index 38f3e5673e2..300e5096f79 100644
---- a/libatomic/testsuite/lib/libatomic.exp
-+++ b/libatomic/testsuite/lib/libatomic.exp
-@@ -152,6 +152,7 @@ proc libatomic_init { args } {
-     lappend ALWAYS_CFLAGS "additional_flags=-I${srcdir}/.."
- 
-     if [istarget *-*-darwin*] {
-+	lappend ALWAYS_CFLAGS "additional_flags=-B${blddir}/.libs"
- 	lappend ALWAYS_CFLAGS "additional_flags=-shared-libgcc"
-     }
- 
-diff --git a/libitm/testsuite/lib/libitm.exp b/libitm/testsuite/lib/libitm.exp
-index 6d8e3e71310..906534022eb 100644
---- a/libitm/testsuite/lib/libitm.exp
-+++ b/libitm/testsuite/lib/libitm.exp
-@@ -158,6 +158,7 @@ proc libitm_init { args } {
-     }
- 
-     if [istarget *-*-darwin*] {
-+	lappend ALWAYS_CFLAGS "additional_flags=-B${blddir}/.libs"
- 	lappend ALWAYS_CFLAGS "additional_flags=-shared-libgcc"
-     }
- 
-diff --git a/libitm/testsuite/libitm.c++/c++.exp b/libitm/testsuite/libitm.c++/c++.exp
-index f92aa096104..295c5bd4703 100644
---- a/libitm/testsuite/libitm.c++/c++.exp
-+++ b/libitm/testsuite/libitm.c++/c++.exp
-@@ -56,8 +56,10 @@ if { $lang_test_file_found } {
-     # Gather a list of all tests.
-     set tests [lsort [glob -nocomplain $srcdir/$subdir/*.C]]
- 
-+    set stdcxxadder ""
-     if { $blddir != "" } {
- 	set ld_library_path "$always_ld_library_path:${blddir}/${lang_library_path}"
-+	set stdcxxadder "-B ${blddir}/${lang_library_path}"
-     } else {
- 	set ld_library_path "$always_ld_library_path"
-     }
-@@ -72,7 +74,7 @@ if { $lang_test_file_found } {
-     }
- 
-     # Main loop.
--    dg-runtest $tests "" $libstdcxx_includes
-+    dg-runtest $tests $stdcxxadder $libstdcxx_includes
- }
- 
- # All done.
--- 
-2.30.2
-
-
-From 7eec7a0bd9cf0989a3e7d48f76f461cbfca04d01 Mon Sep 17 00:00:00 2001
-From: Iain Sandoe <iain@sandoe.co.uk>
-Date: Thu, 6 Jan 2022 08:37:18 +0000
-Subject: [PATCH 13/90] fix g++ -static-libstdc++
-
----
- gcc/cp/g++spec.cc | 5 +++++
- 1 file changed, 5 insertions(+)
-
-diff --git a/gcc/cp/g++spec.cc b/gcc/cp/g++spec.cc
-index 8174d652776..2e1e06e6ac9 100644
---- a/gcc/cp/g++spec.cc
-+++ b/gcc/cp/g++spec.cc
-@@ -222,7 +222,12 @@ lang_specific_driver (struct cl_decoded_option **in_decoded_options,
- 
- 	case OPT_static_libstdc__:
- 	  library = library >= 0 ? 2 : library;
-+#ifdef HAVE_LD_STATIC_DYNAMIC
-+	  /* Remove -static-libstdc++ from the command only if target supports
-+	     LD_STATIC_DYNAMIC.  When not supported, it is left in so that a
-+	     back-end target can use outfile substitution.  */
- 	  args[i] |= SKIPOPT;
-+#endif
- 	  break;
- 
- 	case OPT_stdlib_:
--- 
-2.30.2
-
-
-From ebf3eb1d196eedf3ff518096d2161a18adfe1b7a Mon Sep 17 00:00:00 2001
+From 6adebee2b816ef4d146a636c3c1cc0c5d20d4b4b Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Wed, 5 Aug 2020 16:02:24 +0100
-Subject: [PATCH 14/90] Darwin, Arm64: Add README for the port branches.
+Subject: [PATCH 13/88] Darwin, Arm64: Add README for the port branches.
 
 This is initially a README for the branches but the information
 contained should become part of the eventual port submission
@@ -9954,10 +9888,10 @@ index 00000000000..2441af63f02
 2.30.2
 
 
-From 1adf3b7fcad07643a450fadc28e6408358faa228 Mon Sep 17 00:00:00 2001
+From 11da2579b51d2d4846ba81d7ad916b176a63f60b Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iainsandoe@28116.local>
 Date: Sun, 30 Aug 2020 00:30:50 -0700
-Subject: [PATCH 15/90] aarch64 : Cast print value per format description.
+Subject: [PATCH 14/88] aarch64 : Cast print value per format description.
 
 Fixes a build fail.
 ---
@@ -9981,10 +9915,10 @@ index 5f198290568..610838049e5 100644
 2.30.2
 
 
-From 2cdfa47e2a35551ea96be69e9aea788a874d9e7d Mon Sep 17 00:00:00 2001
+From c011530592552df4a69274d9e60d505b0bcfce97 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Mon, 3 Aug 2020 22:46:40 +0100
-Subject: [PATCH 16/90] Darwin, Arm64 : Base build changes to Darwin common
+Subject: [PATCH 15/88] Darwin, Arm64 : Base build changes to Darwin common
  code.
 
 It seems that the arm64 port will not make use of traditional mach-o
@@ -10180,10 +10114,10 @@ index 09cdb32ba7f..d6c58f5f4ae 100644
 2.30.2
 
 
-From 4ffc067f507afc0cafef7488167fa00611f5be39 Mon Sep 17 00:00:00 2001
+From 01b7f959f61828bd5a72063d45cacaf6044aa4b7 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Sun, 9 Aug 2020 23:04:15 +0100
-Subject: [PATCH 17/90] Darwin, Arm64 : Initial definitions for the port.
+Subject: [PATCH 16/88] Darwin, Arm64 : Initial definitions for the port.
 
 This is enough to make a buildable cross-compiler on x86_64
 Darwin and compile trivial codes.  Although the link phase might
@@ -10318,7 +10252,7 @@ gcc/ChangeLog:
  create mode 100644 gcc/config/aarch64/t-aarch64-darwin
 
 diff --git a/gcc/config.gcc b/gcc/config.gcc
-index 2c37a2b5fca..4dc2061ee45 100644
+index f7dbd9138c7..f7d78c5ec77 100644
 --- a/gcc/config.gcc
 +++ b/gcc/config.gcc
 @@ -1135,6 +1135,11 @@ aarch64*-*-elf | aarch64*-*-fuchsia* | aarch64*-*-rtems*)
@@ -10334,7 +10268,7 @@ index 2c37a2b5fca..4dc2061ee45 100644
  	tm_file="${tm_file} dbxelf.h elfos.h ${fbsd_tm_file}"
  	tm_file="${tm_file} aarch64/aarch64-elf.h aarch64/aarch64-errata.h aarch64/aarch64-freebsd.h"
 diff --git a/gcc/config/aarch64/aarch64-builtins.cc b/gcc/config/aarch64/aarch64-builtins.cc
-index 5217dbdb2ac..bba246e3bc6 100644
+index c21476d7ae9..e81dd8c99b5 100644
 --- a/gcc/config/aarch64/aarch64-builtins.cc
 +++ b/gcc/config/aarch64/aarch64-builtins.cc
 @@ -613,6 +613,8 @@ enum aarch64_builtins
@@ -10346,8 +10280,8 @@ index 5217dbdb2ac..bba246e3bc6 100644
    AARCH64_BUILTIN_MAX
  };
  
-@@ -1735,6 +1737,14 @@ aarch64_general_init_builtins (void)
-     aarch64_init_ls64_builtins ();
+@@ -1765,6 +1767,14 @@ aarch64_general_init_builtins (void)
+     aarch64_init_memtag_builtins ();
  }
  
 +void
@@ -10362,10 +10296,10 @@ index 5217dbdb2ac..bba246e3bc6 100644
  tree
  aarch64_general_builtin_decl (unsigned code, bool)
 diff --git a/gcc/config/aarch64/aarch64-c.cc b/gcc/config/aarch64/aarch64-c.cc
-index caf8e332ea0..fe9106a3af9 100644
+index 767ee0c763c..55ffdbd2f4d 100644
 --- a/gcc/config/aarch64/aarch64-c.cc
 +++ b/gcc/config/aarch64/aarch64-c.cc
-@@ -367,4 +367,8 @@ aarch64_register_pragmas (void)
+@@ -369,4 +369,8 @@ aarch64_register_pragmas (void)
    targetm.check_builtin_call = aarch64_check_builtin_call;
  
    c_register_pragma ("GCC", "aarch64", aarch64_pragma_aarch64);
@@ -10375,7 +10309,7 @@ index caf8e332ea0..fe9106a3af9 100644
 +#endif
  }
 diff --git a/gcc/config/aarch64/aarch64-protos.h b/gcc/config/aarch64/aarch64-protos.h
-index 46bade28ed6..c74168762ad 100644
+index 2ac781dff4a..0f02b67578e 100644
 --- a/gcc/config/aarch64/aarch64-protos.h
 +++ b/gcc/config/aarch64/aarch64-protos.h
 @@ -108,6 +108,14 @@ enum aarch64_symbol_type
@@ -10393,7 +10327,7 @@ index 46bade28ed6..c74168762ad 100644
    SYMBOL_FORCE_TO_MEM
  };
  
-@@ -975,6 +983,7 @@ void aarch64_override_options_internal (struct gcc_options *);
+@@ -988,6 +996,7 @@ void aarch64_override_options_internal (struct gcc_options *);
  
  const char *aarch64_general_mangle_builtin_type (const_tree);
  void aarch64_general_init_builtins (void);
@@ -10402,7 +10336,7 @@ index 46bade28ed6..c74168762ad 100644
  gimple *aarch64_general_gimple_fold_builtin (unsigned int, gcall *,
  					     gimple_stmt_iterator *);
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index 18f80499079..505b9f0f0ec 100644
+index f650abbc4ce..50d5f52abcf 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
 @@ -292,8 +292,10 @@ static bool aarch64_vfp_is_call_or_return_candidate (machine_mode,
@@ -10661,7 +10595,7 @@ index 18f80499079..505b9f0f0ec 100644
    unsigned int code = DECL_MD_FUNCTION_CODE (fndecl);
    unsigned int subcode = code >> AARCH64_BUILTIN_SHIFT;
    tree type = TREE_TYPE (TREE_TYPE (fndecl));
-@@ -18322,10 +18385,14 @@ initialize_aarch64_code_model (struct gcc_options *opts)
+@@ -18330,10 +18393,14 @@ initialize_aarch64_code_model (struct gcc_options *opts)
  	}
        break;
      case AARCH64_CMODEL_LARGE:
@@ -10678,7 +10612,7 @@ index 18f80499079..505b9f0f0ec 100644
  	sorry ("code model %qs not supported in ilp32 mode", "large");
        break;
      case AARCH64_CMODEL_TINY_PIC:
-@@ -19287,6 +19354,12 @@ aarch64_classify_symbol (rtx x, HOST_WIDE_INT offset)
+@@ -19295,6 +19362,12 @@ aarch64_classify_symbol (rtx x, HOST_WIDE_INT offset)
  
  	case AARCH64_CMODEL_SMALL_SPIC:
  	case AARCH64_CMODEL_SMALL_PIC:
@@ -10691,7 +10625,7 @@ index 18f80499079..505b9f0f0ec 100644
  	case AARCH64_CMODEL_SMALL:
  	  if ((flag_pic || SYMBOL_REF_WEAK (x))
  	      && !aarch64_symbol_binds_local_p (x))
-@@ -22545,7 +22618,9 @@ aarch64_declare_function_name (FILE *stream, const char* name,
+@@ -22553,7 +22626,9 @@ aarch64_declare_function_name (FILE *stream, const char* name,
    aarch64_asm_output_variant_pcs (stream, fndecl, name);
  
    /* Don't forget the type directive for ELF.  */
@@ -10701,7 +10635,7 @@ index 18f80499079..505b9f0f0ec 100644
    ASM_OUTPUT_LABEL (stream, name);
  
    cfun->machine->label_is_assembled = true;
-@@ -22580,12 +22655,17 @@ aarch64_print_patchable_function_entry (FILE *file,
+@@ -22588,12 +22663,17 @@ aarch64_print_patchable_function_entry (FILE *file,
  /* Implement ASM_OUTPUT_DEF_FROM_DECLS.  Output .variant_pcs for aliases.  */
  
  void
@@ -10720,7 +10654,7 @@ index 18f80499079..505b9f0f0ec 100644
  }
  
  /* Implement ASM_OUTPUT_EXTERNAL.  Output .variant_pcs for undefined
-@@ -23052,7 +23132,7 @@ aarch64_init_libfuncs (void)
+@@ -23060,7 +23140,7 @@ aarch64_init_libfuncs (void)
  static machine_mode
  aarch64_c_mode_for_suffix (char suffix)
  {
@@ -10729,7 +10663,7 @@ index 18f80499079..505b9f0f0ec 100644
      return TFmode;
  
    return VOIDmode;
-@@ -27118,13 +27198,17 @@ aarch64_sls_emit_shared_blr_thunks (FILE *out_file)
+@@ -27122,13 +27202,17 @@ aarch64_sls_emit_shared_blr_thunks (FILE *out_file)
        /* Only emits if the compiler is configured for an assembler that can
  	 handle visibility directives.  */
        targetm.asm_out.assemble_visibility (decl, VISIBILITY_HIDDEN);
@@ -10747,7 +10681,7 @@ index 18f80499079..505b9f0f0ec 100644
      }
  }
  
-@@ -27317,6 +27401,15 @@ aarch64_run_selftests (void)
+@@ -27321,6 +27405,15 @@ aarch64_run_selftests (void)
  #undef TARGET_ASM_ALIGNED_SI_OP
  #define TARGET_ASM_ALIGNED_SI_OP "\t.word\t"
  
@@ -10764,7 +10698,7 @@ index 18f80499079..505b9f0f0ec 100644
  #define TARGET_ASM_CAN_OUTPUT_MI_THUNK \
    hook_bool_const_tree_hwi_hwi_const_tree_true
 diff --git a/gcc/config/aarch64/aarch64.h b/gcc/config/aarch64/aarch64.h
-index efa46ac0b87..ffe4746f39e 100644
+index 359b6e8561f..3608895ce52 100644
 --- a/gcc/config/aarch64/aarch64.h
 +++ b/gcc/config/aarch64/aarch64.h
 @@ -58,6 +58,9 @@
@@ -10777,7 +10711,7 @@ index efa46ac0b87..ffe4746f39e 100644
  #define UNITS_PER_WORD		8
  
  #define UNITS_PER_VREG		16
-@@ -981,6 +984,7 @@ enum arm_pcs
+@@ -987,6 +990,7 @@ enum arm_pcs
    ARM_PCS_SVE,			/* For functions that pass or return
  				   values in SVE registers.  */
    ARM_PCS_TLSDESC,		/* For targets of tlsdesc calls.  */
@@ -10785,7 +10719,7 @@ index efa46ac0b87..ffe4746f39e 100644
    ARM_PCS_UNKNOWN
  };
  
-@@ -1303,8 +1307,13 @@ extern const char *host_detect_local_cpu (int argc, const char **argv);
+@@ -1309,8 +1313,13 @@ extern const char *host_detect_local_cpu (int argc, const char **argv);
  #define ASM_CPU_SPEC \
     MCPU_TO_MARCH_SPEC
  
@@ -10801,7 +10735,7 @@ index efa46ac0b87..ffe4746f39e 100644
  #define ASM_OUTPUT_POOL_EPILOGUE  aarch64_asm_output_pool_epilogue
  
 diff --git a/gcc/config/aarch64/aarch64.md b/gcc/config/aarch64/aarch64.md
-index c98525075a0..c8f8bfa2b3b 100644
+index f5c635938ad..fb4bb964c45 100644
 --- a/gcc/config/aarch64/aarch64.md
 +++ b/gcc/config/aarch64/aarch64.md
 @@ -303,6 +303,7 @@
@@ -10812,7 +10746,7 @@ index c98525075a0..c8f8bfa2b3b 100644
  ])
  
  (define_c_enum "unspecv" [
-@@ -6825,7 +6826,10 @@
+@@ -6850,7 +6851,10 @@
  	(lo_sum:P (match_operand:P 1 "register_operand" "r")
  		  (match_operand 2 "aarch64_valid_symref" "S")))]
    ""
@@ -10824,7 +10758,7 @@ index c98525075a0..c8f8bfa2b3b 100644
    [(set_attr "type" "alu_imm")]
  )
  
-@@ -6836,7 +6840,10 @@
+@@ -6861,7 +6865,10 @@
  			      (match_operand:PTR 2 "aarch64_valid_symref" "S")))]
  		    UNSPEC_GOTSMALLPIC28K))]
    ""
@@ -11118,10 +11052,10 @@ index 00000000000..a8bfcffad78
 2.30.2
 
 
-From fdaf6de8c5c74706f3b9f2c54308e5a0b95ca3a0 Mon Sep 17 00:00:00 2001
+From 03111b2d54b6d66e7ac02fa9558e552dad2df2f4 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Sat, 30 Oct 2021 19:25:11 +0100
-Subject: [PATCH 18/90] Darwin, Arm64: Adjust NO_PIE spec for aarch64.
+Subject: [PATCH 17/88] Darwin, Arm64: Adjust NO_PIE spec for aarch64.
 
 Since aarch64 Darwin does not permit no-PIE, the linker warns
 that the option is ignored.  Adjust the spec so that we do not
@@ -11159,10 +11093,10 @@ index faa1ba9774e..a47c6097739 100644
 2.30.2
 
 
-From 07b4007b15da7a8c6426693b38ae2ebe5f927df1 Mon Sep 17 00:00:00 2001
+From 86b6910505906954c136f8d27039250312b0a897 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Thu, 21 Jan 2021 11:28:09 +0000
-Subject: [PATCH 19/90] Darwin, Arm64 : Allow m64 on the command line.
+Subject: [PATCH 18/88] Darwin, Arm64 : Allow m64 on the command line.
 
 It seems that some people have makefiles etc. that put '-m64' for
 arm64 Darwin.  This is allowed by clang.  For the GCC version we make it
@@ -11190,10 +11124,10 @@ index 569bb5131cb..15ec719ca2d 100644
 2.30.2
 
 
-From acf323accd0b43545f01ff8002a54d46741ada03 Mon Sep 17 00:00:00 2001
+From 48d5ffda8abe0f8cbf7a61950fd6ac33b4b4b6a0 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Wed, 19 Aug 2020 19:10:50 +0100
-Subject: [PATCH 20/90] Darwin, Arm64 : Additional change for darwincpcs D.4.
+Subject: [PATCH 19/88] Darwin, Arm64 : Additional change for darwincpcs D.4.
 
 We are allowed to pass 16bytes in regs even if the starting reg
 is not even-numbered.
@@ -11202,7 +11136,7 @@ is not even-numbered.
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index 505b9f0f0ec..10e87bd9944 100644
+index 50d5f52abcf..40405939082 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
 @@ -3979,7 +3979,7 @@ aarch64_hard_regno_mode_ok (unsigned regno, machine_mode mode)
@@ -11218,10 +11152,10 @@ index 505b9f0f0ec..10e87bd9944 100644
 2.30.2
 
 
-From e6fba7e27de6d4d41d8c3affb2916db386be173b Mon Sep 17 00:00:00 2001
+From b61ebbb70e22007436e70f974a99487f7b48ef5c Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Wed, 19 Aug 2020 19:16:43 +0100
-Subject: [PATCH 21/90] Darwin, Arm64 : Implement darwinpcs D.2
+Subject: [PATCH 20/88] Darwin, Arm64 : Implement darwinpcs D.2
 
 This allows us to pass items smaller than 8 bytes with their natural
 alignment packed as appropriate into the stack.
@@ -11242,7 +11176,7 @@ for TARGET_FUNCTION_ARG_ROUND_BOUNDARY.
  2 files changed, 81 insertions(+), 12 deletions(-)
 
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index 10e87bd9944..d0eb2654ebc 100644
+index 40405939082..95dc96e978b 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
 @@ -7410,6 +7410,7 @@ aarch64_layout_arg (cumulative_args_t pcum_v, const function_arg_info &arg)
@@ -11372,7 +11306,7 @@ index 10e87bd9944..d0eb2654ebc 100644
  
  /* Implement TARGET_GET_RAW_RESULT_MODE and TARGET_GET_RAW_ARG_MODE.  */
  
-@@ -27496,6 +27553,11 @@ aarch64_run_selftests (void)
+@@ -27500,6 +27557,11 @@ aarch64_run_selftests (void)
  #undef TARGET_FUNCTION_ARG_BOUNDARY
  #define TARGET_FUNCTION_ARG_BOUNDARY aarch64_function_arg_boundary
  
@@ -11385,7 +11319,7 @@ index 10e87bd9944..d0eb2654ebc 100644
  #define TARGET_FUNCTION_ARG_PADDING aarch64_function_arg_padding
  
 diff --git a/gcc/config/aarch64/aarch64.h b/gcc/config/aarch64/aarch64.h
-index ffe4746f39e..4a20fca7196 100644
+index 3608895ce52..f5a7d494514 100644
 --- a/gcc/config/aarch64/aarch64.h
 +++ b/gcc/config/aarch64/aarch64.h
 @@ -58,7 +58,8 @@
@@ -11398,7 +11332,7 @@ index ffe4746f39e..4a20fca7196 100644
  #define TARGET_MACHO		0
  
  #define UNITS_PER_WORD		8
-@@ -1023,6 +1024,12 @@ typedef struct
+@@ -1029,6 +1030,12 @@ typedef struct
  				   aapcs_reg == NULL_RTX.  */
    int aapcs_stack_size;		/* The total size (in words, per 8 byte) of the
  				   stack arg area so far.  */
@@ -11415,10 +11349,10 @@ index ffe4746f39e..4a20fca7196 100644
 2.30.2
 
 
-From 574c054ef9f62be782deab0ea30fa5116a85de29 Mon Sep 17 00:00:00 2001
+From 0d8e4332bf1c21be89120ac7c54e249e72752bf3 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Mon, 24 Aug 2020 21:19:39 +0100
-Subject: [PATCH 22/90] Darwin, Arm64 : Reimplement the base CC variant.
+Subject: [PATCH 21/88] Darwin, Arm64 : Reimplement the base CC variant.
 
 It turns out that trying to implement the Darwin PCS as CC
 variation is a can of worms and, since the target is chosen at
@@ -11436,7 +11370,7 @@ fully dealt with the variadic functions issue properly.
  2 files changed, 9 insertions(+), 17 deletions(-)
 
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index d0eb2654ebc..b969bdbd178 100644
+index 95dc96e978b..d6da4e637d5 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
 @@ -2733,7 +2733,6 @@ handle_aarch64_vector_pcs_attribute (tree *node, tree name, tree,
@@ -11530,10 +11464,10 @@ index d0eb2654ebc..b969bdbd178 100644
        pcum->aapcs_ncrn = pcum->aapcs_nextncrn;
        pcum->aapcs_nvrn = pcum->aapcs_nextnvrn;
 diff --git a/gcc/config/aarch64/aarch64.h b/gcc/config/aarch64/aarch64.h
-index 4a20fca7196..6c812c4cc84 100644
+index f5a7d494514..0452e246e1f 100644
 --- a/gcc/config/aarch64/aarch64.h
 +++ b/gcc/config/aarch64/aarch64.h
-@@ -985,7 +985,6 @@ enum arm_pcs
+@@ -991,7 +991,6 @@ enum arm_pcs
    ARM_PCS_SVE,			/* For functions that pass or return
  				   values in SVE registers.  */
    ARM_PCS_TLSDESC,		/* For targets of tlsdesc calls.  */
@@ -11545,10 +11479,10 @@ index 4a20fca7196..6c812c4cc84 100644
 2.30.2
 
 
-From d5c291abe650eb0b146d0d2eee40cd0fefce42a9 Mon Sep 17 00:00:00 2001
+From 37557cc204fbea22529d649d8bfcc945d0c3b207 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Tue, 25 Aug 2020 19:33:49 +0100
-Subject: [PATCH 23/90] Darwin, Arm64 : Temporary proof-of-principle for
+Subject: [PATCH 22/88] Darwin, Arm64 : Temporary proof-of-principle for
  relocs+addends.
 
 At present, we are generating  _foo+123@PAGE and we should have _foo@PAGE+123
@@ -11563,7 +11497,7 @@ doesn't like it.
  3 files changed, 155 insertions(+), 16 deletions(-)
 
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index b969bdbd178..c1d14a1df9b 100644
+index d6da4e637d5..6826c2ca5a8 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
 @@ -11691,6 +11691,136 @@ sizetochar (int size)
@@ -11761,7 +11695,7 @@ index b969bdbd178..c1d14a1df9b 100644
  	return true;
  
        case ADDRESS_SYMBOLIC:
-@@ -21508,7 +21647,8 @@ aarch64_mov_operand_p (rtx x, machine_mode mode)
+@@ -21516,7 +21655,8 @@ aarch64_mov_operand_p (rtx x, machine_mode mode)
  
    /* GOT accesses are valid moves.  */
    if (SYMBOL_REF_P (x)
@@ -11772,7 +11706,7 @@ index b969bdbd178..c1d14a1df9b 100644
  
    if (SYMBOL_REF_P (x) && mode == DImode && CONSTANT_ADDRESS_P (x))
 diff --git a/gcc/config/aarch64/aarch64.md b/gcc/config/aarch64/aarch64.md
-index c8f8bfa2b3b..c345e44054d 100644
+index fb4bb964c45..941145673ef 100644
 --- a/gcc/config/aarch64/aarch64.md
 +++ b/gcc/config/aarch64/aarch64.md
 @@ -1287,7 +1287,7 @@
@@ -11793,7 +11727,7 @@ index c8f8bfa2b3b..c345e44054d 100644
     adr\\t%x0, %c1
     adrp\\t%x0, %A1
     fmov\\t%d0, %x1
-@@ -6827,7 +6827,7 @@
+@@ -6852,7 +6852,7 @@
  		  (match_operand 2 "aarch64_valid_symref" "S")))]
    ""
    { return TARGET_MACHO
@@ -11802,7 +11736,7 @@ index c8f8bfa2b3b..c345e44054d 100644
      : "add\\t%<w>0, %<w>1, :lo12:%c2";
    }
    [(set_attr "type" "alu_imm")]
-@@ -6840,10 +6840,7 @@
+@@ -6865,10 +6865,7 @@
  			      (match_operand:PTR 2 "aarch64_valid_symref" "S")))]
  		    UNSPEC_GOTSMALLPIC28K))]
    ""
@@ -11833,10 +11767,10 @@ index ee7587cca16..6d8ba73fda0 100644
 2.30.2
 
 
-From 1802b700086a83ee1875ba40c312c4a23e1300ba Mon Sep 17 00:00:00 2001
+From 748eb47ca78e635812dc2008caeb1a1e4900d832 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Thu, 27 Aug 2020 19:39:10 +0100
-Subject: [PATCH 24/90] Darwin, Arm64 : Make code label references use PAGE
+Subject: [PATCH 23/88] Darwin, Arm64 : Make code label references use PAGE
  relocs
 
 We need to be able to refer to Lxxxx labels in libgnat.
@@ -11845,7 +11779,7 @@ We need to be able to refer to Lxxxx labels in libgnat.
  1 file changed, 4 insertions(+), 1 deletion(-)
 
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index c1d14a1df9b..7c3ba64ba66 100644
+index 6826c2ca5a8..2fdbabb4216 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
 @@ -11716,6 +11716,7 @@ output_macho_postfix_expr (FILE *file, rtx x, const char *postfix)
@@ -11856,7 +11790,7 @@ index c1d14a1df9b..7c3ba64ba66 100644
        break;
  
      case CONST_INT:
-@@ -19504,7 +19505,9 @@ aarch64_classify_symbol (rtx x, HOST_WIDE_INT offset)
+@@ -19512,7 +19513,9 @@ aarch64_classify_symbol (rtx x, HOST_WIDE_INT offset)
  	case AARCH64_CMODEL_SMALL_SPIC:
  	case AARCH64_CMODEL_SMALL_PIC:
  	case AARCH64_CMODEL_SMALL:
@@ -11871,10 +11805,10 @@ index c1d14a1df9b..7c3ba64ba66 100644
 2.30.2
 
 
-From e581a2698bc5e796dd4b0cba0ebe6c1c1180ba99 Mon Sep 17 00:00:00 2001
+From 0c819e6e4a7458e76b31247f048bd16fa752c4b3 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Thu, 27 Aug 2020 19:44:45 +0100
-Subject: [PATCH 25/90] Darwin, Arm64 : Avoid negative offsets in PAGE relocs.
+Subject: [PATCH 24/88] Darwin, Arm64 : Avoid negative offsets in PAGE relocs.
 
 It's not clear to me whether this is a mistake in the LLVM backend
 or a genuine restriction in the relocation (the wording of the addend
@@ -11896,7 +11830,7 @@ and using a separate sum instruction, so delete these.
  1 file changed, 18 insertions(+)
 
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index 7c3ba64ba66..6a638bcc9f3 100644
+index 2fdbabb4216..e6d18b6d6a6 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
 @@ -4521,6 +4521,21 @@ aarch64_load_symref_appropriately (rtx dest, rtx imm,
@@ -11949,10 +11883,10 @@ index 7c3ba64ba66..6a638bcc9f3 100644
 2.30.2
 
 
-From 8936adc26e3c22df7fc11fdeed8a9e6e0e6a109c Mon Sep 17 00:00:00 2001
+From aa3de3d268d7636adbb1913b5d25ca7f0718b9ae Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Fri, 4 Sep 2020 19:24:28 +0100
-Subject: [PATCH 26/90] Darwin, Arm64 : Implement darwinpcs mangling for
+Subject: [PATCH 25/88] Darwin, Arm64 : Implement darwinpcs mangling for
  va_list.
 
 The darwinpcs says this must be mangled as char * (Pc) and not
@@ -11962,10 +11896,10 @@ presented in the std:: namespace.
  1 file changed, 6 insertions(+)
 
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index 6a638bcc9f3..beda9e6a27f 100644
+index e6d18b6d6a6..4b69602dd2b 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
-@@ -20964,6 +20964,12 @@ aarch64_autovectorize_vector_modes (vector_modes *modes, bool)
+@@ -20972,6 +20972,12 @@ aarch64_autovectorize_vector_modes (vector_modes *modes, bool)
  static const char *
  aarch64_mangle_type (const_tree type)
  {
@@ -11982,10 +11916,10 @@ index 6a638bcc9f3..beda9e6a27f 100644
 2.30.2
 
 
-From b0e75df9f11832d59a72a9673bfe1c61c3184a2d Mon Sep 17 00:00:00 2001
+From 422f11d391c42c513ccbcebc297c64ec27dc3082 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Wed, 2 Sep 2020 21:30:51 +0100
-Subject: [PATCH 27/90] Darwin, Arm64 : Disable section anchors for now.
+Subject: [PATCH 26/88] Darwin, Arm64 : Disable section anchors for now.
 
 Section anchors are tricky with the ld64 atom model.  It is possible
 to make them work in a sub-set of circumstances.
@@ -11998,7 +11932,7 @@ This fixes issue #13.
  1 file changed, 15 insertions(+)
 
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index beda9e6a27f..14a40f5e830 100644
+index 4b69602dd2b..e6252bfade3 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
 @@ -12629,6 +12629,16 @@ aarch64_anchor_offset (HOST_WIDE_INT offset, HOST_WIDE_INT size,
@@ -12018,7 +11952,7 @@ index beda9e6a27f..14a40f5e830 100644
  static rtx
  aarch64_legitimize_address (rtx x, rtx /* orig_x  */, machine_mode mode)
  {
-@@ -27955,6 +27965,11 @@ aarch64_libgcc_floating_mode_supported_p
+@@ -27959,6 +27969,11 @@ aarch64_libgcc_floating_mode_supported_p
  #undef TARGET_MAX_ANCHOR_OFFSET
  #define TARGET_MAX_ANCHOR_OFFSET 4095
  
@@ -12034,10 +11968,10 @@ index beda9e6a27f..14a40f5e830 100644
 2.30.2
 
 
-From 14de901a7c6e9c893a33fb326660b3eabf56813a Mon Sep 17 00:00:00 2001
+From b126beff2a7ccaa871d2f8bd67d6cccd0db203e7 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Wed, 2 Sep 2020 18:05:24 +0100
-Subject: [PATCH 28/90] Darwin, Arm64 : Truncate char immediates in vector
+Subject: [PATCH 27/88] Darwin, Arm64 : Truncate char immediates in vector
  initializers to mode size.
 
 Darwin has signed chars, so that 8b immediates > 127 appear to be negative
@@ -12051,10 +11985,10 @@ Fixes github issue 15.
  1 file changed, 15 insertions(+), 5 deletions(-)
 
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index 14a40f5e830..3a9e973107f 100644
+index e6252bfade3..1f6ef3b7866 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
-@@ -23510,6 +23510,16 @@ aarch64_output_simd_mov_immediate (rtx const_vector, unsigned width,
+@@ -23518,6 +23518,16 @@ aarch64_output_simd_mov_immediate (rtx const_vector, unsigned width,
      }
  
    gcc_assert (CONST_INT_P (info.u.mov.value));
@@ -12071,7 +12005,7 @@ index 14a40f5e830..3a9e973107f 100644
  
    if (which == AARCH64_CHECK_MOV)
      {
-@@ -23518,16 +23528,16 @@ aarch64_output_simd_mov_immediate (rtx const_vector, unsigned width,
+@@ -23526,16 +23536,16 @@ aarch64_output_simd_mov_immediate (rtx const_vector, unsigned width,
  		  ? "msl" : "lsl");
        if (lane_count == 1)
  	snprintf (templ, sizeof (templ), "%s\t%%d0, " HOST_WIDE_INT_PRINT_HEX,
@@ -12091,7 +12025,7 @@ index 14a40f5e830..3a9e973107f 100644
      }
    else
      {
-@@ -23536,12 +23546,12 @@ aarch64_output_simd_mov_immediate (rtx const_vector, unsigned width,
+@@ -23544,12 +23554,12 @@ aarch64_output_simd_mov_immediate (rtx const_vector, unsigned width,
        if (info.u.mov.shift)
  	snprintf (templ, sizeof (templ), "%s\t%%0.%d%c, #"
  		  HOST_WIDE_INT_PRINT_DEC ", %s #%d", mnemonic, lane_count,
@@ -12110,10 +12044,10 @@ index 14a40f5e830..3a9e973107f 100644
 2.30.2
 
 
-From fcdccd1a0e7e7c311c5fcdfe5c874bd75f67959d Mon Sep 17 00:00:00 2001
+From 25fb339d608f50b1c48f2207c7ed9dff8c265237 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Sat, 12 Sep 2020 09:44:55 +0100
-Subject: [PATCH 29/90] Darwin, Arm64 : Assign a register for the static chain.
+Subject: [PATCH 28/88] Darwin, Arm64 : Assign a register for the static chain.
 
 At present, we do not have a workable solution for trampolines for
 the Darwin Arm64 port.  Executable stack is not an option and the
@@ -12158,10 +12092,10 @@ index a47c6097739..bec0ce8d864 100644
 2.30.2
 
 
-From 24eb4d543ff55a1a6c72b0632fe753f8f6e35ca9 Mon Sep 17 00:00:00 2001
+From ef4437dc5308e324417602aeb7fec77e916d2062 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Thu, 20 Aug 2020 17:08:46 +0100
-Subject: [PATCH 30/90] Darwin, Arm64 : Initial stab at darwinpcs variadic
+Subject: [PATCH 29/88] Darwin, Arm64 : Initial stab at darwinpcs variadic
  functions.
 
 These use the simpler char * version - but it remains to be seen if
@@ -12172,7 +12106,7 @@ differences.
  1 file changed, 38 insertions(+), 2 deletions(-)
 
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index 3a9e973107f..f15516caece 100644
+index 1f6ef3b7866..d7208175607 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
 @@ -7590,7 +7590,20 @@ on_stack:
@@ -12197,7 +12131,7 @@ index 3a9e973107f..f15516caece 100644
        if (pcum->darwinpcs_sub_word_pos == 0)
  	pcum->aapcs_stack_words = size / UNITS_PER_WORD;
  
-@@ -19722,7 +19735,10 @@ static GTY(()) tree va_list_type;
+@@ -19730,7 +19743,10 @@ static GTY(()) tree va_list_type;
       void *__vr_top;
       int   __gr_offs;
       int   __vr_offs;
@@ -12209,7 +12143,7 @@ index 3a9e973107f..f15516caece 100644
  
  static tree
  aarch64_build_builtin_va_list (void)
-@@ -19730,6 +19746,13 @@ aarch64_build_builtin_va_list (void)
+@@ -19738,6 +19754,13 @@ aarch64_build_builtin_va_list (void)
    tree va_list_name;
    tree f_stack, f_grtop, f_vrtop, f_groff, f_vroff;
  
@@ -12223,7 +12157,7 @@ index 3a9e973107f..f15516caece 100644
    /* Create the type.  */
    va_list_type = lang_hooks.types.make_type (RECORD_TYPE);
    /* Give it the required name.  */
-@@ -19801,6 +19824,13 @@ aarch64_expand_builtin_va_start (tree valist, rtx nextarg ATTRIBUTE_UNUSED)
+@@ -19809,6 +19832,13 @@ aarch64_expand_builtin_va_start (tree valist, rtx nextarg ATTRIBUTE_UNUSED)
    int vr_save_area_size = cfun->va_list_fpr_size;
    int vr_offset;
  
@@ -12237,7 +12171,7 @@ index 3a9e973107f..f15516caece 100644
    cum = &crtl->args.info;
    if (cfun->va_list_gpr_size)
      gr_save_area_size = MIN ((NUM_ARG_REGS - cum->aapcs_ncrn) * UNITS_PER_WORD,
-@@ -19891,6 +19921,9 @@ aarch64_gimplify_va_arg_expr (tree valist, tree type, gimple_seq *pre_p,
+@@ -19899,6 +19929,9 @@ aarch64_gimplify_va_arg_expr (tree valist, tree type, gimple_seq *pre_p,
    HOST_WIDE_INT size, rsize, adjust, align;
    tree t, u, cond1, cond2;
  
@@ -12247,7 +12181,7 @@ index 3a9e973107f..f15516caece 100644
    indirect_p = pass_va_arg_by_reference (type);
    if (indirect_p)
      type = build_pointer_type (type);
-@@ -20147,6 +20180,9 @@ aarch64_setup_incoming_varargs (cumulative_args_t cum_v,
+@@ -20155,6 +20188,9 @@ aarch64_setup_incoming_varargs (cumulative_args_t cum_v,
    int gr_saved = cfun->va_list_gpr_size;
    int vr_saved = cfun->va_list_fpr_size;
  
@@ -12261,10 +12195,10 @@ index 3a9e973107f..f15516caece 100644
 2.30.2
 
 
-From df293474bbb00a6bf3e3194c40c62b87c4f323ba Mon Sep 17 00:00:00 2001
+From 07bddab0736fc2741d0ed5db7e2b8c0a00ecc578 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Sun, 23 Aug 2020 16:02:01 +0100
-Subject: [PATCH 31/90] Darwin, Arm64 : Adjust cases where stack spills pack
+Subject: [PATCH 30/88] Darwin, Arm64 : Adjust cases where stack spills pack
  differently.
 
 + Temporary handling for complex values.
@@ -12301,7 +12235,7 @@ Drop an unused var.
  1 file changed, 33 insertions(+), 5 deletions(-)
 
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index f15516caece..2468d913c3e 100644
+index d7208175607..05c3417f51e 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
 @@ -7275,6 +7275,7 @@ aarch64_return_in_memory (const_tree type, const_tree fndecl ATTRIBUTE_UNUSED)
@@ -12396,10 +12330,10 @@ index f15516caece..2468d913c3e 100644
 2.30.2
 
 
-From b39ff5a49321fe2d87f392e03640aed017feafb5 Mon Sep 17 00:00:00 2001
+From 2414e6336ce86df019ed525cf7e36c1cdf11dbcb Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Thu, 3 Sep 2020 19:09:00 +0100
-Subject: [PATCH 32/90] Darwin, Arm64 : Account for stack addresses less
+Subject: [PATCH 31/88] Darwin, Arm64 : Account for stack addresses less
  aligned than DI.
 
 darwinpcs, packs some stack items, which means that one cannot
@@ -12417,7 +12351,7 @@ fixes issue #16.
  1 file changed, 4 insertions(+)
 
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index 2468d913c3e..918cc01fb0c 100644
+index 05c3417f51e..542d61103b0 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
 @@ -11066,6 +11066,10 @@ aarch64_address_valid_for_prefetch_p (rtx x, bool strict_p)
@@ -12435,10 +12369,10 @@ index 2468d913c3e..918cc01fb0c 100644
 2.30.2
 
 
-From 60c9eabd2d5d797b3ac4656c9fb9b7762e83c2aa Mon Sep 17 00:00:00 2001
+From ef093f8c14b589ba9f5cd8b1a936c3fa28199b30 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Sat, 20 Feb 2021 12:14:08 +0000
-Subject: [PATCH 33/90] aarch64, Darwin : Restrict offsets for prfm.
+Subject: [PATCH 32/88] aarch64, Darwin : Restrict offsets for prfm.
 
 The current LLVM-based assemblers reject offsets that are not suitable
 for prfm as written in the local section.  However, there is advice
@@ -12459,7 +12393,7 @@ gcc/
  1 file changed, 25 insertions(+), 3 deletions(-)
 
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index 918cc01fb0c..baa7c8aa31b 100644
+index 542d61103b0..86ceab20bba 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
 @@ -11066,9 +11066,31 @@ aarch64_address_valid_for_prefetch_p (rtx x, bool strict_p)
@@ -12501,10 +12435,10 @@ index 918cc01fb0c..baa7c8aa31b 100644
 2.30.2
 
 
-From 145c86c9786c3ad71aaaf40207e57c4b980519cc Mon Sep 17 00:00:00 2001
+From 405dcc8de19eb6e258a29ef8f8e72cfa70eedef8 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Sat, 20 Feb 2021 13:19:10 +0000
-Subject: [PATCH 34/90] aarch64, Darwin : Match conditions for a PRFUM insn.
+Subject: [PATCH 33/88] aarch64, Darwin : Match conditions for a PRFUM insn.
 
 This unpessimizes the prefetch cases for Darwin where the assembler
 is not able to substitute the prfum instructions automagically.
@@ -12525,10 +12459,10 @@ This improves the fix for Issue #43.
  5 files changed, 63 insertions(+)
 
 diff --git a/gcc/config/aarch64/aarch64-protos.h b/gcc/config/aarch64/aarch64-protos.h
-index c74168762ad..3c4b7e60b01 100644
+index 0f02b67578e..d506e938730 100644
 --- a/gcc/config/aarch64/aarch64-protos.h
 +++ b/gcc/config/aarch64/aarch64-protos.h
-@@ -758,6 +758,7 @@ void aarch64_post_cfi_startproc (void);
+@@ -771,6 +771,7 @@ void aarch64_post_cfi_startproc (void);
  poly_int64 aarch64_initial_elimination_offset (unsigned, unsigned);
  int aarch64_get_condition_code (rtx);
  bool aarch64_address_valid_for_prefetch_p (rtx, bool);
@@ -12537,7 +12471,7 @@ index c74168762ad..3c4b7e60b01 100644
  unsigned HOST_WIDE_INT aarch64_and_split_imm1 (HOST_WIDE_INT val_in);
  unsigned HOST_WIDE_INT aarch64_and_split_imm2 (HOST_WIDE_INT val_in);
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index baa7c8aa31b..af0aec0fff6 100644
+index 86ceab20bba..eaaae038b17 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
 @@ -11096,6 +11096,29 @@ aarch64_address_valid_for_prefetch_p (rtx x, bool strict_p)
@@ -12571,7 +12505,7 @@ index baa7c8aa31b..af0aec0fff6 100644
  aarch64_symbolic_address_p (rtx x)
  {
 diff --git a/gcc/config/aarch64/aarch64.md b/gcc/config/aarch64/aarch64.md
-index c345e44054d..78694da603b 100644
+index 941145673ef..dc0ec3e6389 100644
 --- a/gcc/config/aarch64/aarch64.md
 +++ b/gcc/config/aarch64/aarch64.md
 @@ -850,6 +850,37 @@
@@ -12646,10 +12580,10 @@ index c308015ac2c..c286a0f4f15 100644
 2.30.2
 
 
-From b13434b068b21acc42a6cddeb8ee16dc5256998b Mon Sep 17 00:00:00 2001
+From 592bdd606d8570d3ebddbc425b12d774bbf5287c Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Fri, 26 Nov 2021 15:08:42 +0000
-Subject: [PATCH 35/90] aarch64, Darwin: Constrain page offset values to fit in
+Subject: [PATCH 34/88] aarch64, Darwin: Constrain page offset values to fit in
  the relocation.
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -12671,7 +12605,7 @@ gcc/
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index af0aec0fff6..460ad6ba34a 100644
+index eaaae038b17..27294f1912d 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
 @@ -4526,7 +4526,7 @@ aarch64_load_symref_appropriately (rtx dest, rtx imm,
@@ -12696,10 +12630,10 @@ index af0aec0fff6..460ad6ba34a 100644
 2.30.2
 
 
-From 8e1351280a5095bad50a9d3f50aa6f7046b7ee04 Mon Sep 17 00:00:00 2001
+From 1d80aaa98729d0c4e3f5e61c191c5e26135776d0 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Sun, 28 Nov 2021 19:44:27 +0000
-Subject: [PATCH 36/90] aarch64, Darwin: Account for UNSPEC_SALT_ADDR in symbol
+Subject: [PATCH 35/88] aarch64, Darwin: Account for UNSPEC_SALT_ADDR in symbol
  output.
 
 We were omitting the postfix relocation indicator because the
@@ -12714,7 +12648,7 @@ Signed-off-by: Iain Sandoe <iain@sandoe.co.uk>
  1 file changed, 7 insertions(+)
 
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index 460ad6ba34a..9d641065d1d 100644
+index 27294f1912d..9265e2ef4a3 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
 @@ -11921,6 +11921,13 @@ output_macho_postfix_expr (FILE *file, rtx x, const char *postfix)
@@ -12735,10 +12669,10 @@ index 460ad6ba34a..9d641065d1d 100644
 2.30.2
 
 
-From 39c42e219e6874ce733a870ddfd4be6257815c87 Mon Sep 17 00:00:00 2001
+From fe86bbcdd2063d7cc0ffbab2459a7d02e0f2141b Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Sat, 27 Nov 2021 23:30:36 +0000
-Subject: [PATCH 37/90] aarch64, Darwin: Ignore mdynamic-no-pic.
+Subject: [PATCH 36/88] aarch64, Darwin: Ignore mdynamic-no-pic.
 
 Match the behaviour of clang in ignoring the setting of mdynamic-no-pic
 either on the command line or as an option to cc1.
@@ -12796,10 +12730,10 @@ index bec0ce8d864..f58dbadcc83 100644
 2.30.2
 
 
-From 76c1069d45f76c01d6a2b2063c1cb3a2852e4dbe Mon Sep 17 00:00:00 2001
+From d0cd24b103884fde7292a1d6f11918af387a5754 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Fri, 21 Aug 2020 19:55:26 +0100
-Subject: [PATCH 38/90] Generic : Mega-hack to allow different passing
+Subject: [PATCH 37/88] Generic : Mega-hack to allow different passing
  organisation for variadic funcs.
 
 Right now, the generic code assumes that it can determine the stack layout from
@@ -12907,10 +12841,10 @@ index 098613766be..b54beac0dda 100644
 2.30.2
 
 
-From 837ad6d8114364cd19ab23882c5e364e9ba7a116 Mon Sep 17 00:00:00 2001
+From 39e2e7b5dd0816d824deadfd303bd7f0b5ecf782 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Tue, 1 Sep 2020 21:45:33 +0100
-Subject: [PATCH 39/90] Generic : More mega-hack for va / normal.
+Subject: [PATCH 38/88] Generic : More mega-hack for va / normal.
 
 ---
  gcc/calls.cc    |  6 ++++--
@@ -13096,10 +13030,10 @@ index b54beac0dda..a479d3b190f 100644
 2.30.2
 
 
-From 91786194f23c7a6b0580be26eedbb57952605259 Mon Sep 17 00:00:00 2001
+From 58484e8fd8f053963d010119b8b1881496459561 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Sun, 16 Aug 2020 12:11:37 +0100
-Subject: [PATCH 40/90] libgcc, aarch64, Darwin: Initial libgcc boiler-plate
+Subject: [PATCH 39/88] libgcc, aarch64, Darwin: Initial libgcc boiler-plate
  changes.
 
 Initial changes to build libgcc for aarch64 Darwin (declare the port,
@@ -13211,10 +13145,10 @@ index 00000000000..fd21f0b37b0
 2.30.2
 
 
-From 35fb1ed859d8cfb403235f418d3b33d9951b6f53 Mon Sep 17 00:00:00 2001
+From 08473b516c19f1d5806f434eb362458f5fca70de Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Tue, 7 Dec 2021 08:11:37 +0000
-Subject: [PATCH 41/90] libgcc, aarch64, Darwin: Do not build legacy EH shim.
+Subject: [PATCH 40/88] libgcc, aarch64, Darwin: Do not build legacy EH shim.
 
 Darwin aarch64 does not exist for macOS 10.6, so there is no need to
 build a shim to target it.
@@ -13274,10 +13208,10 @@ index 965f3163ce8..d5682ca810c 100644
 2.30.2
 
 
-From 824c14b24d6579298ad2d19966ca28528de692d1 Mon Sep 17 00:00:00 2001
+From 6b1554b94be81b0153cef2cf56bdae4837c7180d Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Thu, 3 Sep 2020 19:49:39 +0100
-Subject: [PATCH 42/90] libgcc, aarch64, Darwin: Darwin should use an OS call
+Subject: [PATCH 41/88] libgcc, aarch64, Darwin: Darwin should use an OS call
  to clear caches.
 
 The sys_icache_invalidate() function is the right one to use.
@@ -13317,10 +13251,10 @@ index d5682ca810c..7d0cab6ffab 100644
 2.30.2
 
 
-From 0ca58130a58d754aafc4382fa50797d4bcbb38a5 Mon Sep 17 00:00:00 2001
+From 710be1d461b289bcd8509cc391b5ef4d2ee211bf Mon Sep 17 00:00:00 2001
 From: FX Coudert <fxcoudert@gmail.com>
 Date: Mon, 6 Dec 2021 23:56:36 +0000
-Subject: [PATCH 43/90] aarch64, Darwin: Support IEEE754 Quad Precision as
+Subject: [PATCH 42/88] aarch64, Darwin: Support IEEE754 Quad Precision as
  __float128.
 
 Darwin has a C long double type which is the same as the double.
@@ -13339,7 +13273,7 @@ Co-authored-by: Iain Sandoe <iain@sandoe.co.uk>
  6 files changed, 93 insertions(+), 9 deletions(-)
 
 diff --git a/gcc/config/aarch64/aarch64-builtins.cc b/gcc/config/aarch64/aarch64-builtins.cc
-index bba246e3bc6..0c437c2a414 100644
+index e81dd8c99b5..7614c6ee441 100644
 --- a/gcc/config/aarch64/aarch64-builtins.cc
 +++ b/gcc/config/aarch64/aarch64-builtins.cc
 @@ -615,6 +615,8 @@ enum aarch64_builtins
@@ -13351,7 +13285,7 @@ index bba246e3bc6..0c437c2a414 100644
    AARCH64_BUILTIN_MAX
  };
  
-@@ -733,6 +735,10 @@ tree aarch64_fp16_ptr_type_node = NULL_TREE;
+@@ -734,6 +736,10 @@ tree aarch64_fp16_ptr_type_node = NULL_TREE;
  tree aarch64_bf16_type_node = NULL_TREE;
  tree aarch64_bf16_ptr_type_node = NULL_TREE;
  
@@ -13362,7 +13296,7 @@ index bba246e3bc6..0c437c2a414 100644
  /* Wrapper around add_builtin_function.  NAME is the name of the built-in
     function, TYPE is the function type, CODE is the function subcode
     (relative to AARCH64_BUILTIN_GENERAL), and ATTRS is the function
-@@ -1453,6 +1459,33 @@ aarch64_init_bf16_types (void)
+@@ -1476,6 +1482,33 @@ aarch64_init_bf16_types (void)
    aarch64_bf16_ptr_type_node = build_pointer_type (aarch64_bf16_type_node);
  }
  
@@ -13396,7 +13330,7 @@ index bba246e3bc6..0c437c2a414 100644
  /* Pointer authentication builtins that will become NOP on legacy platform.
     Currently, these builtins are for internal use only (libgcc EH unwinder).  */
  
-@@ -1702,8 +1735,9 @@ aarch64_general_init_builtins (void)
+@@ -1733,8 +1766,9 @@ aarch64_general_init_builtins (void)
    aarch64_init_fpsr_fpcr_builtins ();
  
    aarch64_init_fp16_types ();
@@ -13405,9 +13339,9 @@ index bba246e3bc6..0c437c2a414 100644
 +  if (TARGET_MACHO)
 +    aarch64_init_float128_types ();
  
-   if (TARGET_SIMD)
-     aarch64_init_simd_builtins ();
-@@ -2710,6 +2744,15 @@ aarch64_general_fold_builtin (unsigned int fcode, tree type,
+   {
+     aarch64_simd_switcher simd;
+@@ -2740,6 +2774,15 @@ aarch64_general_fold_builtin (unsigned int fcode, tree type,
  	if (aarch64_fold_builtin_lane_check (args[0], args[1], args[2]))
  	  return void_node;
  	break;
@@ -13424,10 +13358,10 @@ index bba246e3bc6..0c437c2a414 100644
  	break;
      }
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index 9d641065d1d..0e08f9ff8d4 100644
+index 9265e2ef4a3..48ba2fd7e54 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
-@@ -20192,8 +20192,18 @@ aarch64_gimplify_va_arg_expr (tree valist, tree type, gimple_seq *pre_p,
+@@ -20200,8 +20200,18 @@ aarch64_gimplify_va_arg_expr (tree valist, tree type, gimple_seq *pre_p,
  	  field_ptr_t = double_ptr_type_node;
  	  break;
  	case E_TFmode:
@@ -13448,7 +13382,7 @@ index 9d641065d1d..0e08f9ff8d4 100644
  	  break;
  	case E_HFmode:
  	  field_t = aarch64_fp16_type_node;
-@@ -21114,6 +21124,10 @@ aarch64_mangle_type (const_tree type)
+@@ -21122,6 +21132,10 @@ aarch64_mangle_type (const_tree type)
  	return "Dh";
      }
  
@@ -13459,7 +13393,7 @@ index 9d641065d1d..0e08f9ff8d4 100644
    /* Mangle AArch64-specific internal types.  TYPE_NAME is non-NULL_TREE for
       builtin types.  */
    if (TYPE_NAME (type) != NULL)
-@@ -23479,7 +23493,7 @@ aarch64_init_libfuncs (void)
+@@ -23487,7 +23501,7 @@ aarch64_init_libfuncs (void)
  static machine_mode
  aarch64_c_mode_for_suffix (char suffix)
  {
@@ -13468,7 +13402,7 @@ index 9d641065d1d..0e08f9ff8d4 100644
      return TFmode;
  
    return VOIDmode;
-@@ -26786,12 +26800,12 @@ aarch64_libgcc_floating_mode_supported_p (scalar_float_mode mode)
+@@ -26790,12 +26804,12 @@ aarch64_libgcc_floating_mode_supported_p (scalar_float_mode mode)
  }
  
  /* Implement TARGET_SCALAR_MODE_SUPPORTED_P - return TRUE
@@ -13484,10 +13418,10 @@ index 9d641065d1d..0e08f9ff8d4 100644
  	  : default_scalar_mode_supported_p (mode));
  }
 diff --git a/gcc/config/aarch64/aarch64.h b/gcc/config/aarch64/aarch64.h
-index 6c812c4cc84..1fa5e6f5820 100644
+index 0452e246e1f..22a7ff76c40 100644
 --- a/gcc/config/aarch64/aarch64.h
 +++ b/gcc/config/aarch64/aarch64.h
-@@ -1333,6 +1333,11 @@ extern GTY(()) tree aarch64_fp16_ptr_type_node;
+@@ -1339,6 +1339,11 @@ extern GTY(()) tree aarch64_fp16_ptr_type_node;
  extern GTY(()) tree aarch64_bf16_type_node;
  extern GTY(()) tree aarch64_bf16_ptr_type_node;
  
@@ -13564,10 +13498,10 @@ index fd21f0b37b0..f6ecda7b608 100644
 2.30.2
 
 
-From b913ae3533059a522c5394eeac2bea918d333dc9 Mon Sep 17 00:00:00 2001
+From 0d423bf7821037d7105ba8d197eaba74b65b0515 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Tue, 18 Aug 2020 21:50:49 +0100
-Subject: [PATCH 44/90] Darwin, Arm64 : Initial changes to libitm.
+Subject: [PATCH 43/88] Darwin, Arm64 : Initial changes to libitm.
 
 Just add Arm64 as a target and adjust the SjLj code to allow mach-o
 assembler.
@@ -13666,95 +13600,10 @@ index 06e90973ef3..acaf4f85712 100644
 2.30.2
 
 
-From 278dc37fc3cce2a935cc475f4d7577727fa3af13 Mon Sep 17 00:00:00 2001
-From: Iain Sandoe <iain@sandoe.co.uk>
-Date: Sun, 4 Oct 2020 12:50:15 +0100
-Subject: [PATCH 45/90] Darwin, Arm64 : Make more Objective-C metadata
- linker-visible.
-
-It seems that the aarch64 port for clang exposes more of the meta-data entries
-to ld64 (than for x86_64).  However, the linker seems to require this for arm64
-(so that the atom checks are apparently different).  Anyway - we just punt on
-hidding any of the metadata lables for now.
----
- gcc/config/darwin.h | 55 +++++++++++++++++++++++----------------------
- 1 file changed, 28 insertions(+), 27 deletions(-)
-
-diff --git a/gcc/config/darwin.h b/gcc/config/darwin.h
-index d6c58f5f4ae..df174e21398 100644
---- a/gcc/config/darwin.h
-+++ b/gcc/config/darwin.h
-@@ -846,34 +846,35 @@ int darwin_label_is_anonymous_local_objc_name (const char *name);
- 
- #undef	ASM_OUTPUT_LABELREF
- #define ASM_OUTPUT_LABELREF(FILE,NAME)					     \
--  do {									     \
--       const char *xname = (NAME);					     \
--       if (! strcmp (xname, MACHOPIC_FUNCTION_BASE_NAME))		     \
--         machopic_output_function_base_name(FILE);                           \
--       else if (xname[0] == '&' || xname[0] == '*')			     \
--         {								     \
--           int len = strlen (xname);					     \
--	   if (len > 6 && !strcmp ("$stub", xname + len - 5))		     \
--	     machopic_validate_stub_or_non_lazy_ptr (xname);		     \
--	   else if (len > 7 && !strcmp ("$stub\"", xname + len - 6))	     \
--	     machopic_validate_stub_or_non_lazy_ptr (xname);		     \
--	   else if (len > 14 && !strcmp ("$non_lazy_ptr", xname + len - 13)) \
--	     machopic_validate_stub_or_non_lazy_ptr (xname);		     \
--	   else if (len > 15 && !strcmp ("$non_lazy_ptr\"", xname + len - 14)) \
--	     machopic_validate_stub_or_non_lazy_ptr (xname);		     \
--	   if (xname[1] != '"' && name_needs_quotes (&xname[1]))	     \
--	     fprintf (FILE, "\"%s\"", &xname[1]);			     \
--	   else								     \
--	     fputs (&xname[1], FILE); 					     \
--	 }								     \
--       else if (xname[0] == '+' || xname[0] == '-')			     \
--         fprintf (FILE, "\"%s\"", xname);				     \
--       else if (darwin_label_is_anonymous_local_objc_name (xname))	     \
--         fprintf (FILE, "L%s", xname);					     \
--       else if (xname[0] != '"' && name_needs_quotes (xname))		     \
-+  do									     \
-+    {									     \
-+      const char *xname = (NAME);					     \
-+      if (! strcmp (xname, MACHOPIC_FUNCTION_BASE_NAME))		     \
-+	machopic_output_function_base_name(FILE);			     \
-+      else if (xname[0] == '&' || xname[0] == '*')			     \
-+	{								     \
-+	  int len = strlen (xname);					     \
-+	  if (len > 6 && !strcmp ("$stub", xname + len - 5))		     \
-+	    machopic_validate_stub_or_non_lazy_ptr (xname);		     \
-+	  else if (len > 7 && !strcmp ("$stub\"", xname + len - 6))	     \
-+	    machopic_validate_stub_or_non_lazy_ptr (xname);		     \
-+	  else if (len > 14 && !strcmp ("$non_lazy_ptr", xname + len - 13))  \
-+	    machopic_validate_stub_or_non_lazy_ptr (xname);		     \
-+	  else if (len > 15 && !strcmp ("$non_lazy_ptr\"", xname + len - 14))\
-+	    machopic_validate_stub_or_non_lazy_ptr (xname);		     \
-+	  if (xname[1] != '"' && name_needs_quotes (&xname[1]))		     \
-+	    fprintf (FILE, "\"%s\"", &xname[1]);			     \
-+	  else								     \
-+	    fputs (&xname[1], FILE); 					     \
-+	}								     \
-+      else if (xname[0] == '+' || xname[0] == '-')			     \
-+	fprintf (FILE, "\"%s\"", xname);				     \
-+      else if (darwin_label_is_anonymous_local_objc_name (xname))	     \
-+	fprintf (FILE, "l%s", xname);					     \
-+      else if (xname[0] != '"' && name_needs_quotes (xname))		     \
- 	 asm_fprintf (FILE, "\"%U%s\"", xname);				     \
--       else								     \
--         asm_fprintf (FILE, "%U%s", xname);				     \
-+      else								     \
-+	asm_fprintf (FILE, "%U%s", xname);				     \
-   } while (0)
- 
- /* Output before executable code.  */
--- 
-2.30.2
-
-
-From d0ba02cb7ecb745bb44a4bf1b25be6bab0831699 Mon Sep 17 00:00:00 2001
+From 84fc19f1477801b13382b59810dfa67faf251495 Mon Sep 17 00:00:00 2001
 From: iains <iain@sandoe.co.uk>
 Date: Sun, 30 Aug 2020 16:19:43 +0100
-Subject: [PATCH 46/90] Update README.md
+Subject: [PATCH 44/88] Update README.md
 
 Note that we can bootstrap GCC with this - but much remains to be done.
 
@@ -13789,10 +13638,10 @@ index 2441af63f02..af068bdf063 100644
 2.30.2
 
 
-From 915a73e87ff5af86ee3cccba6a15f33979284460 Mon Sep 17 00:00:00 2001
+From a7b4d9a9944ac91fc4034a27d04b07555e44d341 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Fri, 28 Aug 2020 10:43:30 -0700
-Subject: [PATCH 47/90] testsuite, Darwin, Arm64 : Darwin does not support sve
+Subject: [PATCH 45/88] testsuite, Darwin, Arm64 : Darwin does not support sve
  at present.
 
 Not clear if it will in future.
@@ -13989,10 +13838,10 @@ index f0255967c9d..82092e337f6 100644
 2.30.2
 
 
-From a147b5ba39149b197ae57adc182dde52a02a19d6 Mon Sep 17 00:00:00 2001
+From 479eae5fe0e020af084e4e49da4787065aef3221 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Fri, 4 Sep 2020 13:14:58 -0700
-Subject: [PATCH 48/90] testsuite, Darwin, Arm64 : Fixup tests where the output
+Subject: [PATCH 46/88] testsuite, Darwin, Arm64 : Fixup tests where the output
  is different.
 
 It's to be expected that the output from scan assembler tests will
@@ -14036,10 +13885,10 @@ index 4f6f3a46da4..ff9fd8bcf0d 100644
 2.30.2
 
 
-From 5c4f23dc81146a5d473f26a5706e5750d56a7f40 Mon Sep 17 00:00:00 2001
+From c93c7d17fa97aca8660537c0ca85d506cd3bb45c Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Sun, 6 Sep 2020 08:58:11 +0100
-Subject: [PATCH 49/90] testsuite, Darwin, Arm64 : Fix up CFString tests for
+Subject: [PATCH 47/88] testsuite, Darwin, Arm64 : Fix up CFString tests for
  arm64 asm.
 
 The codegen tests include scan asms for the required output - these
@@ -14099,10 +13948,10 @@ index 1155db5f83f..e0dd8062373 100644
 2.30.2
 
 
-From 52b9ec78a5b19dc74c5de215ef5a6be66de85d82 Mon Sep 17 00:00:00 2001
+From a9538e280a84c237d899b2fcad8208884c348419 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Sun, 6 Sep 2020 14:36:47 +0100
-Subject: [PATCH 50/90] testsuite, Darwin, Arm64 : Amend segaddr test.
+Subject: [PATCH 48/88] testsuite, Darwin, Arm64 : Amend segaddr test.
 
 The target does not accept no-pie, so we must not try it.
 ---
@@ -14127,10 +13976,10 @@ index 526db77bd9c..fcc324b3031 100644
 2.30.2
 
 
-From d1ce1ab98d440749e0683153f8ca684e118b9e61 Mon Sep 17 00:00:00 2001
+From 44e5326f0c3e04b526737bb458bc7a54936984af Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Mon, 7 Sep 2020 00:43:31 -0700
-Subject: [PATCH 51/90] testsuite, Darwin, Arm64 : Adjust pubtypes lengths for
+Subject: [PATCH 49/88] testsuite, Darwin, Arm64 : Adjust pubtypes lengths for
  Arm64.
 
 This differs from other Darwin targets CHECKME.
@@ -14186,10 +14035,10 @@ index 83fba8dfabc..7250771587b 100644
 2.30.2
 
 
-From 3a52966d3617db7372464fe444c7a229e7ff1a92 Mon Sep 17 00:00:00 2001
+From 7e68c585bb032bcf1f0080c7f076d889130b2ebc Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Tue, 8 Sep 2020 19:52:10 +0100
-Subject: [PATCH 52/90] testsuite, Darwin, Arm64 : Adjust for revised section
+Subject: [PATCH 50/88] testsuite, Darwin, Arm64 : Adjust for revised section
  spellings.
 
 We fixed some section names to change __common -> __bss which
@@ -14213,10 +14062,10 @@ index 715750ae019..52be32decc6 100644
 2.30.2
 
 
-From 287f10d35b126876a91ee37216ed4caab66e9c2d Mon Sep 17 00:00:00 2001
+From f58eed11fb17fabdeb1d31a1057bb235275d43d0 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Wed, 9 Sep 2020 19:55:06 +0100
-Subject: [PATCH 53/90] testsuite, Darwin, Arm64 : Disable the AAPCS64 tests.
+Subject: [PATCH 51/88] testsuite, Darwin, Arm64 : Disable the AAPCS64 tests.
 
 These are not appropriate for darwinpcs / Mach-O.
 
@@ -14247,10 +14096,10 @@ index 3e652c483c7..34907929bda 100644
 2.30.2
 
 
-From e2553ff58e16671795be23038348ca76b6f9f33b Mon Sep 17 00:00:00 2001
+From 719dd60a23356c72895e7bb2fff7125ba819fdc5 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Sat, 12 Sep 2020 09:54:18 +0100
-Subject: [PATCH 54/90] testsuite, Darwin, Arm64 : Add U_L_P to bf16 mangling
+Subject: [PATCH 52/88] testsuite, Darwin, Arm64 : Add U_L_P to bf16 mangling
  test.
 
 gcc/testsuite/ChangeLog
@@ -14286,10 +14135,10 @@ index 5426a1814b8..a017ce8ce5f 100644
 2.30.2
 
 
-From 2442a6b48556432939f44100adeb907683874c9a Mon Sep 17 00:00:00 2001
+From 76c522c71701ae792ae397aa24ad702e857c2850 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Sun, 4 Oct 2020 12:59:05 +0100
-Subject: [PATCH 55/90] testsuite, Darwin, Arm64 : Amend scan-asms for arm
+Subject: [PATCH 53/88] testsuite, Darwin, Arm64 : Amend scan-asms for arm
  syntax.
 
 Adjust some objective C tests.
@@ -14333,10 +14182,10 @@ index 966ea5e498d..d3d2916ed06 100644
 2.30.2
 
 
-From d1044c09983635569dfee30150ca802f8a4ae3fa Mon Sep 17 00:00:00 2001
+From 9b9a621bec5e40dfcef8433fc4aa29a5afd38cb1 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Mon, 12 Oct 2020 15:00:57 +0100
-Subject: [PATCH 56/90] testsuite, Darwin, Arm64 : Skip tests with an
+Subject: [PATCH 54/88] testsuite, Darwin, Arm64 : Skip tests with an
  unsupported API.
 
 The "OBJC_OLD_DISPATCH_PROTOTYPES" workaround is explicitly
@@ -14374,10 +14223,10 @@ index f6e3d8d22e0..a23968a89b5 100644
 2.30.2
 
 
-From b33700448a0ab9f5728894722475974bf4d4a9e1 Mon Sep 17 00:00:00 2001
+From 05668fb495f36541290aae2786624600711cea72 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Mon, 12 Oct 2020 15:01:20 +0100
-Subject: [PATCH 57/90] testsuite, Darwin, Arm64 : Skip tests with an
+Subject: [PATCH 55/88] testsuite, Darwin, Arm64 : Skip tests with an
  unsupported API.
 
 The "OBJC_OLD_DISPATCH_PROTOTYPES" workaround is explicitly
@@ -14415,10 +14264,10 @@ index d11dae0e6dc..1386ebc2f99 100644
 2.30.2
 
 
-From af5c2c6c32fcfd8e4872462ca22ef712f2e06127 Mon Sep 17 00:00:00 2001
+From db2d624a10b44fa61552b6b9efb0c0728cf49517 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Mon, 12 Oct 2020 15:02:39 +0100
-Subject: [PATCH 58/90] testsuite, Objective-C, Darwin, Arm64 : adjust
+Subject: [PATCH 56/88] testsuite, Objective-C, Darwin, Arm64 : adjust
  scan-asms for arm64.
 
 We need to pick up xword and word instead of quad and long.
@@ -14462,10 +14311,10 @@ index a1a14295e90..8457f46be53 100644
 2.30.2
 
 
-From 302182781c5cc1b4cba7fbd0753c7c84bdb03597 Mon Sep 17 00:00:00 2001
+From 3c9d8275a7a1116155445eb98c94a16fe39ea5e4 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Sat, 17 Oct 2020 16:53:36 +0100
-Subject: [PATCH 59/90] testsuite, Darwin, Arm64 : Skip two unsupported tests.
+Subject: [PATCH 57/88] testsuite, Darwin, Arm64 : Skip two unsupported tests.
 
 The compare function bodies code is ELF-specific at present
 skip the tests until we can make a Mach-O version.
@@ -14505,10 +14354,10 @@ index f0717133ccd..322ec127c79 100644
 2.30.2
 
 
-From 6107347e44acf116e15960176e7437cc298fdac4 Mon Sep 17 00:00:00 2001
+From 21a9c9ab44106a3e57673e22b5e98102a32115b3 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Thu, 22 Oct 2020 09:30:54 +0100
-Subject: [PATCH 60/90] testsuite, Darwin, Arm64 : Skip more tests using
+Subject: [PATCH 58/88] testsuite, Darwin, Arm64 : Skip more tests using
  'check-function-bodies'.
 
 The implementation for check-function-bodies doesn't support Mach-O at this
@@ -14867,10 +14716,10 @@ index 00c90e4efdb..da121ceb39a 100644
 2.30.2
 
 
-From cae26b2ba1c2aaf210b247b89a9a057fd0b36c58 Mon Sep 17 00:00:00 2001
+From ba6e71c4fa6859a8a966ac42b28de63c60abb032 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Wed, 8 Dec 2021 13:02:32 +0000
-Subject: [PATCH 61/90] aarch64, Darwin: Amend float128 additions to correct
+Subject: [PATCH 59/88] aarch64, Darwin: Amend float128 additions to correct
  max_align_t.
 
 The alignment of floating types is tested in two places, one
@@ -14899,10 +14748,10 @@ gcc/ChangeLog:
  4 files changed, 22 insertions(+), 18 deletions(-)
 
 diff --git a/gcc/config/aarch64/aarch64-builtins.cc b/gcc/config/aarch64/aarch64-builtins.cc
-index 0c437c2a414..c7d27b3926d 100644
+index 7614c6ee441..8485cf0a3ee 100644
 --- a/gcc/config/aarch64/aarch64-builtins.cc
 +++ b/gcc/config/aarch64/aarch64-builtins.cc
-@@ -735,8 +735,7 @@ tree aarch64_fp16_ptr_type_node = NULL_TREE;
+@@ -736,8 +736,7 @@ tree aarch64_fp16_ptr_type_node = NULL_TREE;
  tree aarch64_bf16_type_node = NULL_TREE;
  tree aarch64_bf16_ptr_type_node = NULL_TREE;
  
@@ -14912,7 +14761,7 @@ index 0c437c2a414..c7d27b3926d 100644
  tree aarch64_float128_ptr_type_node = NULL_TREE;
  
  /* Wrapper around add_builtin_function.  NAME is the name of the built-in
-@@ -1466,21 +1465,28 @@ aarch64_init_float128_types (void)
+@@ -1489,21 +1488,28 @@ aarch64_init_float128_types (void)
  {
    tree ftype, fndecl;
  
@@ -14951,10 +14800,10 @@ index 0c437c2a414..c7d27b3926d 100644
    aarch64_builtin_decls[AARCH64_BUILTIN_INFQ] = fndecl;
  }
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index 0e08f9ff8d4..bba4682d0ec 100644
+index 48ba2fd7e54..6425569d08d 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
-@@ -20196,7 +20196,7 @@ aarch64_gimplify_va_arg_expr (tree valist, tree type, gimple_seq *pre_p,
+@@ -20204,7 +20204,7 @@ aarch64_gimplify_va_arg_expr (tree valist, tree type, gimple_seq *pre_p,
  	    {
  	      /* Darwin has __float128, and long double is the same as
  		 double.  */
@@ -14964,10 +14813,10 @@ index 0e08f9ff8d4..bba4682d0ec 100644
  	    }
  	  else
 diff --git a/gcc/config/aarch64/aarch64.h b/gcc/config/aarch64/aarch64.h
-index 1fa5e6f5820..cdd2450b01b 100644
+index 22a7ff76c40..400c759ddd2 100644
 --- a/gcc/config/aarch64/aarch64.h
 +++ b/gcc/config/aarch64/aarch64.h
-@@ -1333,9 +1333,8 @@ extern GTY(()) tree aarch64_fp16_ptr_type_node;
+@@ -1339,9 +1339,8 @@ extern GTY(()) tree aarch64_fp16_ptr_type_node;
  extern GTY(()) tree aarch64_bf16_type_node;
  extern GTY(()) tree aarch64_bf16_ptr_type_node;
  
@@ -14999,10 +14848,10 @@ index 79e296d4a66..a9caa0467ba 100644
 2.30.2
 
 
-From 7459c120f8ec4cc3ef9831afe1da3f5be209c931 Mon Sep 17 00:00:00 2001
+From bc28271757295cf0fbca4a261bf0c51e6a559cb0 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Fri, 10 Dec 2021 23:54:46 +0000
-Subject: [PATCH 62/90] libgcc, aarch64, Darwin: Enable heap trampolines.
+Subject: [PATCH 60/88] libgcc, aarch64, Darwin: Enable heap trampolines.
 
 ---
  gcc/config/aarch64/aarch64.cc | 2 +-
@@ -15012,10 +14861,10 @@ Subject: [PATCH 62/90] libgcc, aarch64, Darwin: Enable heap trampolines.
  4 files changed, 15 insertions(+), 2 deletions(-)
 
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index bba4682d0ec..90c4c9788c3 100644
+index 6425569d08d..53e16e95736 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
-@@ -28204,7 +28204,7 @@ aarch64_libgcc_floating_mode_supported_p
+@@ -28208,7 +28208,7 @@ aarch64_libgcc_floating_mode_supported_p
  
  /* The architecture reserves bits 0 and 1 so use bit 2 for descriptors.  */
  #undef TARGET_CUSTOM_FUNCTION_DESCRIPTORS
@@ -15025,7 +14874,7 @@ index bba4682d0ec..90c4c9788c3 100644
  #undef TARGET_HARD_REGNO_NREGS
  #define TARGET_HARD_REGNO_NREGS aarch64_hard_regno_nregs
 diff --git a/gcc/config/aarch64/aarch64.h b/gcc/config/aarch64/aarch64.h
-index cdd2450b01b..62062b85303 100644
+index 400c759ddd2..ad71d8f0a97 100644
 --- a/gcc/config/aarch64/aarch64.h
 +++ b/gcc/config/aarch64/aarch64.h
 @@ -139,6 +139,12 @@
@@ -15082,10 +14931,10 @@ index ba688ac4fa4..76d14425a17 100644
 2.30.2
 
 
-From 0d4734ab292e30f68faafc6d7d61d2cbb6a7dd36 Mon Sep 17 00:00:00 2001
+From daed242012341d52c94911b7a69331686f58eb96 Mon Sep 17 00:00:00 2001
 From: FX Coudert <fxcoudert@gmail.com>
 Date: Sat, 18 Dec 2021 11:43:12 +0000
-Subject: [PATCH 63/90] testsuite, Darwin: Amendments for Darwin >= 20.
+Subject: [PATCH 61/88] testsuite, Darwin: Amendments for Darwin >= 20.
 
 gcc/testsuite/ChangeLog:
 
@@ -15126,10 +14975,10 @@ index 29bfbaf4726..280ce390845 100644
 2.30.2
 
 
-From 8d0825153a3a7c0e6314c05a4a2b63e999a5cbc8 Mon Sep 17 00:00:00 2001
+From 1d8c7c82853d9f771234b36e3079109055282c3c Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Sat, 18 Dec 2021 20:08:18 +0000
-Subject: [PATCH 64/90] aarch64, Darwin: Use darwin_binds_local_p for the
+Subject: [PATCH 62/88] aarch64, Darwin: Use darwin_binds_local_p for the
  target.
 
 We dind locally for PIC code (the default) on Darwin so that the
@@ -15165,10 +15014,10 @@ index 463eb248af8..f4d49a285f5 100644
 2.30.2
 
 
-From 758c9e81b26349c10b57b28413669c7fa229a3c2 Mon Sep 17 00:00:00 2001
+From f832eb01c7a7ff5752cfda7dc17a4331361e38f9 Mon Sep 17 00:00:00 2001
 From: Francois-Xavier Coudert <fxcoudert@gmail.com>
 Date: Sat, 18 Dec 2021 21:23:15 +0100
-Subject: [PATCH 65/90] Misc test fixes
+Subject: [PATCH 63/88] Misc test fixes
 
 ---
  gcc/testsuite/gcc.dg/cwsc1.c               | 6 +++++-
@@ -15215,10 +15064,10 @@ index 7d4db485f1f..6f1ee8035eb 100644
 -/* { dg-final { scan-assembler "bl\tmemcpy" } } */
 +/* { dg-final { scan-assembler "bl\t_*memcpy" } } */
 diff --git a/gcc/testsuite/lib/target-supports.exp b/gcc/testsuite/lib/target-supports.exp
-index ff8edbd3e17..042917c5348 100644
+index 2d5d0539bb4..d11ba66d6ba 100644
 --- a/gcc/testsuite/lib/target-supports.exp
 +++ b/gcc/testsuite/lib/target-supports.exp
-@@ -8442,7 +8442,7 @@ proc check_effective_target_section_anchors { } {
+@@ -8455,7 +8455,7 @@ proc check_effective_target_section_anchors { } {
      return [check_cached_effective_target section_anchors {
        expr { [istarget powerpc*-*-*]
  	     || [istarget arm*-*-*]
@@ -15231,10 +15080,10 @@ index ff8edbd3e17..042917c5348 100644
 2.30.2
 
 
-From 8020f09eb2e0c1fce0a519c5517e87ed17837ede Mon Sep 17 00:00:00 2001
+From f3a63c606bf7bd7f07a76d62c7772e9dd0d41bf8 Mon Sep 17 00:00:00 2001
 From: Francois-Xavier Coudert <fxcoudert@gmail.com>
 Date: Sun, 19 Dec 2021 12:17:47 +0100
-Subject: [PATCH 66/90] testsuite, Darwin, Arm64: Do not pass -mcmodel=large
+Subject: [PATCH 64/88] testsuite, Darwin, Arm64: Do not pass -mcmodel=large
 
 ---
  gcc/testsuite/gcc.dg/tls/pr78796.c | 2 +-
@@ -15257,10 +15106,10 @@ index 038e5366e41..31e03dd419c 100644
 2.30.2
 
 
-From a79df1560fbcee95e8eaceecea13b9d664b4412f Mon Sep 17 00:00:00 2001
+From fa5a99779e07ea3927ec26a63f1262ec7387a93d Mon Sep 17 00:00:00 2001
 From: Francois-Xavier Coudert <fxcoudert@gmail.com>
 Date: Sun, 19 Dec 2021 21:36:26 +0100
-Subject: [PATCH 67/90] Testsuite, aarch64: Add correct requirements for bf16
+Subject: [PATCH 65/88] Testsuite, aarch64: Add correct requirements for bf16
  and i8mm
 
 gcc/testsuite/ChangeLog:
@@ -15380,10 +15229,10 @@ index f20608de05c..978eac29815 100644
 2.30.2
 
 
-From d502b3230a9a41a8ad24d0d6cb9d7d1d633e0f88 Mon Sep 17 00:00:00 2001
+From ced827977bfa6a97c7b24d346229f5ca224ff923 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Mon, 20 Dec 2021 15:32:32 +0000
-Subject: [PATCH 68/90] aarhc64, Darwin: Do not give file-scope variables extra
+Subject: [PATCH 66/88] aarhc64, Darwin: Do not give file-scope variables extra
  alignment.
 
 At lest, not until we determine the consequences of inter-operating
@@ -15422,10 +15271,10 @@ index f4d49a285f5..707e3b0c7c1 100644
 2.30.2
 
 
-From b4df70baea6ed8da4746ef900f91b92bd208d6a3 Mon Sep 17 00:00:00 2001
+From cce268680d41aa9f5ac31b06436d1b498810a44e Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Tue, 21 Dec 2021 10:19:10 +0000
-Subject: [PATCH 69/90] testsuite, Darwin, aarch64: Initial mach-o support for
+Subject: [PATCH 67/88] testsuite, Darwin, aarch64: Initial mach-o support for
  check-function-bodies.
 
 The scanning code for the function regexes needs different delination criteria
@@ -15688,10 +15537,10 @@ index a80630bb2a8..cfab48c01e5 100644
 2.30.2
 
 
-From 6bc71c4f42a0e3b9aaa9adb3383c8a394b2dcba3 Mon Sep 17 00:00:00 2001
+From 371f676e5c218e95bd01efe251db21a18fe1adee Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Tue, 21 Dec 2021 10:23:48 +0000
-Subject: [PATCH 70/90] testsuite, Darwin, aarch64: No .cfi_ instruction
+Subject: [PATCH 68/88] testsuite, Darwin, aarch64: No .cfi_ instruction
  support on Darwin yet.
 
 We have to skip tests for frame instructions at present until the issues
@@ -15750,10 +15599,10 @@ index c4b7bb601c4..ccaf2e6f8cf 100644
 2.30.2
 
 
-From 4bddfe1660bc5b3a4635058f2590ee67f9b8b9fe Mon Sep 17 00:00:00 2001
+From bfb9849bf9d8cda33bfbd6e7d52a9aaa687147f0 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Tue, 21 Dec 2021 10:26:02 +0000
-Subject: [PATCH 71/90] testsuite, Darwin, aarch64: Match Darwin codegen for
+Subject: [PATCH 69/88] testsuite, Darwin, aarch64: Match Darwin codegen for
  aligned object.
 
 Darwin uses .zerofill instructions for these.
@@ -15786,10 +15635,10 @@ index ffa4d229922..38b9ef01eb7 100644
 2.30.2
 
 
-From c48f1211bd9521f0b0eb1927c4392b67a485fb2e Mon Sep 17 00:00:00 2001
+From 636d16aadbd0840accb27b68f9cc200ceba51dc4 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Tue, 21 Dec 2021 13:40:58 +0000
-Subject: [PATCH 72/90] aarch64, Darwin: Adapt shared blr thunks for Darwin
+Subject: [PATCH 70/88] aarch64, Darwin: Adapt shared blr thunks for Darwin
  ABI.
 
 For Darwin we just emit the thunks as wek defintions.
@@ -15807,10 +15656,10 @@ gcc/ChangeLog:
  1 file changed, 17 insertions(+), 5 deletions(-)
 
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index 90c4c9788c3..91f9d2aa9bc 100644
+index 53e16e95736..aed2f7d8195 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
-@@ -27563,15 +27563,27 @@ aarch64_sls_emit_shared_blr_thunks (FILE *out_file)
+@@ -27567,15 +27567,27 @@ aarch64_sls_emit_shared_blr_thunks (FILE *out_file)
  	continue;
  
        const char *name = indirect_symbol_names[regnum];
@@ -15847,10 +15696,10 @@ index 90c4c9788c3..91f9d2aa9bc 100644
 2.30.2
 
 
-From efa6af9c25e2716b4acbde32e019f39ef6e536a3 Mon Sep 17 00:00:00 2001
+From 3bab5d37d306306ebb7b0f22073ce779eb3a3df2 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Tue, 21 Dec 2021 14:39:44 +0000
-Subject: [PATCH 73/90] testsuite, Darwin, aarch64: More simple test fixes.
+Subject: [PATCH 71/88] testsuite, Darwin, aarch64: More simple test fixes.
 
 A few more that just need trivial adjustments for Darwin codegen
 or asm syntax.
@@ -15946,10 +15795,10 @@ index 39cbd6b6cc2..b4ed187bd2c 100644
 2.30.2
 
 
-From daf16e37c245e3d3921f4272cfc9ec0ae0cdb04c Mon Sep 17 00:00:00 2001
+From 7e171fcbc81dc02322459bb54dfa9f78e72f4a5c Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Tue, 21 Dec 2021 23:25:18 +0000
-Subject: [PATCH 74/90] aarch64, Darwin: Allow for indexed address forms for
+Subject: [PATCH 72/88] aarch64, Darwin: Allow for indexed address forms for
  PAGE+offset.
 
 We have been generating code like:
@@ -15979,7 +15828,7 @@ gcc/ChangeLog:
  1 file changed, 17 insertions(+), 8 deletions(-)
 
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index 91f9d2aa9bc..0e5e8344f32 100644
+index aed2f7d8195..8ab80538693 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
 @@ -11016,7 +11016,9 @@ aarch64_classify_address (struct aarch64_address_info *info,
@@ -15993,7 +15842,7 @@ index 91f9d2aa9bc..0e5e8344f32 100644
  	    {
  	      /* The symbol and offset must be aligned to the access size.  */
  	      unsigned int align;
-@@ -19668,16 +19670,22 @@ aarch64_classify_symbol (rtx x, HOST_WIDE_INT offset)
+@@ -19676,16 +19678,22 @@ aarch64_classify_symbol (rtx x, HOST_WIDE_INT offset)
  
  	  return SYMBOL_TINY_ABSOLUTE;
  
@@ -16022,7 +15871,7 @@ index 91f9d2aa9bc..0e5e8344f32 100644
  	  if ((flag_pic || SYMBOL_REF_WEAK (x))
  	      && !aarch64_symbol_binds_local_p (x))
  	    return aarch64_cmodel == AARCH64_CMODEL_SMALL_SPIC
-@@ -19689,7 +19697,8 @@ aarch64_classify_symbol (rtx x, HOST_WIDE_INT offset)
+@@ -19697,7 +19705,8 @@ aarch64_classify_symbol (rtx x, HOST_WIDE_INT offset)
  		|| offset_within_block_p (x, offset)))
  	    return SYMBOL_FORCE_TO_MEM;
  
@@ -16036,10 +15885,10 @@ index 91f9d2aa9bc..0e5e8344f32 100644
 2.30.2
 
 
-From 56f9f8c492198d390c63a3dc2acb7a2db3205223 Mon Sep 17 00:00:00 2001
+From 9c96261cc45c4289abbd472ca3509e374948c6f7 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Wed, 22 Dec 2021 12:26:44 +0000
-Subject: [PATCH 75/90] make the mach-o function scan a bit more robust
+Subject: [PATCH 73/88] make the mach-o function scan a bit more robust
 
 ---
  gcc/testsuite/lib/scanasm.exp | 14 ++++++++++----
@@ -16090,10 +15939,10 @@ index cfab48c01e5..195611f1f72 100644
 2.30.2
 
 
-From c137f35a8bce5cc6890a6abe37a8febf68593137 Mon Sep 17 00:00:00 2001
+From dc437c6d1f072e4d1b96c1f188ea32797c084d50 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Wed, 22 Dec 2021 12:28:00 +0000
-Subject: [PATCH 76/90] testsuite, Darwin, aarch64: Update tests after address
+Subject: [PATCH 74/88] testsuite, Darwin, aarch64: Update tests after address
  logic change
 
 Signed-off-by: Iain Sandoe <iain@sandoe.co.uk>
@@ -16365,10 +16214,10 @@ index c6cafc5dc9e..f218504c719 100644
 2.30.2
 
 
-From a312d2385af43b250ddb6a704e67fee8e6e1e062 Mon Sep 17 00:00:00 2001
+From a80ed2f282d82d33a6f7bdd108414ab2dd2ce2c5 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Wed, 22 Dec 2021 12:53:17 +0000
-Subject: [PATCH 77/90] another test fix
+Subject: [PATCH 75/88] another test fix
 
 ---
  gcc/testsuite/gcc.target/aarch64/dbl_mov_immediate_1.c | 6 ++++--
@@ -16395,10 +16244,10 @@ index ba6a230457b..cc30dd546f4 100644
 2.30.2
 
 
-From 6d1a49dfbf216693880df6121a024585f126d560 Mon Sep 17 00:00:00 2001
+From 0c45ca7232c2ba2eaadda1af9a95666359e799cd Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Wed, 22 Dec 2021 15:49:35 +0000
-Subject: [PATCH 78/90] testsuite, Darwin, aarch64: Skip variant_pcs tests.
+Subject: [PATCH 76/88] testsuite, Darwin, aarch64: Skip variant_pcs tests.
 
 The __simd__ attribute is not accepted by clang and there is no
 current description of whether variant CCs would be allowed (I
@@ -16485,10 +16334,10 @@ index eddcef3597c..62ee482a892 100644
 2.30.2
 
 
-From ea6d396bc5e1eb7a05b872956cd7e62f175a147f Mon Sep 17 00:00:00 2001
+From ef93776f9c87cb49ed51e16b20a1f28f8249f272 Mon Sep 17 00:00:00 2001
 From: Francois-Xavier Coudert <fxcoudert@gmail.com>
 Date: Wed, 22 Dec 2021 20:04:19 +0000
-Subject: [PATCH 79/90] testsuite, Darwin, aarch64: Amend more tests to work on
+Subject: [PATCH 77/88] testsuite, Darwin, aarch64: Amend more tests to work on
  both Linux and Darwin.
 
 Darwin does not support big-endian and has a signed char.
@@ -16784,10 +16633,10 @@ index 6f2d3612c26..6a52e52dc39 100644
  
  void
 diff --git a/gcc/testsuite/lib/target-supports.exp b/gcc/testsuite/lib/target-supports.exp
-index 042917c5348..c389011073c 100644
+index d11ba66d6ba..c70feb83bc8 100644
 --- a/gcc/testsuite/lib/target-supports.exp
 +++ b/gcc/testsuite/lib/target-supports.exp
-@@ -11483,6 +11483,15 @@ proc check_effective_target_arm_thumb2_ok_no_arm_v8_1_lob { } {
+@@ -11496,6 +11496,15 @@ proc check_effective_target_arm_thumb2_ok_no_arm_v8_1_lob { } {
      return 0
  }
  
@@ -16807,10 +16656,10 @@ index 042917c5348..c389011073c 100644
 2.30.2
 
 
-From 31f6eef569e238599142a7b4afa0e1cfb04d2315 Mon Sep 17 00:00:00 2001
+From 8cddafce3ca8ae618c918e404a8009b09e01aae8 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Fri, 24 Dec 2021 20:37:58 +0000
-Subject: [PATCH 80/90] testsuite, aarch64, Darwin: Re-enable some
+Subject: [PATCH 78/88] testsuite, aarch64, Darwin: Re-enable some
  scan-function-body tests.
 
 Now we have rudimentary support, some of the tests can be renabled.
@@ -17056,10 +16905,10 @@ index da121ceb39a..00c90e4efdb 100644
 2.30.2
 
 
-From cdf32dc91a4a11844374494f2cbe5e8a02a43a3a Mon Sep 17 00:00:00 2001
+From 2b2ad82630bdf67c18b14b7358061fd00d80e18b Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Wed, 29 Dec 2021 10:11:03 +0000
-Subject: [PATCH 81/90] Darwin, aarch64: Enable section anchors on
+Subject: [PATCH 79/88] Darwin, aarch64: Enable section anchors on
  -fsection-anchor.
 
 This is an experimental feature and might well require amendment to cater
@@ -17080,7 +16929,7 @@ gcc/ChangeLog:
  2 files changed, 12 insertions(+), 15 deletions(-)
 
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index 0e5e8344f32..5b53f8fc448 100644
+index 8ab80538693..933baa24785 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
 @@ -12728,16 +12728,6 @@ aarch64_anchor_offset (HOST_WIDE_INT offset, HOST_WIDE_INT size,
@@ -17100,7 +16949,7 @@ index 0e5e8344f32..5b53f8fc448 100644
  static rtx
  aarch64_legitimize_address (rtx x, rtx /* orig_x  */, machine_mode mode)
  {
-@@ -28130,11 +28120,6 @@ aarch64_libgcc_floating_mode_supported_p
+@@ -28134,11 +28124,6 @@ aarch64_libgcc_floating_mode_supported_p
  #undef TARGET_MAX_ANCHOR_OFFSET
  #define TARGET_MAX_ANCHOR_OFFSET 4095
  
@@ -17139,10 +16988,10 @@ index 707e3b0c7c1..2a855c11efa 100644
 2.30.2
 
 
-From 0123c40253936914b13b285ea8f78f21594e07b2 Mon Sep 17 00:00:00 2001
+From 9c25434a56e596cb0585021bdbe4465b720b12a9 Mon Sep 17 00:00:00 2001
 From: Maxim Blinov <maxim.blinov@embecosm.com>
 Date: Fri, 25 Jun 2021 10:54:46 +0100
-Subject: [PATCH 82/90] Add cumulative_args_t variants of
+Subject: [PATCH 80/88] Add cumulative_args_t variants of
  TARGET_FUNCTION_ROUND_BOUNDARY and friends
 
 The two target hooks responsible for informing GCC about stack
@@ -17245,7 +17094,7 @@ index a7c997bb47b..208648a7439 100644
  	  gcc_assert (!argvec[count].locate.size.var);
  	}
 diff --git a/gcc/common.opt b/gcc/common.opt
-index 812276469b4..9cd57b56142 100644
+index 69b5f6157b3..7feb4635656 100644
 --- a/gcc/common.opt
 +++ b/gcc/common.opt
 @@ -2737,6 +2737,10 @@ fstack-usage
@@ -17260,7 +17109,7 @@ index 812276469b4..9cd57b56142 100644
  Common Ignore
  Does nothing.  Preserved for backward compatibility.
 diff --git a/gcc/config.gcc b/gcc/config.gcc
-index 4dc2061ee45..f2139a1421d 100644
+index f7d78c5ec77..03c9d463962 100644
 --- a/gcc/config.gcc
 +++ b/gcc/config.gcc
 @@ -1093,6 +1093,7 @@ case ${target} in
@@ -17298,7 +17147,7 @@ index 00000000000..b60928e37f9
 +
 +#endif /* GCC_CUMULATIVE_ARGS_H */
 diff --git a/gcc/doc/invoke.texi b/gcc/doc/invoke.texi
-index 513ea5cfe3d..e15aa7f4fd9 100644
+index 9a97f4e0697..61f61085dd1 100644
 --- a/gcc/doc/invoke.texi
 +++ b/gcc/doc/invoke.texi
 @@ -681,6 +681,7 @@ Objective-C and Objective-C++ Dialects}.
@@ -17309,7 +17158,7 @@ index 513ea5cfe3d..e15aa7f4fd9 100644
  -ftrampolines  -ftrapv  -fwrapv @gol
  -fvisibility=@r{[}default@r{|}internal@r{|}hidden@r{|}protected@r{]} @gol
  -fstrict-volatile-bitfields  -fsync-libcalls}
-@@ -17064,6 +17065,17 @@ the behavior of older compilers in which temporaries' stack space is
+@@ -17072,6 +17073,17 @@ the behavior of older compilers in which temporaries' stack space is
  not reused, the aggressive stack reuse can lead to runtime errors. This
  option is used to control the temporary stack reuse optimization.
  
@@ -17539,7 +17388,7 @@ index d6fa6931499..40c3da87656 100644
  /* Types of memory operation understood by the "by_pieces" infrastructure.
     Used by the TARGET_USE_BY_PIECES_INFRASTRUCTURE_P target hook and
 diff --git a/gcc/targhooks.cc b/gcc/targhooks.cc
-index fc49235eb38..6a95559b225 100644
+index 399d6f874dc..9d554adcb45 100644
 --- a/gcc/targhooks.cc
 +++ b/gcc/targhooks.cc
 @@ -850,6 +850,14 @@ default_function_arg_boundary (machine_mode mode ATTRIBUTE_UNUSED,
@@ -17573,7 +17422,7 @@ index fc49235eb38..6a95559b225 100644
  hook_void_bitmap (bitmap regs ATTRIBUTE_UNUSED)
  {
 diff --git a/gcc/targhooks.h b/gcc/targhooks.h
-index ecfa11287ef..88707ccca38 100644
+index ecce55ebe79..ba110ade58b 100644
 --- a/gcc/targhooks.h
 +++ b/gcc/targhooks.h
 @@ -154,6 +154,12 @@ extern unsigned int default_function_arg_boundary (machine_mode,
@@ -17593,10 +17442,10 @@ index ecfa11287ef..88707ccca38 100644
 2.30.2
 
 
-From 1472197050ab5611002908837130a97fa10df29a Mon Sep 17 00:00:00 2001
+From bf3863486c276c7e463fa7ba0634f01ec00262ac Mon Sep 17 00:00:00 2001
 From: Maxim Blinov <maxim.blinov@embecosm.com>
 Date: Fri, 9 Jul 2021 12:24:00 +0100
-Subject: [PATCH 83/90] Implement TARGET_..._CA target hooks for AArch64 Darwin
+Subject: [PATCH 81/88] Implement TARGET_..._CA target hooks for AArch64 Darwin
 
 The AArch64 Darwin platform requires that named stack arguments are
 passed naturally-aligned, while variadic stack arguments are passed on
@@ -17642,7 +17491,7 @@ gcc/config/aarch64/ChangeLog:
  4 files changed, 65 insertions(+)
 
 diff --git a/gcc/config.gcc b/gcc/config.gcc
-index f2139a1421d..8474533ae8e 100644
+index 03c9d463962..8a18d1c1e50 100644
 --- a/gcc/config.gcc
 +++ b/gcc/config.gcc
 @@ -1088,6 +1088,9 @@ esac
@@ -17656,10 +17505,10 @@ index f2139a1421d..8474533ae8e 100644
    # Currently, we do this for macOS 11 and above.
    tm_defines="$tm_defines OFF_STACK_TRAMPOLINES_INIT=1"
 diff --git a/gcc/config/aarch64/aarch64-protos.h b/gcc/config/aarch64/aarch64-protos.h
-index 3c4b7e60b01..4a507390649 100644
+index d506e938730..dd03d90a4f3 100644
 --- a/gcc/config/aarch64/aarch64-protos.h
 +++ b/gcc/config/aarch64/aarch64-protos.h
-@@ -910,6 +910,7 @@ void aarch64_expand_vector_init (rtx, rtx);
+@@ -923,6 +923,7 @@ void aarch64_expand_vector_init (rtx, rtx);
  void aarch64_sve_expand_vector_init (rtx, rtx);
  void aarch64_init_cumulative_args (CUMULATIVE_ARGS *, const_tree, rtx,
  				   const_tree, unsigned, bool = false);
@@ -17668,7 +17517,7 @@ index 3c4b7e60b01..4a507390649 100644
  void aarch64_init_simd_builtins (void);
  void aarch64_emit_call_insn (rtx);
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index 5b53f8fc448..a14453f01db 100644
+index 933baa24785..bf879419069 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
 @@ -7696,6 +7696,8 @@ aarch64_init_cumulative_args (CUMULATIVE_ARGS *pcum,
@@ -17756,7 +17605,7 @@ index 5b53f8fc448..a14453f01db 100644
  #endif
  
  /* Implement TARGET_GET_RAW_RESULT_MODE and TARGET_GET_RAW_ARG_MODE.  */
-@@ -27878,9 +27928,15 @@ aarch64_run_selftests (void)
+@@ -27882,9 +27932,15 @@ aarch64_run_selftests (void)
  #undef TARGET_FUNCTION_ARG_BOUNDARY
  #define TARGET_FUNCTION_ARG_BOUNDARY aarch64_function_arg_boundary
  
@@ -17773,10 +17622,10 @@ index 5b53f8fc448..a14453f01db 100644
  
  #undef TARGET_FUNCTION_ARG_PADDING
 diff --git a/gcc/config/aarch64/aarch64.h b/gcc/config/aarch64/aarch64.h
-index 62062b85303..3c21715e34c 100644
+index ad71d8f0a97..1da57420dea 100644
 --- a/gcc/config/aarch64/aarch64.h
 +++ b/gcc/config/aarch64/aarch64.h
-@@ -1035,6 +1035,8 @@ typedef struct
+@@ -1041,6 +1041,8 @@ typedef struct
  				   when placing smaller items for darwinpcs.  */
    int darwinpcs_sub_word_pos;	/* The next byte available within the word for
  				   darwinpcs.  */
@@ -17785,7 +17634,7 @@ index 62062b85303..3c21715e34c 100644
    bool silent_p;		/* True if we should act silently, rather than
  				   raise an error for invalid calls.  */
  } CUMULATIVE_ARGS;
-@@ -1048,6 +1050,9 @@ typedef struct
+@@ -1054,6 +1056,9 @@ typedef struct
  #define INIT_CUMULATIVE_ARGS(CUM, FNTYPE, LIBNAME, FNDECL, N_NAMED_ARGS) \
    aarch64_init_cumulative_args (&(CUM), FNTYPE, LIBNAME, FNDECL, N_NAMED_ARGS)
  
@@ -17799,10 +17648,10 @@ index 62062b85303..3c21715e34c 100644
 2.30.2
 
 
-From e4879c1036363ee68f48c13e648bc63e155feca6 Mon Sep 17 00:00:00 2001
+From 1d91b015e42d204cd2b3b8a1433f38ff537ee81b Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Thu, 23 Dec 2021 17:03:20 +0000
-Subject: [PATCH 84/90] aarch64, Darwin: Rework varargs handling to use
+Subject: [PATCH 82/88] aarch64, Darwin: Rework varargs handling to use
  cumulative args.
 
 Maybe incomplete.
@@ -17836,7 +17685,7 @@ gcc/ChangeLog:
  create mode 100644 gcc/testsuite/gcc.target/aarch64/darwin/variadic-02.c
 
 diff --git a/gcc/config.gcc b/gcc/config.gcc
-index 8474533ae8e..b757ef3a95c 100644
+index 8a18d1c1e50..1562a7bea4b 100644
 --- a/gcc/config.gcc
 +++ b/gcc/config.gcc
 @@ -1086,12 +1086,14 @@ case ${target} in
@@ -17866,7 +17715,7 @@ index 8474533ae8e..b757ef3a95c 100644
  	tmake_file="${tmake_file} aarch64/t-aarch64 aarch64/t-aarch64-darwin"
  	tm_defines="${tm_defines} TARGET_DEFAULT_ASYNC_UNWIND_TABLES=1"
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index a14453f01db..94b71a61038 100644
+index bf879419069..3dacca336e4 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
 @@ -4024,8 +4024,10 @@ static bool
@@ -18277,7 +18126,7 @@ index a14453f01db..94b71a61038 100644
  /* Implement TARGET_GET_RAW_RESULT_MODE and TARGET_GET_RAW_ARG_MODE.  */
  
  static fixed_size_mode
-@@ -20324,7 +20427,7 @@ aarch64_setup_incoming_varargs (cumulative_args_t cum_v,
+@@ -20332,7 +20435,7 @@ aarch64_setup_incoming_varargs (cumulative_args_t cum_v,
    int vr_saved = cfun->va_list_fpr_size;
  
    if (TARGET_MACHO)
@@ -18286,7 +18135,7 @@ index a14453f01db..94b71a61038 100644
  
    /* The caller has advanced CUM up to, but not beyond, the last named
       argument.  Advance a local copy of CUM past the last "real" named
-@@ -27931,13 +28034,11 @@ aarch64_run_selftests (void)
+@@ -27935,13 +28038,11 @@ aarch64_run_selftests (void)
  #undef TARGET_FUNCTION_ARG_BOUNDARY_CA
  #define TARGET_FUNCTION_ARG_BOUNDARY_CA aarch64_function_arg_boundary_ca
  
@@ -18301,10 +18150,10 @@ index a14453f01db..94b71a61038 100644
  #undef TARGET_FUNCTION_ARG_PADDING
  #define TARGET_FUNCTION_ARG_PADDING aarch64_function_arg_padding
 diff --git a/gcc/config/aarch64/aarch64.h b/gcc/config/aarch64/aarch64.h
-index 3c21715e34c..c534479d1c3 100644
+index 1da57420dea..db5fe441b36 100644
 --- a/gcc/config/aarch64/aarch64.h
 +++ b/gcc/config/aarch64/aarch64.h
-@@ -1029,14 +1029,24 @@ typedef struct
+@@ -1035,14 +1035,24 @@ typedef struct
  				   aapcs_reg == NULL_RTX.  */
    int aapcs_stack_size;		/* The total size (in words, per 8 byte) of the
  				   stack arg area so far.  */
@@ -18331,7 +18180,7 @@ index 3c21715e34c..c534479d1c3 100644
    bool silent_p;		/* True if we should act silently, rather than
  				   raise an error for invalid calls.  */
  } CUMULATIVE_ARGS;
-@@ -1050,9 +1060,6 @@ typedef struct
+@@ -1056,9 +1066,6 @@ typedef struct
  #define INIT_CUMULATIVE_ARGS(CUM, FNTYPE, LIBNAME, FNDECL, N_NAMED_ARGS) \
    aarch64_init_cumulative_args (&(CUM), FNTYPE, LIBNAME, FNDECL, N_NAMED_ARGS)
  
@@ -18641,10 +18490,10 @@ index 00000000000..9d796bfc07f
 2.30.2
 
 
-From 2898fda406355e5dca4b991e0ef97459fdacf252 Mon Sep 17 00:00:00 2001
+From 7ccc4bbcadbeabdac3a69ddff9e8f3b1f9f02783 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Mon, 27 Dec 2021 15:40:07 +0000
-Subject: [PATCH 85/90] testsuite, Darwin, aarch64: Add a test for darwinpcs
+Subject: [PATCH 83/88] testsuite, Darwin, aarch64: Add a test for darwinpcs
  d.4.
 
 We should not skip registers in the case that we have a 128n value to
@@ -18756,10 +18605,10 @@ index 00000000000..63c4f645195
 2.30.2
 
 
-From 62421da18f105b94ae6a7063bac63ef880945521 Mon Sep 17 00:00:00 2001
+From 614b40edd9f49e90674a4e290cd16b1a188094ff Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Mon, 27 Dec 2021 19:27:44 +0000
-Subject: [PATCH 86/90] testsuite, Darwin, aarch64: Initial tests for darwinpcs
+Subject: [PATCH 84/88] testsuite, Darwin, aarch64: Initial tests for darwinpcs
  D2.
 
 Tests of packing of small items (char, short, int).
@@ -19028,10 +18877,10 @@ index 00000000000..444454b1b3a
 2.30.2
 
 
-From 8a25a5175f29a543252a3daea4b39ca0399714e1 Mon Sep 17 00:00:00 2001
+From e63bf93666f2bde38639f140e3bffc8305174fc6 Mon Sep 17 00:00:00 2001
 From: Iain Sandoe <iain@sandoe.co.uk>
 Date: Wed, 29 Dec 2021 23:33:34 +0000
-Subject: [PATCH 87/90] testsuite, Darwin, aarch64: Add more tests for
+Subject: [PATCH 85/88] testsuite, Darwin, aarch64: Add more tests for
  darwinpcs.
 
 This covers the main four points and initial exercising of variadic function
@@ -19776,10 +19625,10 @@ index 00000000000..6420fca11d5
 2.30.2
 
 
-From e84c6b4488e604d23502cbc97b234a69639fbed4 Mon Sep 17 00:00:00 2001
+From 712b8d32e613b98481f48e2ef37556176b924f71 Mon Sep 17 00:00:00 2001
 From: Francois-Xavier Coudert <fxcoudert@gmail.com>
 Date: Tue, 28 Dec 2021 11:12:09 +0100
-Subject: [PATCH 88/90] Testsuite: Adjust a Fortran error check
+Subject: [PATCH 86/88] Testsuite: Adjust a Fortran error check
 
 gcc/testsuite/ChangeLog
 
@@ -19808,10 +19657,40 @@ index 47a5df9e894..1afa9d3c467 100644
 2.30.2
 
 
-From 27d5c336c324668776b7c9f1fe0b55e49d09c903 Mon Sep 17 00:00:00 2001
+From 0355f0f878be9ac3713e8f0d6103b102c44eff9e Mon Sep 17 00:00:00 2001
+From: Francois-Xavier Coudert <fxcoudert@gmail.com>
+Date: Tue, 28 Dec 2021 11:42:42 +0100
+Subject: [PATCH 87/88] Testsuite: skip test
+
+gcc/testsuite/ChangeLog:
+
+	* gcc.dg/builtin-apply2.c: Skip on aarch64-apple-darwin
+	because normal and variadic functions use different arg passing.
+---
+ gcc/testsuite/gcc.dg/builtin-apply2.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/gcc/testsuite/gcc.dg/builtin-apply2.c b/gcc/testsuite/gcc.dg/builtin-apply2.c
+index 0f350f4ac16..d1e70b3a3e5 100644
+--- a/gcc/testsuite/gcc.dg/builtin-apply2.c
++++ b/gcc/testsuite/gcc.dg/builtin-apply2.c
+@@ -1,7 +1,7 @@
+ /* { dg-do run } */
+ /* { dg-require-effective-target untyped_assembly } */
+ /* { dg-skip-if "Variadic funcs have all args on stack. Normal funcs have args in registers." { "avr-*-* nds32*-*-* amdgcn-*-*" } } */
+-/* { dg-skip-if "Variadic funcs use different argument passing from normal funcs." { "csky*-*-* riscv*-*-* or1k*-*-* msp430-*-* pru-*-* loongarch*-*-*" } } */
++/* { dg-skip-if "Variadic funcs use different argument passing from normal funcs." { "csky*-*-* riscv*-*-* or1k*-*-* msp430-*-* pru-*-* loongarch*-*-* aarch64-apple-darwin*" } } */
+ /* { dg-skip-if "Variadic funcs use Base AAPCS.  Normal funcs use VFP variant." { arm*-*-* && arm_hf_eabi } } */
+ 
+ /* PR target/12503 */
+-- 
+2.30.2
+
+
+From 0d48e9b360ec6f8cf30e31f9e1516daa45b31b48 Mon Sep 17 00:00:00 2001
 From: Francois-Xavier Coudert <fxcoudert@gmail.com>
 Date: Sun, 2 Jan 2022 15:02:56 +0100
-Subject: [PATCH 90/90] Testsuite: Fix patterns on stdarg-based tests
+Subject: [PATCH 88/88] Testsuite: Fix patterns on stdarg-based tests
 
 gcc/testsuite/ChangeLog:
 
