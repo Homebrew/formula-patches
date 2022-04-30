@@ -19808,36 +19808,6 @@ index 47a5df9e894..1afa9d3c467 100644
 2.30.2
 
 
-From d97d0021416671a68aa04d57222b86cb3a2f6276 Mon Sep 17 00:00:00 2001
-From: Francois-Xavier Coudert <fxcoudert@gmail.com>
-Date: Tue, 28 Dec 2021 11:42:42 +0100
-Subject: [PATCH 89/90] Testsuite: skip test
-
-gcc/testsuite/ChangeLog:
-
-	* gcc.dg/builtin-apply2.c: Skip on aarch64-apple-darwin
-	because normal and variadic functions use different arg passing.
----
- gcc/testsuite/gcc.dg/builtin-apply2.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/gcc/testsuite/gcc.dg/builtin-apply2.c b/gcc/testsuite/gcc.dg/builtin-apply2.c
-index 9049af5821f..c472045ef6d 100644
---- a/gcc/testsuite/gcc.dg/builtin-apply2.c
-+++ b/gcc/testsuite/gcc.dg/builtin-apply2.c
-@@ -1,7 +1,7 @@
- /* { dg-do run } */
- /* { dg-require-effective-target untyped_assembly } */
- /* { dg-skip-if "Variadic funcs have all args on stack. Normal funcs have args in registers." { "avr-*-* nds32*-*-* amdgcn-*-*" } } */
--/* { dg-skip-if "Variadic funcs use different argument passing from normal funcs." { "csky*-*-* riscv*-*-* or1k*-*-* msp430-*-* pru-*-*" } } */
-+/* { dg-skip-if "Variadic funcs use different argument passing from normal funcs." { "csky*-*-* riscv*-*-* or1k*-*-* msp430-*-* pru-*-* aarch64-apple-darwin*" } } */
- /* { dg-skip-if "Variadic funcs use Base AAPCS.  Normal funcs use VFP variant." { arm*-*-* && arm_hf_eabi } } */
- 
- /* PR target/12503 */
--- 
-2.30.2
-
-
 From 27d5c336c324668776b7c9f1fe0b55e49d09c903 Mon Sep 17 00:00:00 2001
 From: Francois-Xavier Coudert <fxcoudert@gmail.com>
 Date: Sun, 2 Jan 2022 15:02:56 +0100
