@@ -154,7 +154,7 @@ index b72835ae953..bb4112773c9 100644
  ifeq (${host_shared},no)
  BOOTSTRAP_TOOL_CAN_USE_MDYNAMIC_NO_PIC := $(shell \
 diff --git a/configure b/configure
-index 5dcaab14ae9..62e5aebb5aa 100755
+index 5dcaab14ae9..c690bbec82b 100755
 --- a/configure
 +++ b/configure
 @@ -685,6 +685,7 @@ get_gcc_base_ver
@@ -182,19 +182,28 @@ index 5dcaab14ae9..62e5aebb5aa 100755
    --enable-stage1-languages[=all]
                            choose additional languages to build during stage1.
                            Mostly useful for compiler development
-@@ -8410,6 +8414,11 @@ else
+@@ -8410,6 +8414,20 @@ else
   fi
  fi
  
-+if test "x$enable_darwin_at_rpath" = "xyes"; then
-+  if test "x$host_shared" != "xyes"; then
-+    poststage1_ldflags="$poststage1_ldflags -nodefaultrpath"
-+  fi
-+fi
++case $target in
++  *-darwin2* | *-darwin1[56789]*)
++    # For these versions, we default to using embedded rpaths.
++    if test "x$enable_darwin_at_rpath" != "xno"; then
++      poststage1_ldflags="$poststage1_ldflags -nodefaultrpaths"
++    fi
++  ;;
++  *-darwin*)
++    # For these versions, we only use embedded rpaths on demand.
++    if test "x$enable_darwin_at_rpath" = "xyes"; then
++      poststage1_ldflags="$poststage1_ldflags -nodefaultrpaths"
++    fi
++  ;;
++esac
  
  
  # GCC GRAPHITE dependency isl.
-@@ -8663,6 +8672,42 @@ else
+@@ -8663,6 +8681,42 @@ else
  fi
  
  
@@ -238,22 +247,31 @@ index 5dcaab14ae9..62e5aebb5aa 100755
  # By default, C and C++ are the only stage 1 languages.
  stage1_languages=,c,
 diff --git a/configure.ac b/configure.ac
-index 85977482aee..5026b273c9b 100644
+index 85977482aee..72bd20fda66 100644
 --- a/configure.ac
 +++ b/configure.ac
-@@ -1827,6 +1827,11 @@ AC_ARG_WITH(boot-ldflags,
+@@ -1827,6 +1827,20 @@ AC_ARG_WITH(boot-ldflags,
   if test "$poststage1_libs" = ""; then
     poststage1_ldflags="-static-libstdc++ -static-libgcc"
   fi])
-+if test "x$enable_darwin_at_rpath" = "xyes"; then
-+  if test "x$host_shared" != "xyes"; then 
-+    poststage1_ldflags="$poststage1_ldflags -nodefaultrpath"
-+  fi
-+fi 
++case $target in
++  *-darwin2* | *-darwin1[[56789]]*)
++    # For these versions, we default to using embedded rpaths.
++    if test "x$enable_darwin_at_rpath" != "xno"; then
++      poststage1_ldflags="$poststage1_ldflags -nodefaultrpaths"
++    fi
++  ;;
++  *-darwin*)
++    # For these versions, we only use embedded rpaths on demand.
++    if test "x$enable_darwin_at_rpath" = "xyes"; then
++      poststage1_ldflags="$poststage1_ldflags -nodefaultrpaths"
++    fi
++  ;;
++esac
  AC_SUBST(poststage1_ldflags)
  
  # GCC GRAPHITE dependency isl.
-@@ -1931,7 +1936,41 @@ AC_ARG_ENABLE(host-shared,
+@@ -1931,7 +1945,41 @@ AC_ARG_ENABLE(host-shared,
    x86_64-*-darwin* | aarch64-*-darwin*) host_shared=yes ;;
    *) host_shared=no ;;
   esac])
@@ -295,6 +313,19 @@ index 85977482aee..5026b273c9b 100644
  
  # By default, C and C++ are the only stage 1 languages.
  stage1_languages=,c,
+diff --git a/fixincludes/configure b/fixincludes/configure
+index 6e2d67b655b..b3bca666a4d 100755
+--- a/fixincludes/configure
++++ b/fixincludes/configure
+@@ -2644,7 +2644,7 @@ ac_configure="$SHELL $ac_aux_dir/configure"  # Please don't use this var.
+ 
+ # _LT_DARWIN_LINKER_FEATURES
+ # --------------------------
+-# Checks for linker and compiler features on darwin
++# Checks for linker and compiler features on Darwin / macOS / iOS
+ 
+ 
+ # _LT_SYS_MODULE_PATH_AIX
 diff --git a/gcc/Makefile.in b/gcc/Makefile.in
 index 31ff95500c9..255a10c2ce8 100644
 --- a/gcc/Makefile.in
@@ -828,7 +859,7 @@ index 2ac781dff4a..dd03d90a4f3 100644
  gimple *aarch64_general_gimple_fold_builtin (unsigned int, gcall *,
  					     gimple_stmt_iterator *);
 diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
-index f650abbc4ce..3dacca336e4 100644
+index f650abbc4ce..5bbd138e765 100644
 --- a/gcc/config/aarch64/aarch64.cc
 +++ b/gcc/config/aarch64/aarch64.cc
 @@ -292,8 +292,10 @@ static bool aarch64_vfp_is_call_or_return_candidate (machine_mode,
@@ -969,6 +1000,7 @@ index f650abbc4ce..3dacca336e4 100644
    size = ROUND_UP (size, UNITS_PER_WORD);
  
    allocate_ncrn = (type) ? !(FLOAT_TYPE_P (type)) : !FLOAT_MODE_P (mode);
++  bool is_ha = false;
 +#if !TARGET_MACHO
    allocate_nvrn = aarch64_vfp_is_call_candidate (pcum_v,
  						 mode,
@@ -977,12 +1009,11 @@ index f650abbc4ce..3dacca336e4 100644
 +#else
 +  /* We care if the value is a homogenous aggregate when laying out the stack,
 +     so use this call directly.  */
-+  bool is_ha;
 +  allocate_nvrn
 +    = aarch64_vfp_is_call_or_return_candidate (mode, type,
-+						&pcum->aapcs_vfp_rmode,
-+						&nregs, &is_ha,
-+						pcum->silent_p);
++					       &pcum->aapcs_vfp_rmode,
++					       &nregs, &is_ha,
++					       pcum->silent_p);
 +#endif
    gcc_assert (!sve_p || !allocate_nvrn);
  
@@ -1290,22 +1321,11 @@ index f650abbc4ce..3dacca336e4 100644
    alignment = MIN (MAX (alignment, PARM_BOUNDARY), STACK_BOUNDARY);
    if (abi_break & warn_psabi)
      {
-@@ -7673,6 +7915,55 @@ aarch64_function_arg_boundary (machine_mode mode, const_tree type)
+@@ -7673,6 +7915,44 @@ aarch64_function_arg_boundary (machine_mode mode, const_tree type)
      }
  
    return alignment;
 +#endif
-+}
-+
-+/* Implement TARGET_FUNCTION_ARG_ROUND_BOUNDARY for darwinpcs which allows
-+   non-standard passing of byte-aligned items [D.2].
-+   TODO: check if this extends to packed aggregates.  */
-+
-+static unsigned int
-+aarch64_function_arg_round_boundary (machine_mode, const_tree)
-+{
-+gcc_checking_assert (0 && "aarch64_function_arg_round_boundary");
-+  return BITS_PER_UNIT;
 +}
 +
 +/* Implement TARGET_FUNCTION_ARG_ROUND_BOUNDARY_CA for darwinpcs which allows
@@ -1346,7 +1366,7 @@ index f650abbc4ce..3dacca336e4 100644
  }
  
  /* Implement TARGET_GET_RAW_RESULT_MODE and TARGET_GET_RAW_ARG_MODE.  */
-@@ -10848,6 +11139,7 @@ aarch64_classify_address (struct aarch64_address_info *info,
+@@ -10848,6 +11128,7 @@ aarch64_classify_address (struct aarch64_address_info *info,
        /* load literal: pc-relative constant pool entry.  Only supported
           for SI mode or larger.  */
        info->type = ADDRESS_SYMBOLIC;
@@ -1354,7 +1374,7 @@ index f650abbc4ce..3dacca336e4 100644
  
        if (!load_store_pair_p
  	  && GET_MODE_SIZE (mode).is_constant (&const_size)
-@@ -10855,6 +11147,7 @@ aarch64_classify_address (struct aarch64_address_info *info,
+@@ -10855,6 +11136,7 @@ aarch64_classify_address (struct aarch64_address_info *info,
  	{
  	  poly_int64 offset;
  	  rtx sym = strip_offset_and_salt (x, &offset);
@@ -1362,7 +1382,7 @@ index f650abbc4ce..3dacca336e4 100644
  	  return ((LABEL_REF_P (sym)
  		   || (SYMBOL_REF_P (sym)
  		       && CONSTANT_POOL_ADDRESS_P (sym)
-@@ -10872,10 +11165,13 @@ aarch64_classify_address (struct aarch64_address_info *info,
+@@ -10872,10 +11154,13 @@ aarch64_classify_address (struct aarch64_address_info *info,
  	  poly_int64 offset;
  	  HOST_WIDE_INT const_offset;
  	  rtx sym = strip_offset_and_salt (info->offset, &offset);
@@ -1377,7 +1397,7 @@ index f650abbc4ce..3dacca336e4 100644
  	    {
  	      /* The symbol and offset must be aligned to the access size.  */
  	      unsigned int align;
-@@ -10925,6 +11221,55 @@ aarch64_address_valid_for_prefetch_p (rtx x, bool strict_p)
+@@ -10925,6 +11210,55 @@ aarch64_address_valid_for_prefetch_p (rtx x, bool strict_p)
    if (!res)
      return false;
  
@@ -1433,7 +1453,7 @@ index f650abbc4ce..3dacca336e4 100644
    /* ... except writeback forms.  */
    return addr.type != ADDRESS_REG_WB;
  }
-@@ -11609,6 +11954,144 @@ sizetochar (int size)
+@@ -11609,6 +11943,144 @@ sizetochar (int size)
      }
  }
  
@@ -1578,7 +1598,7 @@ index f650abbc4ce..3dacca336e4 100644
  /* Print operand X to file F in a target specific manner according to CODE.
     The acceptable formatting commands given by CODE are:
       'c':		An integer or symbol address without a preceding #
-@@ -11677,6 +12160,12 @@ aarch64_print_operand (FILE *f, rtx x, int code)
+@@ -11677,6 +12149,12 @@ aarch64_print_operand (FILE *f, rtx x, int code)
  	}
        break;
  
@@ -1591,7 +1611,7 @@ index f650abbc4ce..3dacca336e4 100644
      case 'e':
        {
  	x = unwrap_const_vec_duplicate (x);
-@@ -12000,7 +12489,7 @@ aarch64_print_operand (FILE *f, rtx x, int code)
+@@ -12000,7 +12478,7 @@ aarch64_print_operand (FILE *f, rtx x, int code)
      case 'A':
        if (GET_CODE (x) == HIGH)
  	x = XEXP (x, 0);
@@ -1600,7 +1620,7 @@ index f650abbc4ce..3dacca336e4 100644
        switch (aarch64_classify_symbolic_expression (x))
  	{
  	case SYMBOL_SMALL_GOT_4G:
-@@ -12031,9 +12520,29 @@ aarch64_print_operand (FILE *f, rtx x, int code)
+@@ -12031,9 +12509,29 @@ aarch64_print_operand (FILE *f, rtx x, int code)
  	  break;
  	}
        output_addr_const (asm_out_file, x);
@@ -1630,7 +1650,7 @@ index f650abbc4ce..3dacca336e4 100644
        switch (aarch64_classify_symbolic_expression (x))
  	{
  	case SYMBOL_SMALL_GOT_4G:
-@@ -12071,10 +12580,12 @@ aarch64_print_operand (FILE *f, rtx x, int code)
+@@ -12071,10 +12569,12 @@ aarch64_print_operand (FILE *f, rtx x, int code)
  	default:
  	  break;
  	}
@@ -1643,7 +1663,7 @@ index f650abbc4ce..3dacca336e4 100644
        switch (aarch64_classify_symbolic_expression (x))
  	{
  	case SYMBOL_TLSLE24:
-@@ -12083,6 +12594,7 @@ aarch64_print_operand (FILE *f, rtx x, int code)
+@@ -12083,6 +12583,7 @@ aarch64_print_operand (FILE *f, rtx x, int code)
  	default:
  	  break;
  	}
@@ -1651,7 +1671,7 @@ index f650abbc4ce..3dacca336e4 100644
        output_addr_const (asm_out_file, x);
        break;
  
-@@ -12232,8 +12744,14 @@ aarch64_print_address_internal (FILE *f, machine_mode mode, rtx x,
+@@ -12232,8 +12733,14 @@ aarch64_print_address_internal (FILE *f, machine_mode mode, rtx x,
  	break;
  
        case ADDRESS_LO_SUM:
@@ -1666,7 +1686,7 @@ index f650abbc4ce..3dacca336e4 100644
  	asm_fprintf (f, "]");
  	return true;
  
-@@ -12703,6 +13221,8 @@ aarch64_asm_output_labelref (FILE* f, const char *name)
+@@ -12703,6 +13210,8 @@ aarch64_asm_output_labelref (FILE* f, const char *name)
    asm_fprintf (f, "%U%s", name);
  }
  
@@ -1675,7 +1695,7 @@ index f650abbc4ce..3dacca336e4 100644
  static void
  aarch64_elf_asm_constructor (rtx symbol, int priority)
  {
-@@ -12742,6 +13262,7 @@ aarch64_elf_asm_destructor (rtx symbol, int priority)
+@@ -12742,6 +13251,7 @@ aarch64_elf_asm_destructor (rtx symbol, int priority)
        assemble_aligned_integer (POINTER_BYTES, symbol);
      }
  }
@@ -1683,7 +1703,7 @@ index f650abbc4ce..3dacca336e4 100644
  
  const char*
  aarch64_output_casesi (rtx *operands)
-@@ -15048,15 +15569,17 @@ aarch64_init_builtins ()
+@@ -15048,15 +15558,17 @@ aarch64_init_builtins ()
  {
    aarch64_general_init_builtins ();
    aarch64_sve::init_builtins ();
@@ -1704,7 +1724,7 @@ index f650abbc4ce..3dacca336e4 100644
    unsigned int code = DECL_MD_FUNCTION_CODE (fndecl);
    unsigned int subcode = code >> AARCH64_BUILTIN_SHIFT;
    tree type = TREE_TYPE (TREE_TYPE (fndecl));
-@@ -18330,10 +18853,14 @@ initialize_aarch64_code_model (struct gcc_options *opts)
+@@ -18330,10 +18842,14 @@ initialize_aarch64_code_model (struct gcc_options *opts)
  	}
        break;
      case AARCH64_CMODEL_LARGE:
@@ -1721,7 +1741,7 @@ index f650abbc4ce..3dacca336e4 100644
  	sorry ("code model %qs not supported in ilp32 mode", "large");
        break;
      case AARCH64_CMODEL_TINY_PIC:
-@@ -19256,7 +19783,9 @@ aarch64_classify_symbol (rtx x, HOST_WIDE_INT offset)
+@@ -19256,7 +19772,9 @@ aarch64_classify_symbol (rtx x, HOST_WIDE_INT offset)
  	case AARCH64_CMODEL_SMALL_SPIC:
  	case AARCH64_CMODEL_SMALL_PIC:
  	case AARCH64_CMODEL_SMALL:
@@ -1732,7 +1752,7 @@ index f650abbc4ce..3dacca336e4 100644
  
  	default:
  	  gcc_unreachable ();
-@@ -19292,10 +19821,22 @@ aarch64_classify_symbol (rtx x, HOST_WIDE_INT offset)
+@@ -19292,10 +19810,22 @@ aarch64_classify_symbol (rtx x, HOST_WIDE_INT offset)
  
  	  return SYMBOL_TINY_ABSOLUTE;
  
@@ -1756,7 +1776,7 @@ index f650abbc4ce..3dacca336e4 100644
  	  if ((flag_pic || SYMBOL_REF_WEAK (x))
  	      && !aarch64_symbol_binds_local_p (x))
  	    return aarch64_cmodel == AARCH64_CMODEL_SMALL_SPIC
-@@ -19307,7 +19848,8 @@ aarch64_classify_symbol (rtx x, HOST_WIDE_INT offset)
+@@ -19307,7 +19837,8 @@ aarch64_classify_symbol (rtx x, HOST_WIDE_INT offset)
  		|| offset_within_block_p (x, offset)))
  	    return SYMBOL_FORCE_TO_MEM;
  
@@ -1766,7 +1786,7 @@ index f650abbc4ce..3dacca336e4 100644
  
  	case AARCH64_CMODEL_LARGE:
  	  /* This is alright even in PIC code as the constant
-@@ -19437,7 +19979,10 @@ static GTY(()) tree va_list_type;
+@@ -19437,7 +19968,10 @@ static GTY(()) tree va_list_type;
       void *__vr_top;
       int   __gr_offs;
       int   __vr_offs;
@@ -1778,7 +1798,7 @@ index f650abbc4ce..3dacca336e4 100644
  
  static tree
  aarch64_build_builtin_va_list (void)
-@@ -19445,6 +19990,13 @@ aarch64_build_builtin_va_list (void)
+@@ -19445,6 +19979,13 @@ aarch64_build_builtin_va_list (void)
    tree va_list_name;
    tree f_stack, f_grtop, f_vrtop, f_groff, f_vroff;
  
@@ -1792,7 +1812,7 @@ index f650abbc4ce..3dacca336e4 100644
    /* Create the type.  */
    va_list_type = lang_hooks.types.make_type (RECORD_TYPE);
    /* Give it the required name.  */
-@@ -19516,6 +20068,13 @@ aarch64_expand_builtin_va_start (tree valist, rtx nextarg ATTRIBUTE_UNUSED)
+@@ -19516,6 +20057,13 @@ aarch64_expand_builtin_va_start (tree valist, rtx nextarg ATTRIBUTE_UNUSED)
    int vr_save_area_size = cfun->va_list_fpr_size;
    int vr_offset;
  
@@ -1806,7 +1826,7 @@ index f650abbc4ce..3dacca336e4 100644
    cum = &crtl->args.info;
    if (cfun->va_list_gpr_size)
      gr_save_area_size = MIN ((NUM_ARG_REGS - cum->aapcs_ncrn) * UNITS_PER_WORD,
-@@ -19606,6 +20165,9 @@ aarch64_gimplify_va_arg_expr (tree valist, tree type, gimple_seq *pre_p,
+@@ -19606,6 +20154,9 @@ aarch64_gimplify_va_arg_expr (tree valist, tree type, gimple_seq *pre_p,
    HOST_WIDE_INT size, rsize, adjust, align;
    tree t, u, cond1, cond2;
  
@@ -1816,7 +1836,7 @@ index f650abbc4ce..3dacca336e4 100644
    indirect_p = pass_va_arg_by_reference (type);
    if (indirect_p)
      type = build_pointer_type (type);
-@@ -19790,8 +20352,18 @@ aarch64_gimplify_va_arg_expr (tree valist, tree type, gimple_seq *pre_p,
+@@ -19790,8 +20341,18 @@ aarch64_gimplify_va_arg_expr (tree valist, tree type, gimple_seq *pre_p,
  	  field_ptr_t = double_ptr_type_node;
  	  break;
  	case E_TFmode:
@@ -1837,7 +1857,7 @@ index f650abbc4ce..3dacca336e4 100644
  	  break;
  	case E_HFmode:
  	  field_t = aarch64_fp16_type_node;
-@@ -19862,6 +20434,9 @@ aarch64_setup_incoming_varargs (cumulative_args_t cum_v,
+@@ -19862,6 +20423,9 @@ aarch64_setup_incoming_varargs (cumulative_args_t cum_v,
    int gr_saved = cfun->va_list_gpr_size;
    int vr_saved = cfun->va_list_fpr_size;
  
@@ -1847,7 +1867,7 @@ index f650abbc4ce..3dacca336e4 100644
    /* The caller has advanced CUM up to, but not beyond, the last named
       argument.  Advance a local copy of CUM past the last "real" named
       argument, to find out how many registers are left over.  */
-@@ -20689,6 +21264,12 @@ aarch64_autovectorize_vector_modes (vector_modes *modes, bool)
+@@ -20689,6 +21253,12 @@ aarch64_autovectorize_vector_modes (vector_modes *modes, bool)
  static const char *
  aarch64_mangle_type (const_tree type)
  {
@@ -1860,18 +1880,18 @@ index f650abbc4ce..3dacca336e4 100644
    /* The AArch64 ABI documents say that "__va_list" has to be
       mangled as if it is in the "std" namespace.  */
    if (lang_hooks.types_compatible_p (CONST_CAST_TREE (type), va_list_type))
-@@ -20703,6 +21284,10 @@ aarch64_mangle_type (const_tree type)
+@@ -20703,6 +21273,10 @@ aarch64_mangle_type (const_tree type)
  	return "Dh";
      }
  
-+  /* __float128 */
-+  if (TYPE_MODE (type) == TFmode)
++  /* TFmode is __float128 for Darwin. */
++  if (TARGET_MACHO && TYPE_MODE (type) == TFmode)
 +    return "g";
 +
    /* Mangle AArch64-specific internal types.  TYPE_NAME is non-NULL_TREE for
       builtin types.  */
    if (TYPE_NAME (type) != NULL)
-@@ -21393,7 +21978,8 @@ aarch64_mov_operand_p (rtx x, machine_mode mode)
+@@ -21393,7 +21967,8 @@ aarch64_mov_operand_p (rtx x, machine_mode mode)
  
    /* GOT accesses are valid moves.  */
    if (SYMBOL_REF_P (x)
@@ -1881,7 +1901,7 @@ index f650abbc4ce..3dacca336e4 100644
      return true;
  
    if (SYMBOL_REF_P (x) && mode == DImode && CONSTANT_ADDRESS_P (x))
-@@ -22553,7 +23139,9 @@ aarch64_declare_function_name (FILE *stream, const char* name,
+@@ -22553,7 +23128,9 @@ aarch64_declare_function_name (FILE *stream, const char* name,
    aarch64_asm_output_variant_pcs (stream, fndecl, name);
  
    /* Don't forget the type directive for ELF.  */
@@ -1891,7 +1911,7 @@ index f650abbc4ce..3dacca336e4 100644
    ASM_OUTPUT_LABEL (stream, name);
  
    cfun->machine->label_is_assembled = true;
-@@ -22588,12 +23176,17 @@ aarch64_print_patchable_function_entry (FILE *file,
+@@ -22588,12 +23165,17 @@ aarch64_print_patchable_function_entry (FILE *file,
  /* Implement ASM_OUTPUT_DEF_FROM_DECLS.  Output .variant_pcs for aliases.  */
  
  void
@@ -1910,7 +1930,7 @@ index f650abbc4ce..3dacca336e4 100644
  }
  
  /* Implement ASM_OUTPUT_EXTERNAL.  Output .variant_pcs for undefined
-@@ -23211,6 +23804,16 @@ aarch64_output_simd_mov_immediate (rtx const_vector, unsigned width,
+@@ -23211,6 +23793,16 @@ aarch64_output_simd_mov_immediate (rtx const_vector, unsigned width,
      }
  
    gcc_assert (CONST_INT_P (info.u.mov.value));
@@ -1927,7 +1947,7 @@ index f650abbc4ce..3dacca336e4 100644
  
    if (which == AARCH64_CHECK_MOV)
      {
-@@ -23219,16 +23822,16 @@ aarch64_output_simd_mov_immediate (rtx const_vector, unsigned width,
+@@ -23219,16 +23811,16 @@ aarch64_output_simd_mov_immediate (rtx const_vector, unsigned width,
  		  ? "msl" : "lsl");
        if (lane_count == 1)
  	snprintf (templ, sizeof (templ), "%s\t%%d0, " HOST_WIDE_INT_PRINT_HEX,
@@ -1947,7 +1967,7 @@ index f650abbc4ce..3dacca336e4 100644
      }
    else
      {
-@@ -23237,12 +23840,12 @@ aarch64_output_simd_mov_immediate (rtx const_vector, unsigned width,
+@@ -23237,12 +23829,12 @@ aarch64_output_simd_mov_immediate (rtx const_vector, unsigned width,
        if (info.u.mov.shift)
  	snprintf (templ, sizeof (templ), "%s\t%%0.%d%c, #"
  		  HOST_WIDE_INT_PRINT_DEC ", %s #%d", mnemonic, lane_count,
@@ -1962,7 +1982,7 @@ index f650abbc4ce..3dacca336e4 100644
      }
    return templ;
  }
-@@ -26353,12 +26956,12 @@ aarch64_libgcc_floating_mode_supported_p (scalar_float_mode mode)
+@@ -26353,12 +26945,12 @@ aarch64_libgcc_floating_mode_supported_p (scalar_float_mode mode)
  }
  
  /* Implement TARGET_SCALAR_MODE_SUPPORTED_P - return TRUE
@@ -1977,7 +1997,7 @@ index f650abbc4ce..3dacca336e4 100644
  	  ? true
  	  : default_scalar_mode_supported_p (mode));
  }
-@@ -27116,19 +27719,35 @@ aarch64_sls_emit_shared_blr_thunks (FILE *out_file)
+@@ -27116,19 +27708,37 @@ aarch64_sls_emit_shared_blr_thunks (FILE *out_file)
  	continue;
  
        const char *name = indirect_symbol_names[regnum];
@@ -1996,9 +2016,11 @@ index f650abbc4ce..3dacca336e4 100644
 +#endif
 +      if (TARGET_MACHO)
 +	{
++#ifdef ASM_WEAKEN_DECL
 +	  if (DECL_WEAK (decl))
 +	    ASM_WEAKEN_DECL (out_file, decl, name, 0);
 +	  else
++#endif
 +	    targetm.asm_out.globalize_decl_name (out_file, decl);
 +	}
        /* Only emits if the compiler is configured for an assembler that can
@@ -2016,7 +2038,7 @@ index f650abbc4ce..3dacca336e4 100644
      }
  }
  
-@@ -27321,6 +27940,15 @@ aarch64_run_selftests (void)
+@@ -27321,6 +27931,15 @@ aarch64_run_selftests (void)
  #undef TARGET_ASM_ALIGNED_SI_OP
  #define TARGET_ASM_ALIGNED_SI_OP "\t.word\t"
  
@@ -2032,15 +2054,12 @@ index f650abbc4ce..3dacca336e4 100644
  #undef TARGET_ASM_CAN_OUTPUT_MI_THUNK
  #define TARGET_ASM_CAN_OUTPUT_MI_THUNK \
    hook_bool_const_tree_hwi_hwi_const_tree_true
-@@ -27407,6 +28035,15 @@ aarch64_run_selftests (void)
+@@ -27407,6 +28026,12 @@ aarch64_run_selftests (void)
  #undef TARGET_FUNCTION_ARG_BOUNDARY
  #define TARGET_FUNCTION_ARG_BOUNDARY aarch64_function_arg_boundary
  
 +#undef TARGET_FUNCTION_ARG_BOUNDARY_CA
 +#define TARGET_FUNCTION_ARG_BOUNDARY_CA aarch64_function_arg_boundary_ca
-+
-+#undef  TARGET_FUNCTION_ARG_ROUND_BOUNDARY
-+#define TARGET_FUNCTION_ARG_ROUND_BOUNDARY aarch64_function_arg_round_boundary
 +
 +#undef  TARGET_FUNCTION_ARG_ROUND_BOUNDARY_CA
 +#define TARGET_FUNCTION_ARG_ROUND_BOUNDARY_CA aarch64_function_arg_round_boundary_ca
@@ -2048,7 +2067,7 @@ index f650abbc4ce..3dacca336e4 100644
  #undef TARGET_FUNCTION_ARG_PADDING
  #define TARGET_FUNCTION_ARG_PADDING aarch64_function_arg_padding
  
-@@ -27734,7 +28371,7 @@ aarch64_libgcc_floating_mode_supported_p
+@@ -27734,7 +28359,7 @@ aarch64_libgcc_floating_mode_supported_p
  
  /* The architecture reserves bits 0 and 1 so use bit 2 for descriptors.  */
  #undef TARGET_CUSTOM_FUNCTION_DESCRIPTORS
@@ -2745,7 +2764,7 @@ index 30e0e64f280..0cf7d7e21a8 100644
 +#endif
  }
 diff --git a/gcc/config/darwin.cc b/gcc/config/darwin.cc
-index f065a13d73d..55337077854 100644
+index f065a13d73d..7cd684c6abe 100644
 --- a/gcc/config/darwin.cc
 +++ b/gcc/config/darwin.cc
 @@ -118,7 +118,7 @@ static bool ld_init_term_start_labels = false;
@@ -2773,7 +2792,16 @@ index f065a13d73d..55337077854 100644
  
  int
  machopic_operand_p (rtx op)
-@@ -2238,6 +2240,8 @@ darwin_emit_except_table_label (FILE *file)
+@@ -1936,6 +1938,8 @@ darwin_label_is_anonymous_local_objc_name (const char *name)
+     }
+   else if (startswith ((const char *)p, "ClassMethods"))
+     return false;
++  else if (startswith ((const char *)p, "ClassProtocols"))
++    return false;
+   else if (startswith ((const char *)p, "Instance"))
+     {
+       if (p[8] == 'I' || p[8] == 'M')
+@@ -2238,6 +2242,8 @@ darwin_emit_except_table_label (FILE *file)
  rtx
  darwin_make_eh_symbol_indirect (rtx orig, bool ARG_UNUSED (pubvis))
  {
@@ -2782,7 +2810,7 @@ index f065a13d73d..55337077854 100644
    if (DARWIN_PPC == 0 && TARGET_64BIT)
      return orig;
  
-@@ -3058,7 +3062,12 @@ darwin_file_end (void)
+@@ -3058,7 +3064,12 @@ darwin_file_end (void)
        fprintf (asm_out_file, "\t.long\t0\n\t.long\t%u\n", flags);
       }
  
@@ -3564,6 +3592,37 @@ index 6e10abfd0ac..d1771071c49 100644
  LIBGCCJIT_FILENAME = $(LIBGCCJIT_BASENAME).$(LIBGCCJIT_VERSION_NUM).dylib
  LIBGCCJIT_LINKER_NAME = $(LIBGCCJIT_BASENAME).dylib
  
+diff --git a/gcc/objc/objc-next-runtime-abi-02.cc b/gcc/objc/objc-next-runtime-abi-02.cc
+index e50ca6e89f5..9ea63b189c7 100644
+--- a/gcc/objc/objc-next-runtime-abi-02.cc
++++ b/gcc/objc/objc-next-runtime-abi-02.cc
+@@ -1033,6 +1033,7 @@ next_runtime_abi_02_protocol_decl (tree p)
+   else
+     decl = start_var_decl (objc_v2_protocol_template, buf);
+   OBJCMETA (decl, objc_meta, meta_protocol);
++  DECL_PRESERVE_P (decl) = 1;
+   return decl;
+ }
+ 
+@@ -2115,8 +2116,8 @@ build_v2_classrefs_table (void)
+ 	  expr = convert (objc_class_type, build_fold_addr_expr (expr));
+ 	}
+       /* The runtime wants this, even if it appears unused, so we must force the
+-	 output.
+-      DECL_PRESERVE_P (decl) = 1; */
++	 output.  */
++      DECL_PRESERVE_P (decl) = 1;
+       finish_var_decl (decl, expr);
+     }
+ }
+@@ -2318,6 +2319,7 @@ build_v2_protocol_list_address_table (void)
+       expr = convert (objc_protocol_type, build_fold_addr_expr (ref->refdecl));
+       OBJCMETA (decl, objc_meta, meta_label_protocollist);
+       finish_var_decl (decl, expr);
++      DECL_PRESERVE_P (decl) = 1;
+     }
+ 
+     /* TODO: delete the vec.  */
 diff --git a/gcc/target.def b/gcc/target.def
 index d85adf36a39..5eb1fdce24e 100644
 --- a/gcc/target.def
@@ -7311,19 +7370,6 @@ index 38f3e5673e2..300e5096f79 100644
  	lappend ALWAYS_CFLAGS "additional_flags=-shared-libgcc"
      }
  
-diff --git a/libbacktrace/Makefile.in b/libbacktrace/Makefile.in
-index 08cdd21fb40..8898251161d 100644
---- a/libbacktrace/Makefile.in
-+++ b/libbacktrace/Makefile.in
-@@ -15,7 +15,7 @@
- @SET_MAKE@
- 
- # Makefile.am -- Backtrace Makefile.
--# Copyright (C) 2012-2021 Free Software Foundation, Inc.
-+# Copyright (C) 2012-2022 Free Software Foundation, Inc.
- 
- # Redistribution and use in source and binary forms, with or without
- # modification, are permitted provided that the following conditions are
 diff --git a/libbacktrace/configure b/libbacktrace/configure
 index 17f470a4bec..f1c7242142e 100755
 --- a/libbacktrace/configure
@@ -9046,36 +9092,39 @@ index fc24ac34502..536e517b62f 100644
  extern void __clear_cache (void *, void *);
  extern void __eprintf (const char *, const char *, unsigned int, const char *)
 diff --git a/libgfortran/Makefile.am b/libgfortran/Makefile.am
-index 5ce0cd7cd05..00d0962f4cb 100644
+index 5ce0cd7cd05..cf2aac68f82 100644
 --- a/libgfortran/Makefile.am
 +++ b/libgfortran/Makefile.am
-@@ -37,6 +37,9 @@ else
+@@ -37,6 +37,10 @@ else
  version_arg =
  version_dep =
  endif
 +if ENABLE_DARWIN_AT_RPATH
-+extra_ldflags_libgfortran += -nodefaultrpaths -Wl,-rpath,@loader_path/
++extra_ldflags_libgfortran += -nodefaultrpaths -nodefaultexports
++extra_ldflags_libgfortran += -Wl,-rpath,@loader_path/
 +endif
  
  gfor_c_HEADERS = ISO_Fortran_binding.h
  gfor_cdir = $(libdir)/gcc/$(target_alias)/$(gcc_version)/include
 diff --git a/libgfortran/Makefile.in b/libgfortran/Makefile.in
-index 7ac6bfba657..0ad984128d2 100644
+index 7ac6bfba657..2d2348a7e1b 100644
 --- a/libgfortran/Makefile.in
 +++ b/libgfortran/Makefile.in
-@@ -91,8 +91,9 @@ POST_UNINSTALL = :
+@@ -91,8 +91,11 @@ POST_UNINSTALL = :
  build_triplet = @build@
  host_triplet = @host@
  target_triplet = @target@
 -@LIBGFOR_MINIMAL_TRUE@am__append_1 = -DLIBGFOR_MINIMAL
 -@LIBGFOR_MINIMAL_FALSE@am__append_2 = \
-+@ENABLE_DARWIN_AT_RPATH_TRUE@am__append_1 = -nodefaultrpaths -Wl,-rpath,@loader_path/
++@ENABLE_DARWIN_AT_RPATH_TRUE@am__append_1 = -nodefaultrpaths \
++@ENABLE_DARWIN_AT_RPATH_TRUE@	-nodefaultexports \
++@ENABLE_DARWIN_AT_RPATH_TRUE@	-Wl,-rpath,@loader_path/
 +@LIBGFOR_MINIMAL_TRUE@am__append_2 = -DLIBGFOR_MINIMAL
 +@LIBGFOR_MINIMAL_FALSE@am__append_3 = \
  @LIBGFOR_MINIMAL_FALSE@io/close.c \
  @LIBGFOR_MINIMAL_FALSE@io/file_pos.c \
  @LIBGFOR_MINIMAL_FALSE@io/format.c \
-@@ -110,7 +111,7 @@ target_triplet = @target@
+@@ -110,7 +113,7 @@ target_triplet = @target@
  @LIBGFOR_MINIMAL_FALSE@io/fbuf.c \
  @LIBGFOR_MINIMAL_FALSE@io/async.c
  
@@ -9084,7 +9133,7 @@ index 7ac6bfba657..0ad984128d2 100644
  @LIBGFOR_MINIMAL_FALSE@intrinsics/access.c \
  @LIBGFOR_MINIMAL_FALSE@intrinsics/c99_functions.c \
  @LIBGFOR_MINIMAL_FALSE@intrinsics/chdir.c \
-@@ -143,9 +144,9 @@ target_triplet = @target@
+@@ -143,9 +146,9 @@ target_triplet = @target@
  @LIBGFOR_MINIMAL_FALSE@intrinsics/umask.c \
  @LIBGFOR_MINIMAL_FALSE@intrinsics/unlink.c
  
@@ -9097,7 +9146,7 @@ index 7ac6bfba657..0ad984128d2 100644
  @LIBGFOR_MINIMAL_FALSE@runtime/backtrace.c \
  @LIBGFOR_MINIMAL_FALSE@runtime/convert_char.c \
  @LIBGFOR_MINIMAL_FALSE@runtime/environ.c \
-@@ -157,7 +158,7 @@ target_triplet = @target@
+@@ -157,7 +160,7 @@ target_triplet = @target@
  
  
  # dummy sources for libtool
@@ -9106,7 +9155,7 @@ index 7ac6bfba657..0ad984128d2 100644
  subdir = .
  ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
  am__aclocal_m4_deps = $(top_srcdir)/../config/depstand.m4 \
-@@ -589,7 +590,7 @@ AMTAR = @AMTAR@
+@@ -589,7 +592,7 @@ AMTAR = @AMTAR@
  
  # Some targets require additional compiler options for IEEE compatibility.
  AM_CFLAGS = @AM_CFLAGS@ -fcx-fortran-rules $(SECTION_FLAGS) \
@@ -9115,7 +9164,7 @@ index 7ac6bfba657..0ad984128d2 100644
  AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
  AM_FCFLAGS = @AM_FCFLAGS@ $(IEEE_FLAGS)
  AR = @AR@
-@@ -693,7 +694,8 @@ dvidir = @dvidir@
+@@ -693,7 +696,8 @@ dvidir = @dvidir@
  enable_shared = @enable_shared@
  enable_static = @enable_static@
  exec_prefix = @exec_prefix@
@@ -9125,7 +9174,7 @@ index 7ac6bfba657..0ad984128d2 100644
  get_gcc_base_ver = @get_gcc_base_ver@
  host = @host@
  host_alias = @host_alias@
-@@ -780,7 +782,7 @@ AM_CPPFLAGS = -iquote$(srcdir)/io -I$(srcdir)/$(MULTISRCTOP)../gcc \
+@@ -780,7 +784,7 @@ AM_CPPFLAGS = -iquote$(srcdir)/io -I$(srcdir)/$(MULTISRCTOP)../gcc \
  	      -I$(MULTIBUILDTOP)../libbacktrace \
  	      -I../libbacktrace
  
@@ -9134,7 +9183,7 @@ index 7ac6bfba657..0ad984128d2 100644
  gfor_io_headers = \
  io/io.h \
  io/fbuf.h \
-@@ -802,7 +804,7 @@ gfor_helper_src = intrinsics/associated.c intrinsics/abort.c \
+@@ -802,7 +806,7 @@ gfor_helper_src = intrinsics/associated.c intrinsics/abort.c \
  	intrinsics/selected_int_kind.f90 \
  	intrinsics/selected_real_kind.f90 intrinsics/trigd.c \
  	intrinsics/unpack_generic.c runtime/in_pack_generic.c \
@@ -9143,7 +9192,7 @@ index 7ac6bfba657..0ad984128d2 100644
  @IEEE_SUPPORT_TRUE@gfor_ieee_helper_src = ieee/ieee_helper.c
  @IEEE_SUPPORT_FALSE@gfor_ieee_src = 
  @IEEE_SUPPORT_TRUE@gfor_ieee_src = \
-@@ -811,8 +813,8 @@ gfor_helper_src = intrinsics/associated.c intrinsics/abort.c \
+@@ -811,8 +815,8 @@ gfor_helper_src = intrinsics/associated.c intrinsics/abort.c \
  @IEEE_SUPPORT_TRUE@ieee/ieee_features.F90
  
  gfor_src = runtime/bounds.c runtime/compile_options.c runtime/memory.c \
@@ -9154,7 +9203,7 @@ index 7ac6bfba657..0ad984128d2 100644
  i_all_c = \
  $(srcdir)/generated/all_l1.c \
  $(srcdir)/generated/all_l2.c \
-@@ -1652,7 +1654,7 @@ intrinsics/random_init.f90
+@@ -1652,7 +1656,7 @@ intrinsics/random_init.f90
  
  BUILT_SOURCES = $(gfor_built_src) $(gfor_built_specific_src) \
  	$(gfor_built_specific2_src) $(gfor_misc_specifics) \
@@ -9415,6 +9464,63 @@ index 97cc490cb5e..d96a584cbe6 100644
      extra_ldflags_libgfortran=-Wl,-single_module
      ;;
  esac
+diff --git a/libgo/configure b/libgo/configure
+index ffe17c9be55..de5c1ac9b3d 100755
+--- a/libgo/configure
++++ b/libgo/configure
+@@ -708,6 +708,8 @@ glibgo_toolexecdir
+ WERROR
+ WARN_FLAGS
+ CC_FOR_BUILD
++ENABLE_DARWIN_AT_RPATH_FALSE
++ENABLE_DARWIN_AT_RPATH_TRUE
+ enable_static
+ enable_shared
+ CPP
+@@ -11544,7 +11546,7 @@ else
+   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
+   lt_status=$lt_dlunknown
+   cat > conftest.$ac_ext <<_LT_EOF
+-#line 11547 "configure"
++#line 11549 "configure"
+ #include "confdefs.h"
+ 
+ #if HAVE_DLFCN_H
+@@ -11650,7 +11652,7 @@ else
+   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
+   lt_status=$lt_dlunknown
+   cat > conftest.$ac_ext <<_LT_EOF
+-#line 11653 "configure"
++#line 11655 "configure"
+ #include "confdefs.h"
+ 
+ #if HAVE_DLFCN_H
+@@ -13779,6 +13781,14 @@ CC="$lt_save_CC"
+ 
+ 
+ 
++ if test x$enable_darwin_at_rpath = xyes; then
++  ENABLE_DARWIN_AT_RPATH_TRUE=
++  ENABLE_DARWIN_AT_RPATH_FALSE='#'
++else
++  ENABLE_DARWIN_AT_RPATH_TRUE='#'
++  ENABLE_DARWIN_AT_RPATH_FALSE=
++fi
++
+ 
+ CC_FOR_BUILD=${CC_FOR_BUILD:-gcc}
+ 
+@@ -16321,6 +16331,10 @@ if test -z "${MAINTAINER_MODE_TRUE}" && test -z "${MAINTAINER_MODE_FALSE}"; then
+   as_fn_error $? "conditional \"MAINTAINER_MODE\" was never defined.
+ Usually this means the macro was only invoked conditionally." "$LINENO" 5
+ fi
++if test -z "${ENABLE_DARWIN_AT_RPATH_TRUE}" && test -z "${ENABLE_DARWIN_AT_RPATH_FALSE}"; then
++  as_fn_error $? "conditional \"ENABLE_DARWIN_AT_RPATH\" was never defined.
++Usually this means the macro was only invoked conditionally." "$LINENO" 5
++fi
+ if test -z "${USE_LIBFFI_TRUE}" && test -z "${USE_LIBFFI_FALSE}"; then
+   as_fn_error $? "conditional \"USE_LIBFFI\" was never defined.
+ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 diff --git a/libgo/configure.ac b/libgo/configure.ac
 index 7e2b98ba67c..7b0222bb620 100644
 --- a/libgo/configure.ac
@@ -10463,7 +10569,7 @@ index f8f577cfbef..e37eb34e662 100644
  # Headers
  # -------
 diff --git a/liboffloadmic/configure b/liboffloadmic/configure
-index dfa8287fd75..05088d488d4 100755
+index dfa8287fd75..ca65131157e 100755
 --- a/liboffloadmic/configure
 +++ b/liboffloadmic/configure
 @@ -639,6 +639,8 @@ link_offloadmic_host
@@ -10743,15 +10849,7 @@ index dfa8287fd75..05088d488d4 100755
  # Forbid libtool to hardcode RPATH, because we want to be able to specify
  # library search directory using LD_LIBRARY_PATH
  hardcode_into_libs=no
-@@ -14792,6 +14902,7 @@ hardcode_into_libs=no
- 
- 
- 
-+
- if test $enable_shared = yes; then
-   link_offloadmic_host="-loffloadmic_host %{static: $LIBS}"
-   link_offloadmic_target="-loffloadmic_target %{static: $LIBS}"
-@@ -14999,6 +15110,10 @@ if test -z "${LIBOFFLOADMIC_HOST_TRUE}" && test -z "${LIBOFFLOADMIC_HOST_FALSE}"
+@@ -14999,6 +15109,10 @@ if test -z "${LIBOFFLOADMIC_HOST_TRUE}" && test -z "${LIBOFFLOADMIC_HOST_FALSE}"
    as_fn_error $? "conditional \"LIBOFFLOADMIC_HOST\" was never defined.
  Usually this means the macro was only invoked conditionally." "$LINENO" 5
  fi
@@ -10763,10 +10861,10 @@ index dfa8287fd75..05088d488d4 100755
  : "${CONFIG_STATUS=./config.status}"
  ac_write_fail=0
 diff --git a/liboffloadmic/configure.ac b/liboffloadmic/configure.ac
-index f64f182e8ef..f4d0306658c 100644
+index f64f182e8ef..b96e7eaf9e3 100644
 --- a/liboffloadmic/configure.ac
 +++ b/liboffloadmic/configure.ac
-@@ -118,9 +118,12 @@ esac
+@@ -118,6 +118,8 @@ esac
  
  AC_LIBTOOL_DLOPEN
  AM_PROG_LIBTOOL
@@ -10775,10 +10873,6 @@ index f64f182e8ef..f4d0306658c 100644
  # Forbid libtool to hardcode RPATH, because we want to be able to specify
  # library search directory using LD_LIBRARY_PATH
  hardcode_into_libs=no
-+
- AC_SUBST(toolexecdir)
- AC_SUBST(toolexeclibdir)
- 
 diff --git a/liboffloadmic/plugin/Makefile.in b/liboffloadmic/plugin/Makefile.in
 index 8d5ad0025c2..c53f2d32b3b 100644
 --- a/liboffloadmic/plugin/Makefile.in
