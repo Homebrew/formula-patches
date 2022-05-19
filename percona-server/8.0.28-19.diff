@@ -1,0 +1,512 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index ed723f4f278..a416fdf1bab 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1580,17 +1580,26 @@ ENDIF(WITH_LTO)
+ # official version with full support for std::regex is released. The bundled
+ # version has the necessary patches to make it work.
+ SET(SYSTEM_LIBRARIES
+-  CURL
+-  ICU
+-  LIBEVENT
+-  LZ4
+-  PROTOBUF
+-  SSL
+-  ZLIB
+-  ZSTD
+-  FIDO
++  CURL      # Xcode
++  ICU       # Homebrew  icu4c
++  LIBEVENT  # Homebrew  libevent
++  LZ4       # Homebrew  lz4
++  PROTOBUF  # Homebrew  protobuf
++  SSL       # Homebrew  openssl@1.1
++  ZLIB      # Xcode
++  ZSTD      # Homebrew  zstd
++  FIDO      # Homebrew  libfido2
+   )
+
++IF(APPLE)
++  # Homebrew default location is
++  IF(APPLE_ARM)
++    SET(HOMEBREW_HOME "/opt/homebrew/opt")
++  ELSE()
++    SET(HOMEBREW_HOME "/usr/local/opt")
++  ENDIF()
++ENDIF()
++
+ SET(WITH_SYSTEM_LIBS_DEFAULT OFF)
+ OPTION(WITH_SYSTEM_LIBS
+   "Use -DWITH_XXX=system for ${SYSTEM_LIBRARIES}" ${WITH_SYSTEM_LIBS_DEFAULT})
+diff --git a/cmake/curl.cmake b/cmake/curl.cmake
+index aa413b8775d..e87a1921199 100644
+--- a/cmake/curl.cmake
++++ b/cmake/curl.cmake
+@@ -73,7 +73,9 @@ MACRO(FIND_CURL_VERSION)
+       "^.*LIBCURL_VERSION_MINOR[\t ]+([0-9]+).*$" "\\1"
+       CURL_VERSION_MINOR "${CURL_VERSION_NUMBERS}"
+       )
+-    MESSAGE(STATUS "CURL version: ${CURL_VERSION_MAJOR}.${CURL_VERSION_MINOR}")
++    SET(CURL_VERSION "${CURL_VERSION_MAJOR}.${CURL_VERSION_MINOR}")
++    SET(CURL_VERSION "${CURL_VERSION}" CACHE INTERNAL "CURL major.minor")
++    MESSAGE(STATUS "CURL_VERSION (${WITH_CURL}) is ${CURL_VERSION}")
+   ENDIF()
+ ENDMACRO()
+
+diff --git a/cmake/fido2.cmake b/cmake/fido2.cmake
+index c20e6e75c0d..d9d89e545e2 100644
+--- a/cmake/fido2.cmake
++++ b/cmake/fido2.cmake
+@@ -33,18 +33,35 @@ MACRO(FIND_FIDO_VERSION)
+     # This does not set any version information:
+     # PKG_CHECK_MODULES(SYSTEM_FIDO fido2)
+
+-    MYSQL_CHECK_PKGCONFIG()
+-    EXECUTE_PROCESS(
+-      COMMAND ${MY_PKG_CONFIG_EXECUTABLE} --modversion libfido2
+-      OUTPUT_VARIABLE MY_FIDO_MODVERSION
+-      OUTPUT_STRIP_TRAILING_WHITESPACE
+-      RESULT_VARIABLE MY_MODVERSION_RESULT
+-      )
+-    IF(MY_MODVERSION_RESULT EQUAL 0)
+-      SET(FIDO_VERSION ${MY_FIDO_MODVERSION})
++    IF(APPLE)
++      EXECUTE_PROCESS(
++        COMMAND otool -L "${FIDO_LIBRARY}"
++        OUTPUT_VARIABLE OTOOL_FIDO_DEPS)
++      STRING(REPLACE "\n" ";" DEPS_LIST ${OTOOL_FIDO_DEPS})
++      FOREACH(LINE ${DEPS_LIST})
++        STRING(REGEX MATCH
++          ".*libfido2.*current version ([.0-9]+).*" UNUSED ${LINE})
++        IF(CMAKE_MATCH_1)
++          SET(FIDO_VERSION "${CMAKE_MATCH_1}")
++          BREAK()
++        ENDIF()
++      ENDFOREACH()
++    ELSE()
++      MYSQL_CHECK_PKGCONFIG()
++      EXECUTE_PROCESS(
++        COMMAND ${MY_PKG_CONFIG_EXECUTABLE} --modversion libfido2
++        OUTPUT_VARIABLE MY_FIDO_MODVERSION
++        OUTPUT_STRIP_TRAILING_WHITESPACE
++        RESULT_VARIABLE MY_MODVERSION_RESULT
++        )
++      IF(MY_MODVERSION_RESULT EQUAL 0)
++        SET(FIDO_VERSION ${MY_FIDO_MODVERSION})
++      ENDIF()
+     ENDIF()
+   ENDIF()
+   MESSAGE(STATUS "FIDO_VERSION (${WITH_FIDO}) is ${FIDO_VERSION}")
++  MESSAGE(STATUS "FIDO_INCLUDE_DIR ${FIDO_INCLUDE_DIR}")
++  MESSAGE(STATUS "FIDO_LIBRARY ${FIDO_LIBRARY}")
+ ENDMACRO(FIND_FIDO_VERSION)
+
+ # libudev is needed on Linux only.
+@@ -100,12 +117,19 @@ ENDFUNCTION()
+
+ # Look for system fido2. If we find it, there is no need to look for libudev.
+ MACRO(FIND_SYSTEM_FIDO)
++  IF(APPLE)
++    SET(CMAKE_REQUIRED_INCLUDES
++      "${HOMEBREW_HOME}/libfido2/include;${HOMEBREW_HOME}/openssl/include")
++  ENDIF()
++
+   CHECK_INCLUDE_FILE(fido.h HAVE_FIDO_H)
+   FIND_LIBRARY(FIDO_LIBRARY fido2)
+   IF (FIDO_LIBRARY AND HAVE_FIDO_H)
+     SET(FIDO_FOUND TRUE)
+-    FIND_PATH(FIDO_INCLUDE_DIR fido.h)
+-    MESSAGE(STATUS "FIDO_LIBRARY ${FIDO_LIBRARY}")
++    FIND_PATH(FIDO_INCLUDE_DIR
++      NAMES fido.h
++      HINTS ${CMAKE_REQUIRED_INCLUDES}
++      )
+   ENDIF()
+ ENDMACRO()
+
+@@ -145,7 +169,7 @@ MACRO(MYSQL_CHECK_FIDO)
+   ELSEIF(WITH_FIDO STREQUAL "system")
+     FIND_SYSTEM_FIDO()
+     IF(NOT FIDO_FOUND)
+-      MESSAGE(WARNING "Cannot find system fido2 libraries.")
++      MESSAGE(WARNING "Cannot find system fido2 libraries/headers.")
+     ENDIF()
+   ELSE()
+     MESSAGE(WARNING "WITH_FIDO must be bundled or system")
+diff --git a/cmake/icu.cmake b/cmake/icu.cmake
+index 3076c092f3f..8fc8ad400d1 100644
+--- a/cmake/icu.cmake
++++ b/cmake/icu.cmake
+@@ -51,6 +51,17 @@ MACRO(FIND_ICU_VERSION)
+     "^.*U_ICU_VERSION_MAJOR_NUM[\t ]+([0-9]+)$" "\\1"
+     ICU_MAJOR_VERSION ${ICU_MAJOR_VERSION_INFO}
+     )
++
++  SET(ICU_VERSION "${ICU_MAJOR_VERSION}")
++  SET(ICU_VERSION "${ICU_VERSION}" CACHE INTERNAL "ICU major")
++  MESSAGE(STATUS "ICU_VERSION (${WITH_ICU}) is ${ICU_VERSION}")
++  IF(WITH_ICU STREQUAL "system")
++    MESSAGE(STATUS "ICU_INCLUDE_DIR ${ICU_INCLUDE_DIR}")
++  ELSE()
++    MESSAGE(STATUS "ICU_INCLUDE_DIRS ${ICU_INCLUDE_DIRS}")
++  ENDIF()
++  MESSAGE(STATUS "ICU_LIBRARIES ${ICU_LIBRARIES}")
++
+ ENDMACRO()
+
+ #
+@@ -60,6 +71,12 @@ MACRO (FIND_ICU install_root)
+   IF("${install_root}" STREQUAL "system")
+     SET(EXTRA_FIND_LIB_ARGS)
+     SET(EXTRA_FIND_INC_ARGS)
++    IF(APPLE)
++      SET(EXTRA_FIND_LIB_ARGS HINTS "${HOMEBREW_HOME}/icu4c"
++        PATH_SUFFIXES "lib")
++      SET(EXTRA_FIND_INC_ARGS HINTS "${HOMEBREW_HOME}/icu4c"
++        PATH_SUFFIXES "include")
++    ENDIF()
+   ELSE()
+     SET(EXTRA_FIND_LIB_ARGS HINTS "${install_root}"
+       PATH_SUFFIXES "lib" "lib64" NO_DEFAULT_PATH)
+@@ -163,8 +180,4 @@ MACRO (MYSQL_CHECK_ICU)
+       "found ${ICU_MAJOR_VERSION}.\nPlease use -DWITH_ICU=bundled")
+   ENDIF()
+
+-  MESSAGE(STATUS "ICU_MAJOR_VERSION = ${ICU_MAJOR_VERSION}")
+-  MESSAGE(STATUS "ICU_INCLUDE_DIRS ${ICU_INCLUDE_DIRS}")
+-  MESSAGE(STATUS "ICU_LIBRARIES ${ICU_LIBRARIES}")
+-
+ ENDMACRO()
+diff --git a/cmake/install_macros.cmake b/cmake/install_macros.cmake
+index d7472cf5e6e..ee6f666994f 100644
+--- a/cmake/install_macros.cmake
++++ b/cmake/install_macros.cmake
+@@ -558,13 +558,13 @@ ENDMACRO()
+ # For APPLE builds we support
+ #   -DWITH_SSL=</path/to/custom/openssl>
+ # SSL libraries are installed in lib/
+-# For Makefile buids, we need to support running in the build directory
++# For Makefile builds, we need to support running in the build directory
+ #   plugins are in plugin_output_directory/
+ # and after 'make install'
+ #   plugins are in lib/plugin/ and lib/plugin/debug/
+ # For Xcode builds, we support running in the build directories only.
+ FUNCTION(SET_PATH_TO_CUSTOM_SSL_FOR_APPLE target)
+-  IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
++  IF(APPLE_WITH_CUSTOM_SSL)
+     IF(BUILD_IS_SINGLE_CONFIG)
+       GET_TARGET_PROPERTY(TARGET_TYPE_${target} ${target} TYPE)
+       IF(TARGET_TYPE_${target} STREQUAL "MODULE_LIBRARY")
+diff --git a/cmake/libevent.cmake b/cmake/libevent.cmake
+index 61fd985349a..d9e3cb3b32e 100644
+--- a/cmake/libevent.cmake
++++ b/cmake/libevent.cmake
+@@ -58,11 +58,13 @@ MACRO(FIND_LIBEVENT_VERSION)
+     SET(LIBEVENT_VERSION_STRING "${RUN_OUTPUT}")
+     STRING(REGEX REPLACE
+       "([.-0-9]+).*" "\\1" LIBEVENT_VERSION "${LIBEVENT_VERSION_STRING}")
+-    MESSAGE(STATUS "LIBEVENT_VERSION_STRING ${LIBEVENT_VERSION_STRING}")
+-    MESSAGE(STATUS "LIBEVENT_VERSION (${WITH_LIBEVENT}) ${LIBEVENT_VERSION}")
+   ELSE()
+     MESSAGE(WARNING "Could not determine LIBEVENT_VERSION")
+   ENDIF()
++
++  MESSAGE(STATUS "LIBEVENT_VERSION (${WITH_LIBEVENT}) ${LIBEVENT_VERSION}")
++  MESSAGE(STATUS "LIBEVENT_INCLUDE_DIRS ${LIBEVENT_INCLUDE_DIRS}")
++  MESSAGE(STATUS "LIBEVENT_LIBRARIES ${LIBEVENT_LIBRARIES}")
+ ENDMACRO()
+
+ MACRO (FIND_SYSTEM_LIBEVENT)
+@@ -86,10 +88,13 @@ MACRO (FIND_SYSTEM_LIBEVENT)
+   IF (LIBEVENT_CORE AND LIBEVENT_INCLUDE_DIRECTORY)
+     SET(LIBEVENT_FOUND TRUE)
+     SET(LIBEVENT_LIBRARIES
+-      ${LIBEVENT_CORE} ${LIBEVENT_EXTRA} ${LIBEVENT_OPENSSL} ${LIBEVENT_PTHREADS})
++      ${LIBEVENT_CORE}
++      ${LIBEVENT_EXTRA}
++      ${LIBEVENT_OPENSSL}
++      ${LIBEVENT_PTHREADS}
++      )
+     SET(LIBEVENT_INCLUDE_DIRS ${LIBEVENT_INCLUDE_DIRECTORY})
+     IF(NOT LIBEVENT_INCLUDE_DIRECTORY STREQUAL "/usr/include")
+-      MESSAGE(STATUS "LIBEVENT_INCLUDE_DIRS ${LIBEVENT_INCLUDE_DIRS}")
+       # On FreeBSD this may interfere with BOOST_INCLUDE_DIR, so we rely on
+       # users of libevent doing MY_INCLUDE_SYSTEM_DIRECTORIES(LIBEVENT)
+       # INCLUDE_DIRECTORIES(AFTER SYSTEM ${LIBEVENT_INCLUDE_DIRS})
+diff --git a/cmake/libutils.cmake b/cmake/libutils.cmake
+index eebf6f4799f..65c616a0e2f 100644
+--- a/cmake/libutils.cmake
++++ b/cmake/libutils.cmake
+@@ -263,7 +263,7 @@ MACRO(MERGE_LIBRARIES_SHARED TARGET_ARG)
+
+   MY_TARGET_LINK_OPTIONS(${TARGET} "${export_link_flags}")
+
+-  IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
++  IF(APPLE_WITH_CUSTOM_SSL)
+     SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(${TARGET})
+     # All executables have dependencies:  "@loader_path/../lib/xxx.dylib
+     # Create a symlink so that this works for Xcode also.
+diff --git a/cmake/lz4.cmake b/cmake/lz4.cmake
+index 79017767f45..8e646eefe9f 100644
+--- a/cmake/lz4.cmake
++++ b/cmake/lz4.cmake
+@@ -45,6 +45,25 @@ MACRO (CHECK_LZ4_VERSION)
+   ENDIF()
+ ENDMACRO()
+
++MACRO(FIND_LZ4_VERSION)
++  FOREACH(version_part
++      LZ4_VERSION_MAJOR
++      LZ4_VERSION_MINOR
++      LZ4_VERSION_RELEASE
++      )
++    FILE(STRINGS "${LZ4_INCLUDE_DIR}/lz4.h" ${version_part}
++      REGEX "^#[\t ]*define[\t ]+${version_part}[\t ]+([0-9]+).*")
++    STRING(REGEX REPLACE
++      "^.*${version_part}[\t ]+([0-9]+).*" "\\1"
++      ${version_part} "${${version_part}}")
++  ENDFOREACH()
++  SET(LZ4_VERSION
++    "${LZ4_VERSION_MAJOR}.${LZ4_VERSION_MINOR}.${LZ4_VERSION_RELEASE}")
++  MESSAGE(STATUS "LZ4_VERSION (${WITH_LZ4}) is ${LZ4_VERSION}")
++  MESSAGE(STATUS "LZ4_INCLUDE_DIR ${LZ4_INCLUDE_DIR}")
++  MESSAGE(STATUS "LZ4_LIBRARY ${LZ4_LIBRARY}")
++ENDMACRO()
++
+ MACRO (FIND_SYSTEM_LZ4)
+   FIND_PATH(LZ4_INCLUDE_DIR
+     NAMES lz4frame.h)
+@@ -65,6 +84,7 @@ MACRO (MYSQL_USE_BUNDLED_LZ4)
+   SET(BUILD_BUNDLED_LZ4 1)
+   CHECK_LZ4_VERSION(${BUNDLED_LZ4_PATH})
+   INCLUDE_DIRECTORIES(BEFORE SYSTEM ${BUNDLED_LZ4_PATH})
++  SET(LZ4_INCLUDE_DIR ${BUNDLED_LZ4_PATH})
+   SET(LZ4_LIBRARY lz4_lib)
+   ADD_LIBRARY(lz4_lib STATIC
+     ${BUNDLED_LZ4_PATH}/lz4.c
+@@ -89,4 +109,5 @@ MACRO (MYSQL_CHECK_LZ4)
+   ELSE()
+     MESSAGE(FATAL_ERROR "WITH_LZ4 must be bundled or system")
+   ENDIF()
++  FIND_LZ4_VERSION()
+ ENDMACRO()
+diff --git a/cmake/protobuf.cmake b/cmake/protobuf.cmake
+index b833d14f2aa..8ba2986182e 100644
+--- a/cmake/protobuf.cmake
++++ b/cmake/protobuf.cmake
+@@ -43,7 +43,6 @@ MACRO(FIND_PROTOBUF_VERSION)
+     PROTOBUF_VERSION_NUMBER
+     REGEX "^#define[\t ]+GOOGLE_PROTOBUF_VERSION[\t ][0-9]+.*"
+     )
+-  MESSAGE(STATUS "PROTOBUF_VERSION_NUMBER is ${PROTOBUF_VERSION_NUMBER}")
+   STRING(REGEX MATCH
+     ".*VERSION[\t ]([0-9]+).*" V_NUM "${PROTOBUF_VERSION_NUMBER}")
+
+diff --git a/cmake/ssl.cmake b/cmake/ssl.cmake
+index 6a1b4f88c00..92ecf5c95a9 100644
+--- a/cmake/ssl.cmake
++++ b/cmake/ssl.cmake
+@@ -21,7 +21,8 @@
+ # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+ # We support different versions of SSL:
+-# - "system"  (typically) uses headers/libraries in /usr/lib and /usr/lib64
++# - "system"  (typically) uses headers/libraries in /usr/include and
++#       /usr/lib or /usr/lib64
+ # - a custom installation of openssl can be used like this
+ #     - cmake -DCMAKE_PREFIX_PATH=</path/to/custom/openssl> -DWITH_SSL="system"
+ #   or
+@@ -38,11 +39,22 @@
+ #     https://slproweb.com/products/Win32OpenSSL.html
+ #     find_package(OpenSSL) will locate it
+ # or
+-#     http://brewformulas.org/Openssl
+-#     we give a hint /usr/local/opt/openssl to find_package(OpenSSL)
+-# When the package has been located, we treat it as if cmake had been
+-# invoked with  -DWITH_SSL=</path/to/custom/openssl>
+-
++#     https://brew.sh
++#     https://formulae.brew.sh/formula/openssl@1.1
++#     we give a hint ${HOMEBREW_HOME}/openssl@1.1 to find_package(OpenSSL)
++#
++# On Windows, we treat this "system" library as if cmake had been
++# invoked with -DWITH_SSL=</path/to/custom/openssl>
++#
++# On macOS we treat it as a system library, which means that the generated
++# binaries end up having dependencies on Homebrew libraries.
++# Note that 'cmake -DWITH_SSL=<some path>'
++# is NOT handled in the same way as 'cmake -DWITH_SSL=system'
++# which means that for
++# 'cmake -DWITH_SSL=/usr/local/opt/openssl'
++#    or, on Apple silicon:
++# 'cmake -DWITH_SSL=/opt/homebrew/opt/openssl'
++# we will treat the libraries as external, and copy them into our build tree.
+
+ SET(WITH_SSL_DOC "\nsystem (use the OS openssl library)")
+ SET(WITH_SSL_DOC
+@@ -112,23 +124,20 @@ MACRO (MYSQL_CHECK_SSL)
+     SET(WITH_SSL "system" CACHE INTERNAL "Use system SSL libraries" FORCE)
+   ENDIF()
+
++
+   IF(WITH_SSL STREQUAL "system" OR WITH_SSL_PATH)
+-    # Treat "system" the same way as -DWITH_SSL=</path/to/custom/openssl>
+     IF((APPLE OR WIN32) AND WITH_SSL STREQUAL "system")
+       # FindOpenSSL.cmake knows about
+       # http://www.slproweb.com/products/Win32OpenSSL.html
+       # and will look for "C:/Program Files/OpenSSL-Win64/" (and others)
+-      # For APPLE we set the hint /usr/local/opt/openssl
++      # For APPLE we set the hint ${HOMEBREW_HOME}/openssl@1.1
+       IF(LINK_STATIC_RUNTIME_LIBRARIES)
+         SET(OPENSSL_MSVC_STATIC_RT ON)
+       ENDIF()
+       IF(APPLE AND NOT OPENSSL_ROOT_DIR)
+-        IF(APPLE_ARM)
+-          SET(OPENSSL_ROOT_DIR "/opt/homebrew/opt/openssl")
+-        ELSE()
+-          SET(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")
+-        ENDIF()
++        SET(OPENSSL_ROOT_DIR "${HOMEBREW_HOME}/openssl@1.1")
+       ENDIF()
++      # Treat "system" the same way as -DWITH_SSL=</path/to/custom/openssl>
+       IF(WIN32 AND NOT OPENSSL_ROOT_DIR)
+         # We want to be able to support 32bit client-only builds
+         # FindOpenSSL.cmake will look for 32bit before 64bit ...
+@@ -160,11 +169,14 @@ MACRO (MYSQL_CHECK_SSL)
+             MESSAGE(STATUS "OPENSSL_ROOT_DIR ${OPENSSL_ROOT_DIR}")
+           ENDIF()
+         ENDIF()
+-      ENDIF()
++      ENDIF(WIN32 AND NOT OPENSSL_ROOT_DIR)
++
++      # Input hint is OPENSSL_ROOT_DIR.
++      # Will set OPENSSL_FOUND, OPENSSL_INCLUDE_DIR and others.
+       FIND_PACKAGE(OpenSSL)
++
+       IF(OPENSSL_FOUND)
+         GET_FILENAME_COMPONENT(OPENSSL_ROOT_DIR ${OPENSSL_INCLUDE_DIR} PATH)
+-        MESSAGE(STATUS "system OpenSSL has root ${OPENSSL_ROOT_DIR}")
+         SET(WITH_SSL_PATH "${OPENSSL_ROOT_DIR}" CACHE PATH "Path to system SSL")
+       ELSE()
+         RESET_SSL_VARIABLES()
+@@ -350,7 +362,6 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
+       GET_FILENAME_COMPONENT(OPENSSL_EXT "${OPENSSL_LIBRARY}" EXT)
+       MESSAGE(STATUS "CRYPTO_EXT ${CRYPTO_EXT}")
+       IF(CRYPTO_EXT STREQUAL ".so" AND OPENSSL_EXT STREQUAL ".so")
+-        MESSAGE(STATUS "set HAVE_CRYPTO_SO HAVE_OPENSSL_SO")
+         SET(HAVE_CRYPTO_SO 1)
+         SET(HAVE_OPENSSL_SO 1)
+       ENDIF()
+@@ -380,12 +391,17 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
+       GET_FILENAME_COMPONENT(OPENSSL_EXT "${OPENSSL_LIBRARY}" EXT)
+       MESSAGE(STATUS "CRYPTO_EXT ${CRYPTO_EXT}")
+       IF(CRYPTO_EXT STREQUAL ".dylib" AND OPENSSL_EXT STREQUAL ".dylib")
+-        MESSAGE(STATUS "set HAVE_CRYPTO_DYLIB HAVE_OPENSSL_DYLIB")
+         SET(HAVE_CRYPTO_DYLIB 1)
+         SET(HAVE_OPENSSL_DYLIB 1)
++        IF(WITH_SSL STREQUAL "system")
++          MESSAGE(STATUS "Using system OpenSSL from Homebrew")
++        ELSE()
++          SET(APPLE_WITH_CUSTOM_SSL 1)
++        ENDIF()
+       ENDIF()
+-    ENDIF()
+-    IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
++    ENDIF(APPLE)
++
++    IF(APPLE_WITH_CUSTOM_SSL)
+       # CRYPTO_LIBRARY is .../lib/libcrypto.dylib
+       # CRYPTO_VERSION is .../lib/libcrypto.1.0.0.dylib
+       EXECUTE_PROCESS(
+@@ -425,7 +441,7 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
+
+       # Do copying and dependency patching in a sub-process, so that we can
+       # skip it if already done.  The BYPRODUCTS argument appears to be
+-      # necessary to allow Ninja (on MacOS) to resolve dependencies on the dll
++      # necessary to allow Ninja (on macOS) to resolve dependencies on the dll
+       # files directly, even if there is an explicit dependency on this target.
+       # The BYPRODUCTS option is ignored on non-Ninja generators except to mark
+       # byproducts GENERATED.
+@@ -528,7 +544,7 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
+           DESTINATION ${INSTALL_PLUGINDIR}/debug COMPONENT SharedLibraries
+           )
+       ENDIF()
+-    ENDIF()
++    ENDIF(APPLE_WITH_CUSTOM_SSL)
+
+     IF(WIN32)
+       GET_FILENAME_COMPONENT(CRYPTO_NAME "${CRYPTO_LIBRARY}" NAME_WE)
+diff --git a/cmake/zlib.cmake b/cmake/zlib.cmake
+index 47c13ea7f28..5ef8e04b6de 100644
+--- a/cmake/zlib.cmake
++++ b/cmake/zlib.cmake
+@@ -46,6 +46,8 @@ MACRO(FIND_ZLIB_VERSION)
+   SET(ZLIB_VERSION "${ZLIB_VER_MAJOR}.${ZLIB_VER_MINOR}.${ZLIB_VER_REVISION}")
+   SET(ZLIB_VERSION "${ZLIB_VERSION}" CACHE INTERNAL "ZLIB major.minor.step")
+   MESSAGE(STATUS "ZLIB_VERSION (${WITH_ZLIB}) is ${ZLIB_VERSION}")
++  MESSAGE(STATUS "ZLIB_INCLUDE_DIR ${ZLIB_INCLUDE_DIR}")
++  MESSAGE(STATUS "ZLIB_LIBRARY ${ZLIB_LIBRARY}")
+ ENDMACRO()
+
+ MACRO (FIND_SYSTEM_ZLIB)
+diff --git a/cmake/zstd.cmake b/cmake/zstd.cmake
+index 415d67e0142..0021b2592f3 100644
+--- a/cmake/zstd.cmake
++++ b/cmake/zstd.cmake
+@@ -43,6 +43,8 @@ MACRO (FIND_ZSTD_VERSION)
+     "${ZSTD_VERSION_MAJOR}.${ZSTD_VERSION_MINOR}.${ZSTD_VERSION_RELEASE}")
+   SET(ZSTD_VERSION "${ZSTD_VERSION}" CACHE INTERNAL "ZSTD major.minor.step")
+   MESSAGE(STATUS "ZSTD_VERSION (${WITH_ZSTD}) is ${ZSTD_VERSION}")
++  MESSAGE(STATUS "ZSTD_INCLUDE_DIR ${ZSTD_INCLUDE_DIR}")
++  MESSAGE(STATUS "ZSTD_LIBRARY ${ZSTD_LIBRARY}")
+ ENDMACRO()
+
+ MACRO (FIND_SYSTEM_ZSTD)
+diff --git a/router/cmake/Plugin.cmake b/router/cmake/Plugin.cmake
+index 89d0f36ae73..30ba9fa7eaf 100644
+--- a/router/cmake/Plugin.cmake
++++ b/router/cmake/Plugin.cmake
+@@ -126,7 +126,7 @@ FUNCTION(add_harness_plugin NAME)
+     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
+   )
+
+-  IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
++  IF(APPLE_WITH_CUSTOM_SSL)
+     ADD_CUSTOM_COMMAND(TARGET ${NAME} POST_BUILD
+       COMMAND install_name_tool -change
+               "${CRYPTO_VERSION}" "@loader_path/${CRYPTO_VERSION}"
+diff --git a/router/src/CMakeLists.txt b/router/src/CMakeLists.txt
+index 110c4f4620c..6a57ceaafea 100644
+--- a/router/src/CMakeLists.txt
++++ b/router/src/CMakeLists.txt
+@@ -40,7 +40,7 @@ ADD_SUBDIRECTORY(routing)
+
+ # Directory layout after 'make install' is different.
+ # Create symlinks to ssl libraries for both: build and install layouts
+-IF (APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
++IF (APPLE_WITH_CUSTOM_SSL)
+   FILE(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/mysqlrouter")
+
+   ADD_CUSTOM_TARGET(link_openssl_dlls_for_install_mysqlrouter ALL
+diff --git a/scripts/CMakeLists.txt b/scripts/CMakeLists.txt
+index 650bb380e04..bfd0182bc13 100644
+--- a/scripts/CMakeLists.txt
++++ b/scripts/CMakeLists.txt
+@@ -320,8 +320,17 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
+         SET(${var} "${${var}} ${lib} ")
+       ELSEIF(lib MATCHES "^/")
+         # Full path, convert to just filename, strip "lib" prefix and extension
++        GET_FILENAME_COMPONENT(dir "${lib}" DIRECTORY)
+         GET_FILENAME_COMPONENT(lib "${lib}" NAME_WE)
+         STRING(REGEX REPLACE "^lib" "" lib "${lib}")
++        # Add -L/usr/local/opt/openssl/lib for ssl (and crypto).
++        IF(APPLE AND WITH_SSL STREQUAL "system" AND ${lib} STREQUAL "ssl")
++          SET(${var} "${${var}}-L${dir} " )
++        ENDIF()
++        # Add -L/usr/local/lib for zstd
++        IF(APPLE AND WITH_ZSTD STREQUAL "system" AND ${lib} STREQUAL "zstd")
++          SET(${var} "${${var}}-L${dir} " )
++        ENDIF()
+         SET(${var} "${${var}}-l${lib} " )
+       ELSE()
+         SET(${var} "${${var}}-l${lib} " )
