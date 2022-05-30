@@ -1,6 +1,20 @@
---- a/lib/converters.h	2009-06-21 06:17:33.000000000 -0500
-+++ b/lib/converters.h	2010-01-20 19:54:37.000000000 -0600
-@@ -119,6 +119,7 @@
+diff --git a/lib/Makefile.in b/lib/Makefile.in
+index 6f832be..45d7b2c 100644
+--- a/lib/Makefile.in
++++ b/lib/Makefile.in
+@@ -159,6 +159,7 @@ SOURCE_FILES = \
+     converters.h \
+       ascii.h \
+       utf8.h \
++      utf8mac.h \
+       ucs2.h \
+       ucs2be.h \
+       ucs2le.h \
+diff --git a/lib/converters.h b/lib/converters.h
+index e2e2227..76a6267 100644
+--- a/lib/converters.h
++++ b/lib/converters.h
+@@ -122,6 +122,7 @@ struct conv_struct {
  /* General multi-byte encodings */
  #include "utf8.h"
  #include "ucs2.h"
@@ -8,9 +22,11 @@
  #include "ucs2be.h"
  #include "ucs2le.h"
  #include "ucs4.h"
---- a/lib/encodings.def	2009-06-12 01:19:03.000000000 +0200
-+++ b/lib/encodings.def	2009-06-12 01:20:39.000000000 +0200
-@@ -69,6 +69,12 @@
+diff --git a/lib/encodings.def b/lib/encodings.def
+index 41d8063..e573945 100644
+--- a/lib/encodings.def
++++ b/lib/encodings.def
+@@ -68,6 +68,12 @@ DEFALIAS(     "UTF8",                   /* HP-UX */
              utf8)
  #endif
  
@@ -23,13 +39,21 @@
  DEFENCODING(( "UCS-2",                  /* glibc */
                "ISO-10646-UCS-2",        /* IANA */
                "csUnicode",              /* IANA */
---- a/lib/utf8mac.h	1970-01-01 09:00:00.000000000 +0900
-+++ b/lib/utf8mac.h	2007-11-13 17:42:39.000000000 +0900
-@@ -0,0 +1,1608 @@
+diff --git a/lib/utf8mac.h b/lib/utf8mac.h
+new file mode 100644
+index 0000000..f3fe819
+--- /dev/null
++++ b/lib/utf8mac.h
+@@ -0,0 +1,1676 @@
 +/*
-+ * Copyright (C) 2003 Apple Computer, Inc. All rights reserved.
-+ *
++ * Copyright (C) 1999-2001, 2004, 2016 Free Software Foundation, Inc.
 + * This file is part of the GNU LIBICONV Library.
++ *
++ * UTF-8-MAC is ported from Apple's GNU libiconv
++ * Copyright (C) 2003, 2013 Apple Computer, Inc. All rights reserved.
++ *
++ * enhanced with support for characters beyond the Unicode BMP
++ * Copyright (c) 2018-2019 SATOH Fumiyasu @ OSS Technology Corp., Japan
 + *
 + * The GNU LIBICONV Library is free software; you can redistribute it
 + * and/or modify it under the terms of the GNU Library General Public
@@ -43,8 +67,7 @@
 + *
 + * You should have received a copy of the GNU Library General Public
 + * License along with the GNU LIBICONV Library; see the file COPYING.LIB.
-+ * If not, write to the Free Software Foundation, Inc., 59 Temple Place -
-+ * Suite 330, Boston, MA 02111-1307, USA.
++ * If not, see <https://www.gnu.org/licenses/>.
 + */
 +
 +/*
@@ -57,7 +80,6 @@
 +
 +#include <libkern/OSByteOrder.h>
 +#include <errno.h>
-+#include <string.h>			/* bzero() */
 +
 +#define	UTF_REVERSE_ENDIAN	0x01	/* reverse UCS-2 byte order */
 +#define	UTF_NO_NULL_TERM	0x02	/* do not add null termination */
@@ -69,6 +91,63 @@
 +
 +int	utf8_decodestr (const u_int8_t *, size_t, u_int16_t *,size_t *,
 +		size_t, u_int16_t, int, size_t *);
++
++/* Port from utf16be.h and remove the `conv_t conv` argument */
++static int
++_utf16be_mbtowc (ucs4_t *pwc, const unsigned char *s, size_t n)
++{
++  int count = 0;
++  if (n >= 2) {
++    ucs4_t wc = (s[0] << 8) + s[1];
++    if (wc >= 0xd800 && wc < 0xdc00) {
++      if (n >= 4) {
++        ucs4_t wc2 = (s[2] << 8) + s[3];
++        if (!(wc2 >= 0xdc00 && wc2 < 0xe000))
++          goto ilseq;
++        *pwc = 0x10000 + ((wc - 0xd800) << 10) + (wc2 - 0xdc00);
++        return count+4;
++      }
++    } else if (wc >= 0xdc00 && wc < 0xe000) {
++      goto ilseq;
++    } else {
++      *pwc = wc;
++      return count+2;
++    }
++  }
++  return RET_TOOFEW(count);
++
++ilseq:
++  return RET_SHIFT_ILSEQ(count);
++}
++
++/* Port from utf16be.h and remove the `conv_t conv` argument */
++static int
++_utf16be_wctomb (unsigned char *r, ucs4_t wc, size_t n)
++{
++  if (!(wc >= 0xd800 && wc < 0xe000)) {
++    if (wc < 0x10000) {
++      if (n >= 2) {
++        r[0] = (unsigned char) (wc >> 8);
++        r[1] = (unsigned char) wc;
++        return 2;
++      } else
++        return RET_TOOSMALL;
++    }
++    else if (wc < 0x110000) {
++      if (n >= 4) {
++        ucs4_t wc1 = 0xd800 + ((wc - 0x10000) >> 10);
++        ucs4_t wc2 = 0xdc00 + ((wc - 0x10000) & 0x3ff);
++        r[0] = (unsigned char) (wc1 >> 8);
++        r[1] = (unsigned char) wc1;
++        r[2] = (unsigned char) (wc2 >> 8);
++        r[3] = (unsigned char) wc2;
++        return 4;
++      } else
++        return RET_TOOSMALL;
++    }
++  }
++  return RET_ILUNI;
++}
 +
 +/*
 +	Derived from Core Foundation headers:
@@ -1066,13 +1145,13 @@
 +
 +/* Surrogate Pair Constants */
 +#define SP_HALF_SHIFT	10
-+#define SP_HALF_BASE	0x0010000UL
-+#define SP_HALF_MASK	0x3FFUL
++#define SP_HALF_BASE	0x0010000U
++#define SP_HALF_MASK	0x3FFU
 +
-+#define SP_HIGH_FIRST	0xD800UL
-+#define SP_HIGH_LAST	0xDBFFUL
-+#define SP_LOW_FIRST	0xDC00UL
-+#define SP_LOW_LAST	0xDFFFUL
++#define SP_HIGH_FIRST	0xD800U
++#define SP_HIGH_LAST	0xDBFFU
++#define SP_LOW_FIRST	0xDC00U
++#define SP_LOW_LAST	0xDFFFU
 +
 +/*
 + * Test for a combining character.
@@ -1159,7 +1238,7 @@
 +	u_int16_t * chp = NULL;
 +	u_int16_t sequence[8];
 +	int extra = 0;
-+	int charcnt;
++	size_t charcnt;
 +	int swapbytes = (flags & UTF_REVERSE_ENDIAN);
 +	int nullterm  = ((flags & UTF_NO_NULL_TERM) == 0);
 +	int decompose = (flags & UTF_DECOMPOSED);
@@ -1176,7 +1255,7 @@
 +			--extra;
 +			ucs_ch = *chp++;
 +		} else {
-+                       ucs_ch = swapbytes ? OSSwapInt16(*ucsp++) : *ucsp++;
++			ucs_ch = swapbytes ? OSSwapInt16(*ucsp++) : *ucsp++;
 +
 +			if (decompose && unicode_decomposeable(ucs_ch)) {
 +				extra = unicode_decompose(ucs_ch, sequence) - 1;
@@ -1208,7 +1287,7 @@
 +				u_int16_t ch2;
 +				u_int32_t pair;
 +
-+                               ch2 = swapbytes ? OSSwapInt16(*ucsp) : *ucsp;
++				ch2 = swapbytes ? OSSwapInt16(*ucsp) : *ucsp;
 +				if (ch2 >= SP_LOW_FIRST && ch2 <= SP_LOW_LAST) {
 +					pair = ((ucs_ch - SP_HIGH_FIRST) << SP_HALF_SHIFT)
 +						+ (ch2 - SP_LOW_FIRST) + SP_HALF_BASE;
@@ -1267,7 +1346,7 @@
 +{
 +	u_int16_t* bufstart;
 +	u_int16_t* bufend;
-+	unsigned int ucs_ch;
++	unsigned int ucs_ch, ucs_ch2;
 +	unsigned int byte;
 +	int result = 0;
 +	int decompose, precompose, swapbytes;
@@ -1290,12 +1369,13 @@
 +		/* check for ascii */
 +		if (byte < 0x80) {
 +			ucs_ch = byte;                 /* 1st byte */
++			ucs_ch2 = 0;
 +		} else {
 +			u_int32_t ch;
 +			int extrabytes = utf_extrabytes[byte >> 3];
 +
 +			if (utf8len < extrabytes)
-+				goto invalid;
++				goto toolong;
 +			utf8len -= extrabytes;
 +
 +			switch (extrabytes) {
@@ -1305,11 +1385,12 @@
 +				if ((byte >> 6) != 2)
 +					goto invalid;
 +				ch += byte;
-+				ch -= 0x00003080UL;
++				ch -= 0x00003080U;
 +				if (ch < 0x0080)
 +					goto invalid;
 +				ucs_ch = ch;
-+			        break;
++				ucs_ch2 = 0;
++				break;
 +			case 2:
 +				ch = byte; ch <<= 6;   /* 1st byte */
 +				byte = *utf8p++;       /* 2nd byte */
@@ -1320,7 +1401,7 @@
 +				if ((byte >> 6) != 2)
 +					goto invalid;
 +				ch += byte;
-+				ch -= 0x000E2080UL;
++				ch -= 0x000E2080U;
 +				if (ch < 0x0800)
 +					goto invalid;
 +				if (ch >= 0xD800) {
@@ -1330,6 +1411,7 @@
 +						goto invalid;
 +				}
 +				ucs_ch = ch;
++				ucs_ch2 = 0;
 +				break;
 +			case 3:
 +				ch = byte; ch <<= 6;   /* 1st byte */
@@ -1344,41 +1426,42 @@
 +				byte = *utf8p++;       /* 4th byte */
 +				if ((byte >> 6) != 2)
 +					goto invalid;
-+			        ch += byte;
-+				ch -= 0x03C82080UL + SP_HALF_BASE;
++				ch += byte;
++				ch -= 0x03C82080U + SP_HALF_BASE;
 +				ucs_ch = (ch >> SP_HALF_SHIFT) + SP_HIGH_FIRST;
 +				if (ucs_ch < SP_HIGH_FIRST || ucs_ch > SP_HIGH_LAST)
 +					goto invalid;
-+                               *ucsp++ = swapbytes ? OSSwapInt16(ucs_ch) : ucs_ch;
-+				if (ucsp >= bufend)
-+					goto toolong;
-+				ucs_ch = (ch & SP_HALF_MASK) + SP_LOW_FIRST;
-+				if (ucs_ch < SP_LOW_FIRST || ucs_ch > SP_LOW_LAST)
++				ucs_ch2 = (ch & SP_HALF_MASK) + SP_LOW_FIRST;
++				if (ucs_ch2 < SP_LOW_FIRST || ucs_ch2 > SP_LOW_LAST)
 +					goto invalid;
-+                               *ucsp++ = swapbytes ? OSSwapInt16(ucs_ch) : ucs_ch;
-+			        continue;
++				break;
 +			default:
 +				goto invalid;
 +			}
 +		}
-+	if (precompose && (ucsp != bufstart)) {
-+		u_int16_t composite, base;
++		if (precompose && (ucsp != bufstart)) {
++			u_int16_t composite, base;
 +
-+		if (unicode_combinable(ucs_ch)) {
-+                       base = swapbytes ? OSSwapInt16(*(ucsp - 1)) : *(ucsp - 1);
-+			composite = unicode_combine(base, ucs_ch);
-+			if (composite) {
-+				--ucsp;
-+				ucs_ch = composite;
++			if (!ucs_ch2 && unicode_combinable(ucs_ch)) {
++				base = swapbytes ? OSSwapInt16(*(ucsp - 1)) : *(ucsp - 1);
++				composite = unicode_combine(base, ucs_ch);
++				if (composite) {
++					--ucsp;
++					ucs_ch = composite;
++				} else {
++					goto exit;
++				}
 +			} else {
 +				goto exit;
 +			}
-+		} else {
-+			goto exit;
 +		}
-+	}
-+       *ucsp++ = swapbytes ? OSSwapInt16(ucs_ch) : ucs_ch;
-+	utf8lastpass = utf8p;
++		*ucsp++ = swapbytes ? OSSwapInt16(ucs_ch) : ucs_ch;
++		if (ucs_ch2) {
++			if (ucsp >= bufend)
++				goto toolong;
++			*ucsp++ = swapbytes ? OSSwapInt16(ucs_ch2) : ucs_ch2;
++		}
++		utf8lastpass = utf8p;
 +	}
 +
 +exit:
@@ -1586,7 +1669,7 @@
 +}
 +
 +static int
-+utf8mac_mbtowc (conv_t conv, ucs4_t *pwc, const unsigned char *s, int n)
++utf8mac_mbtowc (conv_t conv, ucs4_t *pwc, const unsigned char *s, size_t n)
 +{
 +    u_int16_t ucsp[13];
 +    size_t ucslen = 0, consumed = 0;
@@ -1609,28 +1692,32 @@
 +    if ( ret == EINVAL)		/* Illegal UTF-8 sequence found */
 +	return RET_ILSEQ;
 +
-+    if((ret = ucs2_mbtowc(conv, pwc, (const unsigned char *) ucsp, ucslen)) < 0)
-+	return ret;
++    if((ret = _utf16be_mbtowc(pwc, (const unsigned char *) ucsp, ucslen)) < 0)
++        return ret;
 +
-+    return consumed;
++    return (int)consumed;
 +}
 +
 +static int
-+utf8mac_wctomb (conv_t conv, unsigned char *r, ucs4_t wc, int n) /* n == 0 is acceptable */
++utf8mac_wctomb (conv_t conv, unsigned char *r, ucs4_t wc, size_t n) /* n == 0 is acceptable */
 +{
 +    int ret;
 +    size_t len;
 +    u_int16_t ucs_string[13];
 +    int flags;
 +
-+    if((ret = ucs2_wctomb(conv, (unsigned char *) ucs_string, wc, sizeof(ucs_string))) < 0)
-+	return ret;
++    if((ret = _utf16be_wctomb((unsigned char *) ucs_string, wc, sizeof(ucs_string))) < 0)
++        return ret;
 +
 +    flags = UTF_NO_NULL_TERM | UTF_DECOMPOSED;
 +#ifdef __LITTLE_ENDIAN__
 +    flags |= UTF_REVERSE_ENDIAN;
 +#endif
-+    utf8_encodestr(ucs_string, ret, r, &len, n, 0, flags);
++    ret = utf8_encodestr(ucs_string, ret, r, &len, n, 0, flags);
++    if (ret == EINVAL)
++        return RET_ILUNI;
++    if (ret == ENAMETOOLONG)
++        return RET_TOOSMALL;
 +
-+    return len;
++    return (int)len;
 +}
