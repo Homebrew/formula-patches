@@ -1858,6 +1858,7 @@ index 934fd2261b5..596df05c045 100755
 +    print('Failed to process %s' % input_filename, file = sys.stderr)
      return 1
    return 0
+
 diff --git a/chromium/third_party/perfetto/gn/standalone/toolchain/mac_find_llvm.py b/chromium/third_party/perfetto/gn/standalone/toolchain/mac_find_llvm.py
 index 3511f29c3d0..a5f6ad02f42 100644
 --- a/chromium/third_party/perfetto/gn/standalone/toolchain/mac_find_llvm.py
