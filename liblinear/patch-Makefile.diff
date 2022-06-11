@@ -27,7 +27,7 @@
   
   lib: linear.o newton.o blas/blas.a
   	if [ "$(OS)" = "Darwin" ]; then \
-! 		LIBEXT=".dylib"; \
+! 		LIBEXT=".$(SHVER).dylib"; \
 ! 		SHARED_LIB_FLAG="-dynamiclib -install_name $(PREFIX)/lib/liblinear$${LIBEXT}"; \
   	else \
 ! 		LIBEXT=".so.$(SHVER)"; \
