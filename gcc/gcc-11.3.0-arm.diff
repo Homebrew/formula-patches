@@ -2450,10 +2450,30 @@ index 0a02c33cc80..81ff7ed1043 100644
      out_host_hook_obj="${out_host_hook_obj} host-i386-darwin.o"
      host_xmake_file="${host_xmake_file} i386/x-darwin"
 diff --git a/gcc/config.in b/gcc/config.in
-index 048bf52e8c2..2f1a57dd9b8 100644
+index 048bf52e8c2..547f0f4d402 100644
 --- a/gcc/config.in
 +++ b/gcc/config.in
-@@ -224,6 +224,13 @@
+@@ -49,6 +49,19 @@
+ #endif
+ 
+ 
++/* Specify a runpath directory, additional to those provided by the compiler
++   */
++#ifndef USED_FOR_TARGET
++#undef DARWIN_ADD_RPATH
++#endif
++
++
++/* Should add an extra runpath directory */
++#ifndef USED_FOR_TARGET
++#undef DARWIN_DO_EXTRA_RPATH
++#endif
++
++
+ /* Define to enable the use of a default assembler. */
+ #ifndef USED_FOR_TARGET
+ #undef DEFAULT_ASSEMBLER
+@@ -224,6 +237,13 @@
  #endif
  
  
@@ -2467,7 +2487,7 @@ index 048bf52e8c2..2f1a57dd9b8 100644
  /* Define to enable plugin support. */
  #ifndef USED_FOR_TARGET
  #undef ENABLE_PLUGIN
-@@ -2207,6 +2214,12 @@
+@@ -2207,6 +2227,12 @@
  #endif
  
  
@@ -4363,468 +4383,6 @@ index 00000000000..2a855c11efa
 +  extern void sys_icache_invalidate(void *start, size_t len);	\
 +  sys_icache_invalidate ((beg), (size_t)((end)-(beg)))
 +
-diff --git a/gcc/config/aarch64/darwinpcs.md b/gcc/config/aarch64/darwinpcs.md
-new file mode 100644
-index 00000000000..1238c6bee91
---- /dev/null
-+++ b/gcc/config/aarch64/darwinpcs.md
-@@ -0,0 +1,456 @@
-+# The Darwin ABI (darwinpcs) for AArch64 (Arm64) Mach-O 
-+
-+## Introduction.
-+
-+This describes the Darwin PCS (darwinpcs) as implemented in GCC-12.
-+
-+Base information is taken from:
-+
-+[1] [ARM IHI 0055B : AAPCS64 (current through AArch64 ABI release 1.0, dated 22nd May 2013)](http://infocenter.arm.com/help/topic/com.arm.doc.ihi0055b/IHI0055B_aapcs64.pdf)
-+
-+[2] [Apple iOS document : darwinpcs](https://developer.apple.com/library/archive/documentation/Xcode/Conceptual/iPhoneOSABIReference/Articles/ARM64FunctionCallingConventions.html#//apple_ref/doc/uid/TP40013702-SW1)
-+
-+[3] [The LLVM backend for Mach-O/arm64 from GIT (master 12 at the document date).](https://github.com/llvm/llvm-project.git)
-+
-+## Terminology
-+
-+**Darwin** is the kernel used for macOS (10/OSX and 11) and iOS (all versions,
-+so far).
-+
-+**Mach-O** is the file format used for object files and DSOs, including executables
-+on Darwin platforms (to some extent, the two names are interchangeable in
-+describing rules applicable to a back end).
-+
-+The `AArch64` port for Darwin is known as `arm64` (`arm64` is synonymous with
-+`aarch64` for Darwin in GCC).   There is an ILP32 variant, `arm64_32` (not yet
-+considered in detail or handled by these branches).
-+
-+There are two main technical sections 
-+
-+* Part 1 which describes the darwinpcs deviations from AAPCS64.
-+
-+   This is a primarily cross-reference between [2] and [1].
-+
-+* Part 2 contains additional pertinent information.
-+
-+   Some is recorded in [2] but most is determined from generic Darwin/Mach-O
-+   rules and the implementation [3].
-+
-+* Part 3 describes the deviations from darwinpcs present in GCC.
-+
-+   GCC implements some features not available ib the host tools which are
-+   based on LLVM/clang.
-+
-+   GCC does not yet (as of GCC-12.1) support all parts of the darwinpcs as
-+   written here.
-+
-+**Note** Since a macOS or iOS system is built with a toolchain based on [3],
-+that sets the de facto ABI.  Therefore, the ABI as implemented by the XCode
-+version appropriate to a given OS release shall take precedence over version(s)
-+described in the referenced documents in the event of discrepancy.
-+
-+## PART 1 - AAPCS64 and darwinpcs.
-+
-+### Outline
-+
-+Darwin PCS Differences from AAPCS64.
-+
-+The intent of these notes are to match the differences described in [2] against
-+the section numbers and rule designations of [1] since the AArch64 port code
-+uses the rule designations in comments.
-+
-+The organisation of these notes is by section heading of [1].
-+
-+[2] Refers to the darwinpcs as "iOS" which was the first Darwin OS variant
-+implementing it, however it is stated (albeit unofficially?) that Arm64 macOS
-+will adopt the same ABI and is expected to be able to execute iOS executables.
-+
-+So, for the present, 'iOS' is considered to be equivalent to 'macOS'
-+(generically 'Darwin').
-+
-+In the text from [2] the expression "generic procedure call standard" refers
-+to the AAPCS64 [1].
-+
-+Darwin PCS rules are designated `D.N` below.
-+
-+### AAPCS64 Section 1.
-+
-+No amendments.
-+
-+### AAPCS64 Section 2.
-+
-+No amendments.
-+
-+### AAPCS64 Section 3.
-+
-+No amendments.
-+
-+The darwinpcs is non-conforming with the aapcs64 in the areas described below.
-+
-+### AAPCS64 Section 4.
-+
-+No amendments
-+
-+but note:
-+* Darwin's `char` and `wchar_t` are both signed.
-+* Where applicable, the `__fp16 type` is `IEEE754-2008` format.
-+
-+### AAPCS64 Section 5.
-+
-+5.1 Machine Registers
-+5.1.1 General-purpose Registers
-+
-+Darwin reserves `x18` as the platform register (as permitted).
-+
-+5.2 Processes, Memory and the Stack
-+5.2.3 The Frame Pointer
-+
-+From [2] : The frame pointer register (x29) must always address a valid frame
-+record, although some functions—such as leaf functions or tail calls—may elect
-+not to create an entry in this list.
-+
-+This corresponds to the first bullet and is conforming.  It implies that Darwin
-+should warn if the user tries to use an option that omits the FP.
-+
-+5.4 Parameter Passing
-+5.4.2 Parameter Passing Rules
-+
-+`D.1` From [2] : Empty struct types are ignored for parameter-passing purposes.
-+This behavior applies to the GNU extension in C and, where permitted by the
-+language, in C++.
-+
-+It is noted that this might not correspond to any specific rule - but,
-+presumably, needs to be applied in marshalling arguments.
-+
-+`D.2` From [2] : In the generic procedure call standard, all function arguments
-+passed on the stack consume slots in multiples of 8 bytes. In iOS, this
-+requirement is dropped, and values consume only the space required.   Padding
-+is still inserted on the stack to satisfy arguments’ alignment requirements.
-+
-+`D.3` From [2] : The general ABI specifies that it is the callee’s responsibility
-+to sign or zero-extend arguments having fewer than 32 bits, and that unused bits
-+in a register are unspecified. In iOS, however, the caller must perform such
-+extensions, up to 32 bits.  This apparently conflicts with the `D.2` above and
-+thus can only be applied to values passed in registers?
-+
-+(notwithstanding C rules for widening).
-+
-+`D.4` From [2] : The generic procedure call standard requires that arguments
-+with 16-byte alignment passed in integer registers begin at an even-numbered
-+xN, skipping a previous odd-numbered xN if necessary. The iOS ABI drops this
-+requirement.
-+
-+#### Variadic Functions
-+
-+From [2]:
-+The iOS ABI for functions that take a variable number of arguments is entirely
-+different from the generic version.
-+
-+Stages A and B of the generic procedure call standard are performed as usual.
-+in particular, even variadic aggregates larger than 16 bytes are passed via a
-+reference to temporary memory allocated by the caller. After that, the fixed
-+arguments are allocated to registers and stack slots as usual in iOS.
-+
-+The NSRN(*sic*) (?NSAA was intended?) is then rounded up to the next multiple
-+of 8 bytes, and each variadic argument is assigned to the appropriate number
-+of 8-byte stack slots.
-+
-+The C language requires arguments smaller than int to be promoted before a call,
-+but beyond that, unused bytes on the stack are not specified by the darwinpcs.
-+
-+(see section 7) As a result of this change, the type va_list is an alias for
-+char * rather than for the struct type specified in the generic PCS. 
-+It is also not in the std namespace when compiling C++ code.
-+
-+#### Stage A
-+
-+No Changes.
-+
-+#### Stage B
-+
-+No changes.
-+
-+#### Stage C
-+
-+Insert C.6.5 `D.3`
-+If the argument is an Integral or Pointer Type, the size of the argument is
-+less than 4 bytes and the NGRN is less than 8, the argument is sign or zero-
-+extended as appropriate to 4 bytes.
-+
-+C.8 Delete rule per `D.4`
-+
-+C.12
-+`D.2` Amend to:
-+The NSAA is rounded up to Natural Alignment of the argument’s type.
-+
-+C.14 Delete rule per `D.2`
-+
-+From the observations section:
-+"Both before and after the layout of each argument, then NSAA will have a
-+ minimum alignment of 8."  This no longer applies.
-+ 
-+### AAPCS64 Section 6.
-+
-+No changes (noting that the `__fp16` type is `IEEE754-2008` format.)
-+
-+### AAPCS64 Section 7.
-+
-+7.1 Data Types
-+7.1.1 Arithmetic Types
-+
-+Table 3 is amended thus.
-+
-+| C/C++ Type | Machine Type | Notes |
-+| --- | --- | --- |
-+| char | signed byte | compatible with other Darwin variants  |
-+| wchar_t | int | ditto |
-+
-+**The size of long double (and by implication the _Imaginary and _Complex C99
-+variants) is set to be the same as double.**
-+
-+We need to consider **_very_** carefully how to handle this.  The current
-+(64bit) long double is mangled as 'e' by the clang toolchain.
-+
-+7.1.4 Additional Types
-+
-+Table 5 is amended to reflect the different variadic function rules.
-+
-+`D.6` The type `va_list` is an alias for `char *`
-+`D.7` The `va_list` type is _not_ presented in `std::` for C++.
-+
-+7.2 Argument Passing Conventions
-+
-+Possibly, might require adjustment for `D.3`?
-+
-+## PART 2 - Other platform information
-+
-+### Additional comments from [2]
-+
-+#### Red Zone
-+
-+The ARM64 iOS red zone consists of the 128 bytes immediately below the stack
-+pointer sp. As with the x86-64 ABI, the operating system has committed not to 
-+modify these bytes during exceptions. User-mode programs can rely on them not
-+to change unexpectedly, and can potentially make use of the space for local
-+variables.
-+
-+In some circumstances, this approach can save an sp-update instruction on
-+function entry and exit.
-+
-+At present, it seems, that there's no port using a red zone for AArch64, and
-+there's no implementation - so this optimisation opportunity will be unused
-+at least initially.  TODO.
-+
-+#### Divergences from the Generic C++ ABI
-+
-+The generic ARM64 C++ ABI is specified in C++ Application Binary Interface
-+Standard for the ARM 64-bit architecture, which is in turn based on the
-+Itanium C++ ABI used by many UNIX-like systems.
-+
-+Some sections are ELF-specific and not applicable to the underlying object
-+format used by iOS. There are, however, some significant differences from
-+these specifications in iOS.
-+
-+##### Name Mangling
-+
-+When compiling C++ code, types get incorporated into the names of functions
-+in a process referred to as “mangling.” The iOS ABI differs from the generic
-+specification in the following small ways.
-+
-+Because `va_list` is an alias for `char *`, it is mangled in the same way—as
-+`Pc` instead of `St9__va_list` (Section 7).
-+
-+NEON vector types are mangled in the same way as their 32-bit ARM counterparts,
-+rather than using the 64-bit scheme. For example, iOS uses `17__simd128_int32_t`
-+instead of the generic `11__Int32x4_t`.
-+
-+##### Other Itanium Divergences
-+
-+In the generic ABI, empty structs are treated as aggregates with a single byte
-+member for parameter passing. In iOS, however, they are ignored unless they
-+have a nontrivial destructor or copy-constructor. If they do have such
-+functions, they are considered as aggregates with one byte member in the
-+generic manner.
-+
-+As with the ARM 32-bit C++ ABI, iOS requires the complete-object (C1) and base-
-+object (C2) constructors to return this to their callers. Similarly, the
-+complete object (D1) and base object (D2) destructors return this. This
-+requirement is not made by the generic ARM64 C++ ABI.
-+
-+In the generic C++ ABI, array cookies change their size and alignment according
-+to the type being allocated. As with the 32-bit ARM, iOS provides a fixed
-+layout of two size_t words, with no extra alignment requirements.
-+
-+In iOS, object initialization guards are nominally `uint64_t` rather than
-+`int64_t`.
-+This affects the prototypes of the functions `__cxa_guard_acquire`,
-+`__cxa_guard_release` and `__cxa_guard_abort`.
-+
-+In the generic ARM64 ABI, function pointers whose type differ only in being
-+extern "C" or extern "C++" are interchangeable. This is not the case in iOS.
-+
-+### Undocumented items
-+
-+* The platform ABI contains provisions for the swift language, but since GCC
-+has no swift FE there's no need to implement them (it might be wise to ensure
-+that any reserved registers are handled appropriately tho)
-+
-+* Darwin user-space code is PIC (2) = fPIC (so nominally 'large' but the code
-+model is not modified by the PIC setting [I think FIXME: check]).
-+
-+FIXME: ??? I'm not clear about kernel mode at present.
-+
-+The following symbol kinds always have a GOT indirection for Mach-O-pic.
-+
-+* undefined external
-+* weak [not hidden]
-+* common
-+
-+FIXME: check other rules for GOT indirections.
-+
-+### Darwin code models
-+
-+* TINY is _not_ supported
-+* SMALL supported (DEFAULT)
-+* LARGE supported
-+
-+   AFAICT, Darwin's large model is PIC (with perhaps a very limited number of
-+   modes)
-+   However large+PIC is stated to be unimplemented in the current aarch64
-+   backend so that's a TODO.
-+
-+FIXME: ??? I'm not clear about kernel mode at present.
-+
-+### Darwin arm64 TLS
-+
-+Darwin has a single TLS model (not attempting to implement in the short-
-+term).  It's closest to ELF xxxxxxx FIXME: which one?
-+
-+### Generic Darwin/Mach-O Comments for people familiar with ELF.
-+
-+Darwin
-+* does _not_ support strong symbol aliases
-+* does support weak symbol aliases
-+* supports visibility - default and hidden.
-+* Has a "for linker only" symbol visibility.
-+
-+   Such symbols are visible to the static linker (`ld64`), but not externally.
-+  These are used to support the Mach-O "subsections_by_symbol" linker mode
-+  (default for > 10years).  Any symbol that is not 'global' and does not begin
-+  with 'L' (the local symbol designation) is counted as 'linker visible'.
-+ * does _not_ support 'static' code in the user space
-+ 
-+   Everything needs to be invoked using the dynamic linker (`dyld`).  There is
-+  neither crt0.o nor a static edition of libc.
-+
-+Some versions of Darwin have used 'static' code for kernel modules.
-+FIXME: ??? what is the kernel model here.
-+
-+### Darwin Relocations and Assembler syntax
-+
-+* `Mach-O` for `Arm64` uses a reduced set of relocations c.f. the ELF set.
-+
-+   There are only 11 entries but the relocation format allows for multiple sizes
-+(1, 2, 4, 8) where that's appropriate, and for ancillary data (e.g. a scale),
-+so the actual number of permutations is larger.
-+
-+* Generally, Darwin supports relocations of the form A - B + signed const
-+
-+   A must be known (i.e. defined in the current TU).
-+
-+* `Mach-O` for `Arm64` has postfix assembler syntax.
-+
-+   Where there's an assembly language representation for the relocation type
-+   it appears after the name (e.g. `foo@PAGE` in contrast to the ELF
-+   `:got:foo`).
-+
-+#### Relocs list
-+
-+For pointers (no source representation).
-+
-+`ARM64_RELOC_UNSIGNED = 0`
-+
-+Must be followed by an `ARM64_RELOC_UNSIGNED`
-+
-+`ARM64_RELOC_SUBTRACTOR = 1`
-+
-+A B/BL instruction with 26-bit displacement.
-+(no source representation)
-+
-+`ARM64_RELOC_BRANCH26 = 2`
-+
-+PC-rel distance to page of target [adrp].
-+
-+`foo@PAGE`
-+
-+`ARM64_RELOC_PAGE21 = 3`
-+
-+Offset within page, scaled by r_length [add imm, ld/st].
-+
-+`foo@PAGEOFF`
-+
-+`ARM64_RELOC_PAGEOFF12 = 4`
-+
-+PC-rel distance to page of GOT slot [adrp].
-+
-+`foo@GOTPAGE`
-+`ARM64_RELOC_GOT_LOAD_PAGE21 = 5`
-+
-+Offset within page of GOT slot, scaled by r_length [add imm, ld/st].
-+
-+`foo@GOTPAGEOFF`
-+
-+`ARM64_RELOC_GOT_LOAD_PAGEOFF12 = 6`
-+
-+
-+For pointers to GOT slots.
-+(4 and 8 byte versions)
-+
-+`foo@GOT`
-+
-+`ARM64_RELOC_POINTER_TO_GOT = 7`
-+
-+
-+PC-rel distance to page of TLVP slot [adrp].
-+
-+`foo@TVLPPAGE`
-+
-+`ARM64_RELOC_TLVP_LOAD_PAGE21 = 8`
-+
-+Offset within page of TLVP slot, scaled by r_length [add imm, ld/st].
-+
-+`foo@TVLPPAGEOFF`
-+
-+`ARM64_RELOC_TLVP_LOAD_PAGEOFF12 = 9`
-+
-+Must be followed by `ARM64_RELOC_PAGE21` or `ARM64_RELOC_PAGEOFF12`.
-+(no source representation)
-+
-+The addend is a signed 24bit quantity (+/- 8M range).
-+
-+`ARM64_RELOC_ADDEND = 10`
-+
-+## PART 2 - GCC-12 deviations from the PCS and supporting information.
-+
-+### D.3 is not yet supported (github issue #74)
-+
-+  GCC promotes in the callee not the caller.
-+
-+### Support for nested functions
-+
-+  GCC provides nested functions which are used overtly from C but also to
-+  implement some parts of Ada and Fortran.
-+
-+  This requires assigning a register to act as the STATIC CHAIN.
-+  For GCC-12 this is X16
-+
-+  Support for nested function trampolines is provided by a heap-based table.
-+
-+### Support for __float128
-+
-+  The darwinpcs has no provision for a 128bit float type.
-+  GCC-12 supports IEEE741 128bit float values by sof-float.
-+  The ABI used for __float128 matches that for AAPCS64
-+
-+## End.
-+
 diff --git a/gcc/config/aarch64/falkor-tag-collision-avoidance.c b/gcc/config/aarch64/falkor-tag-collision-avoidance.c
 index de214e4a0f7..6b16cd4a273 100644
 --- a/gcc/config/aarch64/falkor-tag-collision-avoidance.c
@@ -4878,10 +4436,10 @@ index 00000000000..d70f2df3bf1
 +
 +const struct host_hooks host_hooks = HOST_HOOKS_INITIALIZER;
 diff --git a/gcc/config/aarch64/predicates.md b/gcc/config/aarch64/predicates.md
-index 49f02ae0381..f34bdfb3d6a 100644
+index 49f02ae0381..e2af7bfc08d 100644
 --- a/gcc/config/aarch64/predicates.md
 +++ b/gcc/config/aarch64/predicates.md
-@@ -257,6 +257,9 @@
+@@ -257,9 +257,24 @@
  (define_predicate "aarch64_prefetch_operand"
    (match_test "aarch64_address_valid_for_prefetch_p (op, false)"))
  
@@ -4891,6 +4449,21 @@ index 49f02ae0381..f34bdfb3d6a 100644
  (define_predicate "aarch64_valid_symref"
    (match_code "const, symbol_ref, label_ref")
  {
++  if (TARGET_MACHO)
++    {
++      rtx x = op;
++      rtx offset;
++      split_const (x, &x, &offset);
++      if (GET_CODE (x) == CONST)
++	x = XEXP (x, 0);
++      if (GET_CODE (x) == UNSPEC && XINT (x, 1) == UNSPEC_SALT_ADDR)
++	x = XVECEXP (x, 0, 0);
++      if (SYMBOL_REF_P (x) && INTVAL (offset) < 0)
++        return false;
++    }
+   return (aarch64_classify_symbolic_expression (op)
+ 	  != SYMBOL_FORCE_TO_MEM);
+ })
 diff --git a/gcc/config/aarch64/t-aarch64-darwin b/gcc/config/aarch64/t-aarch64-darwin
 new file mode 100644
 index 00000000000..a8bfcffad78
@@ -4948,8 +4521,22 @@ index 3a250dfb960..4d29e80dcc9 100644
  }
  
  
+diff --git a/gcc/config/darwin-c.c b/gcc/config/darwin-c.c
+index 8b3dec25476..8c9c9171dec 100644
+--- a/gcc/config/darwin-c.c
++++ b/gcc/config/darwin-c.c
+@@ -691,7 +691,8 @@ macosx_version_as_macro (void)
+   if (!version_array)
+     goto fail;
+ 
+-  if (version_array[MAJOR] < 10 || version_array[MAJOR] > 12)
++  /* System tools accept up to 99 as a major version.  */
++  if (version_array[MAJOR] < 10 || version_array[MAJOR] > 99)
+     goto fail;
+ 
+   if (version_array[MAJOR] == 10 && version_array[MINOR] < 10)
 diff --git a/gcc/config/darwin-driver.c b/gcc/config/darwin-driver.c
-index e48dd4559eb..2c8ed12cef8 100644
+index e48dd4559eb..58f49ea3f46 100644
 --- a/gcc/config/darwin-driver.c
 +++ b/gcc/config/darwin-driver.c
 @@ -143,7 +143,7 @@ darwin_find_version_from_kernel (void)
@@ -4961,7 +4548,33 @@ index e48dd4559eb..2c8ed12cef8 100644
        return NULL;
      }
  
-@@ -189,7 +189,7 @@ darwin_find_version_from_kernel (void)
+@@ -159,20 +159,13 @@ darwin_find_version_from_kernel (void)
+     goto parse_failed;
+ 
+   /* Darwin20 sees a transition to macOS 11.  In this, it seems that the
+-     mapping to macOS minor version is now shifted to the kernel minor
+-     version - 1 (at least for the initial releases).  At this stage, we
+-     don't know what macOS version will correspond to Darwin21.  */
++     mapping to macOS minor version and patch level is now always 0, 0
++     (at least for macOS 11 and 12).  */
+   if (major_vers >= 20)
+     {
+-      int minor_vers = *version_p++ - '0';
+-      if (ISDIGIT (*version_p))
+-	minor_vers = minor_vers * 10 + (*version_p++ - '0');
+-      if (*version_p++ != '.')
+-	goto parse_failed;
+-      if (minor_vers > 0)
+-	minor_vers -= 1; /* Kernel 20.3 => macOS 11.2.  */
+-      /* It's not yet clear whether patch level will be considered.  */
+-      asprintf (&new_flag, "%d.%02d.00", major_vers - 9, minor_vers);
++      /* Apple clang doesn't include the minor version or the patch level
++	 in the object file, nor does it pass it to ld  */
++      asprintf (&new_flag, "%d.00.00", major_vers - 9);
+     }
+   else if (major_vers - 4 <= 4)
+     /* On 10.4 and earlier, the old linker is used which does not
+@@ -189,7 +182,7 @@ darwin_find_version_from_kernel (void)
    return new_flag;
  
   parse_failed:
@@ -4970,7 +4583,7 @@ index e48dd4559eb..2c8ed12cef8 100644
  	   (int) osversion_len, osversion);
    return NULL;
  }
-@@ -229,7 +229,7 @@ darwin_default_min_version (void)
+@@ -229,7 +222,7 @@ darwin_default_min_version (void)
        const char *checked = validate_macosx_version_min (new_flag);
        if (checked == NULL)
  	{
@@ -4979,7 +4592,7 @@ index e48dd4559eb..2c8ed12cef8 100644
  	  return NULL;
  	}
        new_flag = xstrndup (checked, strlen (checked));
-@@ -274,14 +274,21 @@ darwin_driver_init (unsigned int *decoded_options_count,
+@@ -274,14 +267,21 @@ darwin_driver_init (unsigned int *decoded_options_count,
    bool seenX86_64 = false;
    bool seenPPC = false;
    bool seenPPC64 = false;
@@ -5001,7 +4614,7 @@ index e48dd4559eb..2c8ed12cef8 100644
  
    for (i = 1; i < *decoded_options_count; i++)
      {
-@@ -302,8 +309,14 @@ darwin_driver_init (unsigned int *decoded_options_count,
+@@ -302,8 +302,14 @@ darwin_driver_init (unsigned int *decoded_options_count,
  	    seenPPC = true;
  	  else if (!strcmp ((*decoded_options)[i].arg, "ppc64"))
  	    seenPPC64 = true;
@@ -5017,7 +4630,7 @@ index e48dd4559eb..2c8ed12cef8 100644
  		   (*decoded_options)[i].arg);
  	  /* Now we've examined it, drop the -arch arg.  */
  	  if (*decoded_options_count > i) {
-@@ -315,7 +328,7 @@ darwin_driver_init (unsigned int *decoded_options_count,
+@@ -315,7 +321,7 @@ darwin_driver_init (unsigned int *decoded_options_count,
  	  --i;
  	  --*decoded_options_count; 
  	  break;
@@ -5026,7 +4639,7 @@ index e48dd4559eb..2c8ed12cef8 100644
  	case OPT_m32:
  	  seenM32 = true;
  	  break;
-@@ -323,6 +336,7 @@ darwin_driver_init (unsigned int *decoded_options_count,
+@@ -323,6 +329,7 @@ darwin_driver_init (unsigned int *decoded_options_count,
  	case OPT_m64:
  	  seenM64 = true;
  	  break;
@@ -5034,7 +4647,7 @@ index e48dd4559eb..2c8ed12cef8 100644
  
  	case OPT_mmacosx_version_min_:
  	  seen_version_min = true;
-@@ -355,8 +369,16 @@ darwin_driver_init (unsigned int *decoded_options_count,
+@@ -355,8 +362,16 @@ darwin_driver_init (unsigned int *decoded_options_count,
  	  gcc_checking_assert ((*decoded_options)[i].arg);
  	  if (strncmp ((*decoded_options)[i].arg, "-exported_symbol", 16) == 0)
  	    noexport_p = false;
@@ -5051,7 +4664,7 @@ index e48dd4559eb..2c8ed12cef8 100644
  	default:
  	  break;
  	}
-@@ -365,53 +387,75 @@ darwin_driver_init (unsigned int *decoded_options_count,
+@@ -365,53 +380,75 @@ darwin_driver_init (unsigned int *decoded_options_count,
    /* Turn -arch xxxx into the appropriate -m32/-m64 flag.
       If the User tried to specify multiple arch flags (which is possible with
       some Darwin compilers) warn that this mode is not supported by this
@@ -5145,7 +4758,7 @@ index e48dd4559eb..2c8ed12cef8 100644
    if (appendM32 || appendM64)
      {
        ++*decoded_options_count;
-@@ -421,6 +465,7 @@ darwin_driver_init (unsigned int *decoded_options_count,
+@@ -421,6 +458,7 @@ darwin_driver_init (unsigned int *decoded_options_count,
        generate_option (appendM32 ? OPT_m32 : OPT_m64, NULL, 1, CL_DRIVER,
  		       &(*decoded_options)[*decoded_options_count - 1]);
      }
@@ -5153,7 +4766,7 @@ index e48dd4559eb..2c8ed12cef8 100644
  
    if (!seen_sysroot_p)
      {
-@@ -488,4 +533,16 @@ darwin_driver_init (unsigned int *decoded_options_count,
+@@ -488,4 +526,16 @@ darwin_driver_init (unsigned int *decoded_options_count,
        generate_option (OPT_nodefaultexport, NULL, 1, CL_DRIVER,
  		       &(*decoded_options)[*decoded_options_count - 1]);
      }
@@ -5332,7 +4945,7 @@ index 0dc26a9f252..82fa868b9a2 100644
  
  hashval_t
 diff --git a/gcc/config/darwin.h b/gcc/config/darwin.h
-index 3206b70c7c2..5478479be23 100644
+index 3206b70c7c2..22bacd42102 100644
 --- a/gcc/config/darwin.h
 +++ b/gcc/config/darwin.h
 @@ -42,6 +42,9 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
@@ -5345,7 +4958,35 @@ index 3206b70c7c2..5478479be23 100644
  
  /* Suppress g++ attempt to link in the math library automatically. */
  #define MATH_LIBRARY ""
-@@ -283,13 +286,17 @@ extern GTY(()) int darwin_ms_struct;
+@@ -141,10 +144,7 @@ extern GTY(()) int darwin_ms_struct;
+    Right now there's no mechanism to split up the "variable portion" (%*) of
+    the matched spec string, so where we have some driver specs that take 2
+    or 3 arguments, these cannot be processed here, but are deferred until the
+-   LINK_SPEC, where they are copied verbatim.
+-   We have a "safe" version of the MacOS version string, that's been sanity-
+-   checked and truncated to minor version.  If the 'tiny' (3rd) portion of the
+-   value is not significant, it's better to use this in version-compare().  */
++   LINK_SPEC, where they are copied verbatim.  */
+ 
+ #undef SUBTARGET_DRIVER_SELF_SPECS
+ #define SUBTARGET_DRIVER_SELF_SPECS					\
+@@ -218,13 +218,8 @@ extern GTY(()) int darwin_ms_struct;
+   "%{image_base*:-Xlinker -image_base -Xlinker %*} %<image_base*",	\
+   "%{init*:-Xlinker -init -Xlinker %*} %<init*",			\
+   "%{multi_module:-Xlinker -multi_module} %<multi_module",		\
+-  "%{multiply_defined*:-Xlinker -multiply_defined -Xlinker %*; \
+-     :%{shared-libgcc: \
+-       %:version-compare(< 10.5 asm_macosx_version_min= -Xlinker) \
+-       %:version-compare(< 10.5 asm_macosx_version_min= -multiply_defined) \
+-       %:version-compare(< 10.5 asm_macosx_version_min= -Xlinker) \
+-       %:version-compare(< 10.5 asm_macosx_version_min= suppress)}} \
+-     %<multiply_defined*",						\
++  "%{multiply_defined*:-Xlinker -multiply_defined -Xlinker %*} \
++     %<multiply_defined* ",						\
+   "%{multiplydefinedunused*:\
+      -Xlinker -multiply_defined_unused -Xlinker %*} \
+      %<multiplydefinedunused* ",					\
+@@ -283,13 +278,17 @@ extern GTY(()) int darwin_ms_struct;
  #define DARWIN_RDYNAMIC "%{rdynamic:%nrdynamic is not supported}"
  #endif
  
@@ -5365,31 +5006,50 @@ index 3206b70c7c2..5478479be23 100644
  
  #define DARWIN_NOPIE_SPEC \
  "%{no-pie|fno-pie|fno-PIE: \
-@@ -298,6 +305,13 @@ extern GTY(()) int darwin_ms_struct;
+@@ -298,6 +297,31 @@ extern GTY(()) int darwin_ms_struct;
  #define DARWIN_CC1_SPEC							\
    "%<dynamic %<dynamiclib %<force_cpusubtype_ALL "
  
++/* When we are using embedded runpaths DARWIN_AT_RPATH is set. */
 +#if DARWIN_AT_RPATH
-+#define DARWIN_RPATH_LINK \
++# define DARWIN_RPATH_LINK \
 +"%{!r:%{!nostdlib:%{!nodefaultrpaths:%(darwin_rpaths)}}}"
++# define DARWIN_SHARED_LIBGCC "-lgcc_s.1.1"
 +#else
-+#define DARWIN_RPATH_LINK ""
++# define DARWIN_RPATH_LINK ""
++# define DARWIN_SHARED_LIBGCC \
++"%:version-compare(!> 10.11 mmacosx-version-min= -lgcc_s.1.1) \
++ %:version-compare(>= 10.11 mmacosx-version-min= -lemutls_w) "
++#endif
++
++/* We might elect to add a path even when this compiler does not use embedded
++   run paths, so that we can use libraries from an alternate compiler that is
++   using embedded runpaths.  */
++#if DARWIN_DO_EXTRA_RPATH
++# define DARWIN_EXTRA_RPATH \
++"%{!r:%{!nostdlib:%{!nodefaultrpaths:\
++    %:version-compare(>= 10.5 mmacosx-version-min= -rpath) \
++    %:version-compare(>= 10.5 mmacosx-version-min= " DARWIN_ADD_RPATH ") \
++  }}}"
++#else
++# define DARWIN_EXTRA_RPATH ""
 +#endif
 +
  #define SUBSUBTARGET_OVERRIDE_OPTIONS					\
    do {									\
      darwin_override_options ();						\
-@@ -389,7 +403,8 @@ extern GTY(()) int darwin_ms_struct;
+@@ -389,7 +413,9 @@ extern GTY(()) int darwin_ms_struct;
      DARWIN_NOPIE_SPEC \
      DARWIN_RDYNAMIC \
      DARWIN_NOCOMPACT_UNWIND \
 -    "}}}}}}} %<pie %<no-pie %<rdynamic %<X "
++    DARWIN_EXTRA_RPATH \
 +    DARWIN_RPATH_LINK \
 +    "}}}}}}} %<pie %<no-pie %<rdynamic %<X %<rpath %<nodefaultrpaths "
  
  /* Spec that controls whether the debug linker is run automatically for
     a link step.  This needs to be done if there is a source file on the
-@@ -445,6 +460,7 @@ extern GTY(()) int darwin_ms_struct;
+@@ -445,12 +471,16 @@ extern GTY(()) int darwin_ms_struct;
                       %:replace-outfile(-lobjc libobjc-gnu.a%s); \
                      :%:replace-outfile(-lobjc -lobjc-gnu )}}\
     %{static|static-libgcc|static-libgfortran:%:replace-outfile(-lgfortran libgfortran.a%s)}\
@@ -5397,17 +5057,78 @@ index 3206b70c7c2..5478479be23 100644
     %{static|static-libgcc|static-libstdc++|static-libgfortran:%:replace-outfile(-lgomp libgomp.a%s)}\
     %{static|static-libgcc|static-libstdc++:%:replace-outfile(-lstdc++ libstdc++.a%s)}\
     %{force_cpusubtype_ALL:-arch %(darwin_arch)} \
-@@ -507,8 +523,7 @@ extern GTY(()) int darwin_ms_struct;
+    %{!force_cpusubtype_ALL:-arch %(darwin_subarch)} "\
+    LINK_SYSROOT_SPEC \
+   "%{mmacosx-version-min=*:-macosx_version_min %*} \
++   %{!multiply_defined*:%{shared-libgcc: \
++     %:version-compare(< 10.5 mmacosx-version-min= -multiply_defined) \
++     %:version-compare(< 10.5 mmacosx-version-min= suppress) }} \
+    %{sectalign*} %{sectcreate*} %{sectobjectsymbols*}  %{sectorder*} \
+    %{segaddr*} %{segcreate*} %{segprot*} "
+ 
+@@ -463,34 +493,19 @@ extern GTY(()) int darwin_ms_struct;
+    This is because,in general, we need to unwind through system libraries that
+    are linked with the shared unwinder in libunwind (or libgcc_s for 10.4/5).
+ 
+-   For -static-libgcc: < 10.6, use the unwinder in libgcc_eh (and find
+-   the emultls impl. there too).
+-
+-   For -static-libgcc: >= 10.6, the unwinder *still* comes from libSystem and
+-   we find the emutls impl from lemutls_w. In either case, the builtins etc.
+-   are linked from -lgcc.
+-
+-   When we have specified shared-libgcc or any case that might require
+-   exceptions, we pull the libgcc content (including emulated tls) from
+-   -lgcc_s.1 in GCC and the unwinder from /usr/lib/libgcc_s.1 for < 10.6 and
+-   libSystem for >= 10.6 respectively.
+-   Otherwise, we just link the emutls/builtins from convenience libs.
+-
+-   If we need exceptions, prior to 10.3.9, then we have to link the static
+-   eh lib, since there's no shared version on the system.
+-
+-   In all cases, libgcc_s.1 will be installed with the compiler, or any app
+-   built using it, so we can link the builtins and emutls shared on all.
+-
+    We have to work around that DYLD_XXXX are disabled in macOS 10.11+ which
+    means that any bootstrap trying to use a shared libgcc with a bumped SO-
+    name will fail.  This means that we do not accept shared libgcc for these
+-   versions.
++   versions, unless we have embedded run paths enabled, in which case the
++   compiler will add the appropriate path to find the library.
++
++   For -static-libgcc: < 10.6, use the unwinder in libgcc_eh (and find
++   the emultls impl. there too).
+ 
+    For -static-libgcc: >= 10.6, the unwinder *still* comes from libSystem and
+    we find the emutls impl from lemutls_w. In either case, the builtins etc.
+    are linked from -lgcc.
+->
++
+    Otherwise, we just link the shared version of gcc_s.1.1 and pick up
+    exceptions:
+      * Prior to 10.3.9, then we have to link the static eh lib, since there
+@@ -500,6 +515,10 @@ extern GTY(()) int darwin_ms_struct;
+ 
+    In all cases, libgcc_s.1.1 will be installed with the compiler, or any app
+    built using it, so we can link the builtins and emutls shared on all.
++
++   On most Darwin systems (other than Arm64) we will also install a legacy
++   support libgcc_s.1.dylib to support executables linked with libgcc_ext by
++   earlier GCC versions.
+ */
+ #undef REAL_LIBGCC_SPEC
+ #define REAL_LIBGCC_SPEC \
+@@ -507,8 +526,7 @@ extern GTY(()) int darwin_ms_struct;
      %:version-compare(!> 10.6 mmacosx-version-min= -lgcc_eh)		  \
      %:version-compare(>= 10.6 mmacosx-version-min= -lemutls_w);		  \
     shared-libgcc|fexceptions|fobjc-exceptions|fgnu-runtime:		  \
 -    %:version-compare(!> 10.11 mmacosx-version-min= -lgcc_s.1.1)	  \
 -    %:version-compare(>= 10.11 mmacosx-version-min= -lemutls_w)		  \
-+   -lgcc_s.1.1								  \
++   " DARWIN_SHARED_LIBGCC "						  \
      %:version-compare(!> 10.3.9 mmacosx-version-min= -lgcc_eh)		  \
      %:version-compare(>< 10.3.9 10.5 mmacosx-version-min= -lgcc_s.10.4)   \
      %:version-compare(>< 10.5 10.6 mmacosx-version-min= -lgcc_s.10.5);	  \
-@@ -543,7 +558,8 @@ extern GTY(()) int darwin_ms_struct;
+@@ -543,7 +561,8 @@ extern GTY(()) int darwin_ms_struct;
    { "darwin_crt2", DARWIN_CRT2_SPEC },					\
    { "darwin_crt3", DARWIN_CRT3_SPEC },					\
    { "darwin_dylib1", DARWIN_DYLIB1_SPEC },				\
@@ -5417,7 +5138,7 @@ index 3206b70c7c2..5478479be23 100644
  
  #define DARWIN_CRT1_SPEC						\
    "%:version-compare(!> 10.5 mmacosx-version-min= -lcrt1.o)		\
-@@ -569,6 +585,17 @@ extern GTY(()) int darwin_ms_struct;
+@@ -569,6 +588,17 @@ extern GTY(()) int darwin_ms_struct;
  "%{!static:%:version-compare(< 10.6 mmacosx-version-min= -lbundle1.o)	\
  	   %{fgnu-tm: -lcrttms.o}}"
  
@@ -5435,7 +5156,7 @@ index 3206b70c7c2..5478479be23 100644
  #ifdef HAVE_AS_MMACOSX_VERSION_MIN_OPTION
  /* Emit macosx version (but only major).  */
  #define ASM_MMACOSX_VERSION_MIN_SPEC \
-@@ -867,13 +894,12 @@ int darwin_label_is_anonymous_local_objc_name (const char *name);
+@@ -867,13 +897,12 @@ int darwin_label_is_anonymous_local_objc_name (const char *name);
    if ((LOG) != 0)			\
      fprintf (FILE, "\t%s\t%d\n", ALIGN_ASM_OP, (LOG))
  
@@ -5981,7 +5702,7 @@ index 0421dc7adb3..67bd00e68ef 100644
    toc_section
      = get_unnamed_section (0, rs6000_xcoff_output_toc_section_asm_op, NULL);
 diff --git a/gcc/configure b/gcc/configure
-index 7218b0c331a..4a724cdc7ee 100755
+index 7218b0c331a..8e5fd2684c1 100755
 --- a/gcc/configure
 +++ b/gcc/configure
 @@ -634,6 +634,7 @@ LIBOBJS
@@ -6001,15 +5722,16 @@ index 7218b0c331a..4a724cdc7ee 100755
  enable_fast_install
  objdir
  OTOOL64
-@@ -996,6 +999,7 @@ enable_static
+@@ -996,6 +999,8 @@ enable_static
  with_pic
  enable_fast_install
  enable_libtool_lock
 +enable_darwin_at_rpath
++with_darwin_extra_rpath
  enable_ld
  enable_gold
  with_plugin_ld
-@@ -1026,6 +1030,7 @@ with_linker_hash_style
+@@ -1026,6 +1031,7 @@ with_linker_hash_style
  with_diagnostics_color
  with_diagnostics_urls
  enable_default_pie
@@ -6017,7 +5739,7 @@ index 7218b0c331a..4a724cdc7ee 100755
  enable_cet
  enable_s390_excess_float_precision
  '
-@@ -1729,6 +1734,8 @@ Optional Features:
+@@ -1729,6 +1735,8 @@ Optional Features:
    --enable-fast-install[=PKGS]
                            optimize for fast installation [default=yes]
    --disable-libtool-lock  avoid locking (might break parallel builds)
@@ -6026,7 +5748,7 @@ index 7218b0c331a..4a724cdc7ee 100755
    --enable-ld[=ARG]       build ld [ARG={default,yes,no}]
    --enable-gold[=ARG]     build gold [ARG={default,yes,no}]
    --enable-gnu-indirect-function
-@@ -1786,6 +1793,8 @@ Optional Features:
+@@ -1786,6 +1794,8 @@ Optional Features:
    --disable-libquadmath-support
                            disable libquadmath support for Fortran
    --enable-default-pie    enable Position Independent Executable as default
@@ -6035,7 +5757,17 @@ index 7218b0c331a..4a724cdc7ee 100755
    --enable-cet            enable Intel CET in host libraries [default=auto]
    --enable-s390-excess-float-precision
                            on s390 targets, evaluate float with double
-@@ -17617,6 +17626,47 @@ if test -z "$aix_libpath"; then aix_libpath="/usr/lib:/lib"; fi
+@@ -1846,6 +1856,9 @@ Optional Packages:
+   --with-pic              try to use only PIC/non-PIC objects [default=use
+                           both]
+   --with-gnu-ld           assume the C compiler uses GNU ld [default=no]
++  --with-darwin-extra-rpath=[ARG]
++                          Specify a runpath directory, additional to those
++                          provided by the compiler
+   --with-plugin-ld=[ARG]  specify the plugin linker
+   --with-glibc-version=M.N
+                           assume GCC used with glibc version M.N or later
+@@ -17617,6 +17630,47 @@ if test -z "$aix_libpath"; then aix_libpath="/usr/lib:/lib"; fi
      darwin* | rhapsody*)
  
  
@@ -6068,7 +5800,7 @@ index 7218b0c331a..4a724cdc7ee 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -6083,7 +5815,7 @@ index 7218b0c331a..4a724cdc7ee 100755
    archive_cmds_need_lc=no
    hardcode_direct=no
    hardcode_automatic=yes
-@@ -17634,10 +17684,19 @@ if test -z "$aix_libpath"; then aix_libpath="/usr/lib:/lib"; fi
+@@ -17634,10 +17688,19 @@ if test -z "$aix_libpath"; then aix_libpath="/usr/lib:/lib"; fi
    esac
    if test "$_lt_dar_can_shared" = "yes"; then
      output_verbose_link_cmd=func_echo_all
@@ -6107,25 +5839,25 @@ index 7218b0c331a..4a724cdc7ee 100755
  
    else
    ld_shlibs=no
-@@ -19423,7 +19482,7 @@ else
+@@ -19423,7 +19486,7 @@ else
    lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
    lt_status=$lt_dlunknown
    cat > conftest.$ac_ext <<_LT_EOF
 -#line 19426 "configure"
-+#line 19485 "configure"
++#line 19489 "configure"
  #include "confdefs.h"
  
  #if HAVE_DLFCN_H
-@@ -19529,7 +19588,7 @@ else
+@@ -19529,7 +19592,7 @@ else
    lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
    lt_status=$lt_dlunknown
    cat > conftest.$ac_ext <<_LT_EOF
 -#line 19532 "configure"
-+#line 19591 "configure"
++#line 19595 "configure"
  #include "confdefs.h"
  
  #if HAVE_DLFCN_H
-@@ -20405,6 +20464,47 @@ if test -z "$aix_libpath"; then aix_libpath="/usr/lib:/lib"; fi
+@@ -20405,6 +20468,47 @@ if test -z "$aix_libpath"; then aix_libpath="/usr/lib:/lib"; fi
        darwin* | rhapsody*)
  
  
@@ -6158,7 +5890,7 @@ index 7218b0c331a..4a724cdc7ee 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -6173,7 +5905,7 @@ index 7218b0c331a..4a724cdc7ee 100755
    archive_cmds_need_lc_CXX=no
    hardcode_direct_CXX=no
    hardcode_automatic_CXX=yes
-@@ -20422,12 +20522,25 @@ if test -z "$aix_libpath"; then aix_libpath="/usr/lib:/lib"; fi
+@@ -20422,12 +20526,25 @@ if test -z "$aix_libpath"; then aix_libpath="/usr/lib:/lib"; fi
    esac
    if test "$_lt_dar_can_shared" = "yes"; then
      output_verbose_link_cmd=func_echo_all
@@ -6204,7 +5936,7 @@ index 7218b0c331a..4a724cdc7ee 100755
        archive_expsym_cmds_CXX="sed 's,^,_,' < \$export_symbols > \$output_objdir/\${libname}-symbols.expsym~\$CC -r -keep_private_externs -nostdlib -o \${lib}-master.o \$libobjs~\$CC -dynamiclib \$allow_undefined_flag -o \$lib \${lib}-master.o \$deplibs \$compiler_flags -install_name \$rpath/\$soname \$verstring${_lt_dar_export_syms}${_lt_dsymutil}"
      fi
  
-@@ -22778,6 +22891,15 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
+@@ -22778,6 +22895,35 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
  
  
  
@@ -6216,11 +5948,31 @@ index 7218b0c331a..4a724cdc7ee 100755
 +  ENABLE_DARWIN_AT_RPATH_FALSE=
 +fi
 +
++DARWIN_DO_EXTRA_RPATH=0
++
++# Check whether --with-darwin-extra-rpath was given.
++if test "${with_darwin_extra_rpath+set}" = set; then :
++  withval=$with_darwin_extra_rpath; if test x"$withval" != x; then
++   DARWIN_ADD_RPATH="$withval"
++   DARWIN_DO_EXTRA_RPATH=1
++ fi
++fi
++
++
++cat >>confdefs.h <<_ACEOF
++#define DARWIN_DO_EXTRA_RPATH $DARWIN_DO_EXTRA_RPATH
++_ACEOF
++
++
++cat >>confdefs.h <<_ACEOF
++#define DARWIN_ADD_RPATH "$DARWIN_ADD_RPATH"
++_ACEOF
++
 +
  # Identify the assembler which will work hand-in-glove with the newly
  # built GCC, so that we can examine its features.  This is the assembler
  # which will be driven by the driver program.
-@@ -30675,6 +30797,7 @@ if test x"$ld64_flag" = x"yes"; then
+@@ -30675,6 +30821,7 @@ if test x"$ld64_flag" = x"yes"; then
  
    # Set defaults for possibly untestable items.
    gcc_cv_ld64_export_dynamic=0
@@ -6228,7 +5980,7 @@ index 7218b0c331a..4a724cdc7ee 100755
  
    if test "$build" = "$host"; then
      darwin_try_test=1
-@@ -30698,9 +30821,12 @@ $as_echo_n "checking ld64 specified version... " >&6; }
+@@ -30698,9 +30845,12 @@ $as_echo_n "checking ld64 specified version... " >&6; }
      gcc_cv_ld64_major=`echo "$gcc_cv_ld64_version" | sed -e 's/\..*//'`
      { $as_echo "$as_me:${as_lineno-$LINENO}: result: $gcc_cv_ld64_major" >&5
  $as_echo "$gcc_cv_ld64_major" >&6; }
@@ -6242,7 +5994,7 @@ index 7218b0c331a..4a724cdc7ee 100755
    elif test -x "$gcc_cv_ld" -a "$darwin_try_test" -eq 1; then
      # If the version was not specified, try to find it.
      { $as_echo "$as_me:${as_lineno-$LINENO}: checking linker version" >&5
-@@ -30719,6 +30845,15 @@ $as_echo_n "checking linker for -export_dynamic support... " >&6; }
+@@ -30719,6 +30869,15 @@ $as_echo_n "checking linker for -export_dynamic support... " >&6; }
      fi
      { $as_echo "$as_me:${as_lineno-$LINENO}: result: $gcc_cv_ld64_export_dynamic" >&5
  $as_echo "$gcc_cv_ld64_export_dynamic" >&6; }
@@ -6258,7 +6010,7 @@ index 7218b0c331a..4a724cdc7ee 100755
    fi
  
    if test x"${gcc_cv_ld64_version}" != x; then
-@@ -30734,6 +30869,12 @@ cat >>confdefs.h <<_ACEOF
+@@ -30734,6 +30893,12 @@ cat >>confdefs.h <<_ACEOF
  #define LD64_HAS_EXPORT_DYNAMIC $gcc_cv_ld64_export_dynamic
  _ACEOF
  
@@ -6271,7 +6023,7 @@ index 7218b0c331a..4a724cdc7ee 100755
  fi
  
  if test x"$dsymutil_flag" = x"yes"; then
-@@ -32174,14 +32315,18 @@ fi
+@@ -32174,14 +32339,18 @@ fi
       # Check that we can build shared objects with -fPIC -shared
       saved_LDFLAGS="$LDFLAGS"
       saved_CFLAGS="$CFLAGS"
@@ -6290,7 +6042,7 @@ index 7218b0c331a..4a724cdc7ee 100755
  	 LDFLAGS="$LDFLAGS -fPIC -shared"
         ;;
       esac
-@@ -32213,6 +32358,7 @@ rm -f core conftest.err conftest.$ac_objext \
+@@ -32213,6 +32382,7 @@ rm -f core conftest.err conftest.$ac_objext \
       fi
       LDFLAGS="$saved_LDFLAGS"
       CFLAGS="$saved_CFLAGS"
@@ -6298,7 +6050,7 @@ index 7218b0c331a..4a724cdc7ee 100755
  
       # If plugin support had been requested but not available, fail.
       if test x"$enable_plugin" = x"no" ; then
-@@ -32374,6 +32520,22 @@ $as_echo "#define ENABLE_DEFAULT_PIE 1" >>confdefs.h
+@@ -32374,6 +32544,22 @@ $as_echo "#define ENABLE_DEFAULT_PIE 1" >>confdefs.h
  fi
  
  
@@ -6321,7 +6073,7 @@ index 7218b0c331a..4a724cdc7ee 100755
  # Check if -fno-PIE works.
  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -fno-PIE option" >&5
  $as_echo_n "checking for -fno-PIE option... " >&6; }
-@@ -32882,6 +33044,10 @@ LTLIBOBJS=$ac_ltlibobjs
+@@ -32882,6 +33068,10 @@ LTLIBOBJS=$ac_ltlibobjs
  
  
  
@@ -6333,19 +6085,32 @@ index 7218b0c331a..4a724cdc7ee 100755
  : "${CONFIG_STATUS=./config.status}"
  ac_write_fail=0
 diff --git a/gcc/configure.ac b/gcc/configure.ac
-index 49f043ed29b..97051d443d5 100644
+index 49f043ed29b..1bc615f973a 100644
 --- a/gcc/configure.ac
 +++ b/gcc/configure.ac
-@@ -2521,6 +2521,8 @@ AC_PROG_LIBTOOL
+@@ -2521,6 +2521,21 @@ AC_PROG_LIBTOOL
  AC_SUBST(objdir)
  AC_SUBST(enable_fast_install)
  
 +AM_CONDITIONAL([ENABLE_DARWIN_AT_RPATH], [test x$enable_darwin_at_rpath = xyes])
++DARWIN_DO_EXTRA_RPATH=0
++AC_ARG_WITH(darwin-extra-rpath,
++[AS_HELP_STRING(
++  [[--with-darwin-extra-rpath=[ARG]]],
++   [Specify a runpath directory, additional to those provided by the compiler])],
++[if test x"$withval" != x; then
++   DARWIN_ADD_RPATH="$withval"
++   DARWIN_DO_EXTRA_RPATH=1
++ fi])
++AC_DEFINE_UNQUOTED(DARWIN_DO_EXTRA_RPATH, $DARWIN_DO_EXTRA_RPATH,
++  [Should add an extra runpath directory])
++AC_DEFINE_UNQUOTED(DARWIN_ADD_RPATH, "$DARWIN_ADD_RPATH",
++  [Specify a runpath directory, additional to those provided by the compiler])
 +
  # Identify the assembler which will work hand-in-glove with the newly
  # built GCC, so that we can examine its features.  This is the assembler
  # which will be driven by the driver program.
-@@ -6329,6 +6331,7 @@ if test x"$ld64_flag" = x"yes"; then
+@@ -6329,6 +6344,7 @@ if test x"$ld64_flag" = x"yes"; then
  
    # Set defaults for possibly untestable items.
    gcc_cv_ld64_export_dynamic=0
@@ -6353,7 +6118,7 @@ index 49f043ed29b..97051d443d5 100644
  
    if test "$build" = "$host"; then
      darwin_try_test=1
-@@ -6350,9 +6353,12 @@ if test x"$ld64_flag" = x"yes"; then
+@@ -6350,9 +6366,12 @@ if test x"$ld64_flag" = x"yes"; then
      AC_MSG_CHECKING(ld64 specified version)
      gcc_cv_ld64_major=`echo "$gcc_cv_ld64_version" | sed -e 's/\..*//'`
      AC_MSG_RESULT($gcc_cv_ld64_major)
@@ -6367,7 +6132,7 @@ index 49f043ed29b..97051d443d5 100644
    elif test -x "$gcc_cv_ld" -a "$darwin_try_test" -eq 1; then
      # If the version was not specified, try to find it.
      AC_MSG_CHECKING(linker version)
-@@ -6367,6 +6373,13 @@ if test x"$ld64_flag" = x"yes"; then
+@@ -6367,6 +6386,13 @@ if test x"$ld64_flag" = x"yes"; then
        gcc_cv_ld64_export_dynamic=0
      fi
      AC_MSG_RESULT($gcc_cv_ld64_export_dynamic)
@@ -6381,7 +6146,7 @@ index 49f043ed29b..97051d443d5 100644
    fi
  
    if test x"${gcc_cv_ld64_version}" != x; then
-@@ -6376,6 +6389,9 @@ if test x"$ld64_flag" = x"yes"; then
+@@ -6376,6 +6402,9 @@ if test x"$ld64_flag" = x"yes"; then
  
    AC_DEFINE_UNQUOTED(LD64_HAS_EXPORT_DYNAMIC, $gcc_cv_ld64_export_dynamic,
    [Define to 1 if ld64 supports '-export_dynamic'.])
@@ -6391,7 +6156,7 @@ index 49f043ed29b..97051d443d5 100644
  fi
  
  if test x"$dsymutil_flag" = x"yes"; then
-@@ -7618,6 +7634,19 @@ if test x$enable_default_pie = xyes ; then
+@@ -7618,6 +7647,19 @@ if test x$enable_default_pie = xyes ; then
  fi
  AC_SUBST([enable_default_pie])
  
@@ -7253,7 +7018,7 @@ index 66cfa973808..189a46cd875 100644
  				 struct locate_and_pad_arg_data *);
  extern void generate_setjmp_warnings (void);
 diff --git a/gcc/gcc.c b/gcc/gcc.c
-index 0af888c7d78..998c65c19d5 100644
+index 0af888c7d78..bc18ce7a2a3 100644
 --- a/gcc/gcc.c
 +++ b/gcc/gcc.c
 @@ -565,6 +565,7 @@ or with constant text in a single argument.
@@ -7290,10 +7055,41 @@ index 0af888c7d78..998c65c19d5 100644
        validated = true;
        break;
  
-@@ -6032,6 +6039,19 @@ do_spec_1 (const char *spec, int inswitch, const char *soft_matched_part)
- 	    }
- 	    break;
+@@ -5784,6 +5791,7 @@ struct spec_path_info {
+   size_t append_len;
+   bool omit_relative;
+   bool separate_options;
++  bool realpaths;
+ };
  
+ static void *
+@@ -5793,6 +5801,16 @@ spec_path (char *path, void *data)
+   size_t len = 0;
+   char save = 0;
+ 
++  /* The path must exist; we want to resolve it to the realpath so that this
++     can be embedded as a runpath.  */
++  if (info->realpaths)
++     path = lrealpath (path);
++
++  /* However, if we failed to resolve it - perhaps because there was a bogus
++     -B option on the command line, then punt on this entry.  */
++  if (!path)
++    return NULL;
++
+   if (info->omit_relative && !IS_ABSOLUTE_PATH (path))
+     return NULL;
+ 
+@@ -6027,6 +6045,22 @@ do_spec_1 (const char *spec, int inswitch, const char *soft_matched_part)
+ 	      info.omit_relative = false;
+ #endif
+ 	      info.separate_options = false;
++	      info.realpaths = false;
++
++	      for_each_path (&startfile_prefixes, true, 0, spec_path, &info);
++	    }
++	    break;
++
 +	  case 'P':
 +	    {
 +	      struct spec_path_info info;
@@ -7302,14 +7098,19 @@ index 0af888c7d78..998c65c19d5 100644
 +	      info.append_len = 0;
 +	      info.omit_relative = false;
 +	      info.separate_options = true;
-+
-+	      for_each_path (&startfile_prefixes, true, 0, spec_path, &info);
-+	    }
-+	    break;
-+
- 	  case 'e':
- 	    /* %efoo means report an error with `foo' as error message
- 	       and don't execute any more commands for this file.  */
++	      /* We want to embed the actual paths that have the libraries.  */
++	      info.realpaths = true;
+ 
+ 	      for_each_path (&startfile_prefixes, true, 0, spec_path, &info);
+ 	    }
+@@ -6353,6 +6387,7 @@ do_spec_1 (const char *spec, int inswitch, const char *soft_matched_part)
+ 	      info.append_len = strlen (info.append);
+ 	      info.omit_relative = false;
+ 	      info.separate_options = true;
++	      info.realpaths = false;
+ 
+ 	      for_each_path (&include_prefixes, false, info.append_len,
+ 			     spec_path, &info);
 diff --git a/gcc/gengtype-state.c b/gcc/gengtype-state.c
 index 891f2e18a61..fb99729bc0e 100644
 --- a/gcc/gengtype-state.c
@@ -13805,7 +13606,7 @@ index 80d25653dc7..da4579d5906 100644
  	fenv.c fence.c flag.c
  
 diff --git a/libatomic/configure b/libatomic/configure
-index 5867e69ac14..85d45d2a774 100755
+index 5867e69ac14..9db63ed7c75 100755
 --- a/libatomic/configure
 +++ b/libatomic/configure
 @@ -658,6 +658,8 @@ OPT_LDFLAGS
@@ -13867,7 +13668,7 @@ index 5867e69ac14..85d45d2a774 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -13997,8 +13798,21 @@ index 38f3e5673e2..300e5096f79 100644
  	lappend ALWAYS_CFLAGS "additional_flags=-shared-libgcc"
      }
  
+diff --git a/libbacktrace/Makefile.in b/libbacktrace/Makefile.in
+index 2ba8dfa8428..2f5472a8b7b 100644
+--- a/libbacktrace/Makefile.in
++++ b/libbacktrace/Makefile.in
+@@ -15,7 +15,7 @@
+ @SET_MAKE@
+ 
+ # Makefile.am -- Backtrace Makefile.
+-# Copyright (C) 2012-2021 Free Software Foundation, Inc.
++# Copyright (C) 2012-2022 Free Software Foundation, Inc.
+ 
+ # Redistribution and use in source and binary forms, with or without
+ # modification, are permitted provided that the following conditions are
 diff --git a/libbacktrace/configure b/libbacktrace/configure
-index 9b66bf5563a..4b934e33126 100755
+index 9b66bf5563a..533c35c418b 100755
 --- a/libbacktrace/configure
 +++ b/libbacktrace/configure
 @@ -675,6 +675,8 @@ PIC_FLAG
@@ -14060,7 +13874,7 @@ index 9b66bf5563a..4b934e33126 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -14236,7 +14050,7 @@ index 07fa9d94c83..27379bb6d8a 100644
  		names.cc names.hh $(shared_source) \
  		$(marshall_c_source) $(marshall_cxx_source)
 diff --git a/libcc1/configure b/libcc1/configure
-index 021ec265526..261fe0049ce 100755
+index 021ec265526..4031857fdf6 100755
 --- a/libcc1/configure
 +++ b/libcc1/configure
 @@ -646,6 +646,8 @@ gcc_version
@@ -14298,7 +14112,7 @@ index 021ec265526..261fe0049ce 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -14388,7 +14202,7 @@ index 021ec265526..261fe0049ce 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -14603,7 +14417,7 @@ index 745bdd80777..11ff229e561 100644
  AM_CPPFLAGS = -I. -I$(top_srcdir)/include -Iinclude -I$(top_srcdir)/src
  AM_CCASFLAGS = $(AM_CPPFLAGS)
 diff --git a/libffi/configure b/libffi/configure
-index 8d52ec4f495..962f9228cb3 100755
+index 8d52ec4f495..8f78af7287a 100755
 --- a/libffi/configure
 +++ b/libffi/configure
 @@ -664,6 +664,8 @@ TESTSUBDIR_TRUE
@@ -14665,7 +14479,7 @@ index 8d52ec4f495..962f9228cb3 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -14755,7 +14569,7 @@ index 8d52ec4f495..962f9228cb3 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -14866,7 +14680,7 @@ index 0bf4af410d3..b10afba5602 100644
  # Test for 64-bit build.
  AC_CHECK_SIZEOF([size_t])
 diff --git a/libgcc/config.host b/libgcc/config.host
-index f2dc7e266f4..c7388c93c98 100644
+index f2dc7e266f4..771a42cfb89 100644
 --- a/libgcc/config.host
 +++ b/libgcc/config.host
 @@ -82,7 +82,7 @@ m32c*-*-*)
@@ -14889,21 +14703,21 @@ index f2dc7e266f4..c7388c93c98 100644
 +  # Sadly, this has to be kept in line with the rules in libtool.m4.
 +  # This make fragment will override the setting in t-slibgcc-darwin so it
 +  # must appear after it.
-+  if test "x$enable_darwin_at_rpath" = "xyes"; then
-+    tmake_file="$tmake_file t-darwin-rpath "
-+  elif test "x$enable_darwin_at_rpath" = "x"; then
++  if test "x$enable_darwin_at_rpath" = "x"; then
 +    echo "enable_darwin_at_rpath is unset" 1>&2
 +    case ${host} in
 +      *-darwin[45678]*) ;;
 +      *-darwin9* | *-darwin1[01234]*) ;; # We might default these on later.
 +      *-darwin*)
 +        echo "but is needed after macOS 10.11 (setting it on)" 1>&2
-+        tmake_file="$tmake_file t-darwin-rpath "
 +        enable_darwin_at_rpath=yes
 +        ;;
 +    esac
 +  else
 +    echo "enable_darwin_at_rpath is '$enable_darwin_at_rpath'" 1>&2
++  fi
++  if test "x$enable_darwin_at_rpath" = "xyes"; then
++    tmake_file="$tmake_file t-darwin-rpath "
 +  fi
 +  case ${host} in
 +    *-*-darwin2* | *-*-darwin1[89]* | aarch64*-*-darwin*)
@@ -16285,7 +16099,7 @@ index 00000000000..0746f42938a
 +  __builtin_aarch64_set_fpcr(fpcr);
 +}
 diff --git a/libgfortran/configure b/libgfortran/configure
-index f3634389cf8..dcfb58f3c50 100755
+index f3634389cf8..b438bc979d3 100755
 --- a/libgfortran/configure
 +++ b/libgfortran/configure
 @@ -655,9 +655,12 @@ extra_ldflags_libgfortran
@@ -16360,7 +16174,7 @@ index f3634389cf8..dcfb58f3c50 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -16613,7 +16427,7 @@ index f3634389cf8..dcfb58f3c50 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -16945,7 +16759,7 @@ index eb868b36704..24b88eb8cee 100644
  libgomp_la_DEPENDENCIES = $(libgomp_version_dep)
  libgomp_la_LINK = $(LINK) $(libgomp_la_LDFLAGS)
 diff --git a/libgomp/configure b/libgomp/configure
-index 718a76b4a40..f1cc0f5e577 100755
+index 718a76b4a40..91c162194d5 100755
 --- a/libgomp/configure
 +++ b/libgomp/configure
 @@ -692,6 +692,8 @@ FC
@@ -17007,7 +16821,7 @@ index 718a76b4a40..f1cc0f5e577 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -17112,7 +16926,7 @@ index 718a76b4a40..f1cc0f5e577 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -17420,7 +17234,7 @@ index 58d7b335782..79251fd6737 100644
  /* GNU_PROPERTY_AARCH64_* macros from elf.h for use in asm code.  */
  #define FEATURE_1_AND 0xc0000000
 diff --git a/libitm/configure b/libitm/configure
-index b8f1e2360d0..232f3beef31 100755
+index b8f1e2360d0..757b7aa2705 100755
 --- a/libitm/configure
 +++ b/libitm/configure
 @@ -660,6 +660,8 @@ libtool_VERSION
@@ -17482,7 +17296,7 @@ index b8f1e2360d0..232f3beef31 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -17572,7 +17386,7 @@ index b8f1e2360d0..232f3beef31 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -17760,7 +17574,7 @@ index 792f34269b0..c7311a28efa 100644
  		$(LTLDFLAGS)
  
 diff --git a/libobjc/configure b/libobjc/configure
-index 5d1b424a66d..57d542e05a9 100755
+index 5d1b424a66d..616ed94c8e3 100755
 --- a/libobjc/configure
 +++ b/libobjc/configure
 @@ -636,6 +636,8 @@ OBJC_BOEHM_GC_LIBS
@@ -17854,7 +17668,7 @@ index 5d1b424a66d..57d542e05a9 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -17975,7 +17789,7 @@ index c1104db85f0..83a00757e23 100644
  # Headers
  # -------
 diff --git a/liboffloadmic/configure b/liboffloadmic/configure
-index dfa8287fd75..ca65131157e 100644
+index dfa8287fd75..84447cbb7eb 100644
 --- a/liboffloadmic/configure
 +++ b/liboffloadmic/configure
 @@ -639,6 +639,8 @@ link_offloadmic_host
@@ -18077,7 +17891,7 @@ index dfa8287fd75..ca65131157e 100644
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -18167,7 +17981,7 @@ index dfa8287fd75..ca65131157e 100644
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -18312,7 +18126,7 @@ index 9fa1d1216c1..1bb91402f66 100644
  m4_include([../../ltoptions.m4])
  m4_include([../../ltsugar.m4])
 diff --git a/liboffloadmic/plugin/configure b/liboffloadmic/plugin/configure
-index 0b21d7d4eed..0407380a70e 100644
+index 0b21d7d4eed..a9416401a65 100644
 --- a/liboffloadmic/plugin/configure
 +++ b/liboffloadmic/plugin/configure
 @@ -635,6 +635,8 @@ LIBOBJS
@@ -18414,7 +18228,7 @@ index 0b21d7d4eed..0407380a70e 100644
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -18504,7 +18318,7 @@ index 0b21d7d4eed..0407380a70e 100644
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -18617,7 +18431,7 @@ index cbcd0130d05..3329b03638d 100644
  # library search directory using LD_LIBRARY_PATH
  hardcode_into_libs=no
 diff --git a/libphobos/configure b/libphobos/configure
-index b1c8ecb5673..f759225f74c 100755
+index b1c8ecb5673..5c59bcdcda3 100755
 --- a/libphobos/configure
 +++ b/libphobos/configure
 @@ -707,6 +707,8 @@ get_gcc_base_ver
@@ -18679,7 +18493,7 @@ index b1c8ecb5673..f759225f74c 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -18769,7 +18583,7 @@ index b1c8ecb5673..f759225f74c 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -19041,7 +18855,7 @@ index 8c011212258..600cdcf1319 100644
  @BUILD_LIBQUADMATH_TRUE@libquadmath_la_DEPENDENCIES = $(version_dep) $(libquadmath_la_LIBADD)
  @BUILD_LIBQUADMATH_TRUE@nodist_libsubinclude_HEADERS = quadmath.h quadmath_weak.h
 diff --git a/libquadmath/configure b/libquadmath/configure
-index 31918507f62..8d49ededd3b 100755
+index 31918507f62..d171c5736de 100755
 --- a/libquadmath/configure
 +++ b/libquadmath/configure
 @@ -644,11 +644,14 @@ LIBQUAD_USE_SYMVER_GNU_FALSE
@@ -19109,7 +18923,7 @@ index 31918507f62..8d49ededd3b 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -19405,7 +19219,7 @@ index 25c7fd7b759..b6cb9ff9e42 100644
  # Work around what appears to be a GNU make bug handling MAKEFLAGS
  # values defined in terms of make variables, as is the case for CC and
 diff --git a/libsanitizer/configure b/libsanitizer/configure
-index 1d9ae59be67..121aceb80b0 100755
+index 1d9ae59be67..e7e173b9cb7 100755
 --- a/libsanitizer/configure
 +++ b/libsanitizer/configure
 @@ -665,6 +665,8 @@ LSAN_SUPPORTED_FALSE
@@ -19467,7 +19281,7 @@ index 1d9ae59be67..121aceb80b0 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -19557,7 +19371,7 @@ index 1d9ae59be67..121aceb80b0 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -19843,7 +19657,7 @@ index bc8a0dc2b28..073227093c2 100644
  libssp_nonshared_la_SOURCES = \
  	ssp-local.c
 diff --git a/libssp/configure b/libssp/configure
-index 10ba209bde8..c2fa4fc0cf5 100755
+index 10ba209bde8..5d62fef54a1 100755
 --- a/libssp/configure
 +++ b/libssp/configure
 @@ -636,6 +636,8 @@ LIBOBJS
@@ -19914,7 +19728,7 @@ index 10ba209bde8..c2fa4fc0cf5 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -20012,7 +19826,7 @@ index f30f81c54f6..90778e2355d 100644
  # Also toolexecdir, though it's only used in toolexeclibdir
  case ${version_specific_libs} in
 diff --git a/libstdc++-v3/configure b/libstdc++-v3/configure
-index 3120d5855f6..dd8acdcc702 100755
+index 3120d5855f6..a04df8627ba 100755
 --- a/libstdc++-v3/configure
 +++ b/libstdc++-v3/configure
 @@ -776,6 +776,8 @@ GLIBCXX_HOSTED_TRUE
@@ -20074,7 +19888,7 @@ index 3120d5855f6..dd8acdcc702 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -20164,7 +19978,7 @@ index 3120d5855f6..dd8acdcc702 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -20311,6 +20125,55 @@ index fb256bb0287..1b4b54ac687 100644
  
  if test "$enable_vtable_verify" = yes; then
    predep_objects_CXX="${predep_objects_CXX} ${glibcxx_builddir}/../libgcc/vtv_start.o"
+diff --git a/libstdc++-v3/include/experimental/bits/fs_path.h b/libstdc++-v3/include/experimental/bits/fs_path.h
+index 1cc1b3bf686..aa62ef38aa0 100644
+--- a/libstdc++-v3/include/experimental/bits/fs_path.h
++++ b/libstdc++-v3/include/experimental/bits/fs_path.h
+@@ -140,10 +140,10 @@ namespace __detail
+     inline _Source
+     _S_range_begin(_Source __begin) { return __begin; }
+ 
+-  struct __null_terminated { };
++  struct __nul_terminated { };
+ 
+   template<typename _Source>
+-    inline __null_terminated
++    inline __nul_terminated
+     _S_range_end(_Source) { return {}; }
+ 
+   template<typename _CharT, typename _Traits, typename _Alloc>
+@@ -473,11 +473,11 @@ namespace __detail
+       struct _Cvt;
+ 
+     static string_type
+-    _S_convert(value_type* __src, __detail::__null_terminated)
++    _S_convert(value_type* __src, __detail::__nul_terminated)
+     { return string_type(__src); }
+ 
+     static string_type
+-    _S_convert(const value_type* __src, __detail::__null_terminated)
++    _S_convert(const value_type* __src, __detail::__nul_terminated)
+     { return string_type(__src); }
+ 
+     template<typename _Iter>
+@@ -491,7 +491,7 @@ namespace __detail
+ 
+     template<typename _InputIterator>
+       static string_type
+-      _S_convert(_InputIterator __src, __detail::__null_terminated)
++      _S_convert(_InputIterator __src, __detail::__nul_terminated)
+       {
+ 	auto __s = _S_string_from_iter(__src);
+ 	return _S_convert(__s.c_str(), __s.c_str() + __s.size());
+@@ -518,7 +518,7 @@ namespace __detail
+ 
+     template<typename _InputIterator>
+       static string_type
+-      _S_convert_loc(_InputIterator __src, __detail::__null_terminated,
++      _S_convert_loc(_InputIterator __src, __detail::__nul_terminated,
+ 		     const std::locale& __loc)
+       {
+ 	const std::string __s = _S_string_from_iter(__src);
 diff --git a/libstdc++-v3/src/Makefile.am b/libstdc++-v3/src/Makefile.am
 index 16f4cc6eff4..52b4e2dcb0e 100644
 --- a/libstdc++-v3/src/Makefile.am
@@ -20345,7 +20208,7 @@ index 4df5c829a7f..a82d507057c 100644
  libstdc___la_LINK = $(CXXLINK) $(libstdc___la_LDFLAGS) $(lt_host_flags)
  @GLIBCXX_LDBL_ALT128_COMPAT_FALSE@@GLIBCXX_LDBL_COMPAT_TRUE@LTCXXCOMPILE64 = $(LTCXXCOMPILE)
 diff --git a/libtool.m4 b/libtool.m4
-index 17f8e5f3074..a4daa450f45 100644
+index 17f8e5f3074..5452de03793 100644
 --- a/libtool.m4
 +++ b/libtool.m4
 @@ -1039,6 +1039,45 @@ _LT_EOF
@@ -20381,7 +20244,7 @@ index 17f8e5f3074..a4daa450f45 100644
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[[56789]]*|UNSET,darwin2*|10.1[[123456789]][[,.]]*|1[[12]].*[[,.]]* )
++      UNSET,darwin1[[56789]]*|UNSET,darwin2*|10.1[[123456789]][[,.]]*|1[[123456789]].*[[,.]]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&AS_MESSAGE_LOG_FD
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -20443,7 +20306,7 @@ index 17f8e5f3074..a4daa450f45 100644
  # ---------------------------------
  # Figure out "hidden" library dependencies from verbose
 diff --git a/libvtv/configure b/libvtv/configure
-index d64b4af5c6b..30a36defc99 100755
+index d64b4af5c6b..4280e3b20a9 100755
 --- a/libvtv/configure
 +++ b/libvtv/configure
 @@ -640,6 +640,8 @@ VTV_CYGMIN_FALSE
@@ -20505,7 +20368,7 @@ index d64b4af5c6b..30a36defc99 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -20595,7 +20458,7 @@ index d64b4af5c6b..30a36defc99 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -20730,7 +20593,7 @@ index 20611c6b1e6..b33ffed6e48 100644
  	$(libiberty_pic)),,-Wc,$(libiberty)))
  # Can be simplified when libiberty becomes a normal convenience library.
 diff --git a/lto-plugin/configure b/lto-plugin/configure
-index baa84adbb6c..8f3f71c9ec6 100755
+index baa84adbb6c..9ad4873a947 100755
 --- a/lto-plugin/configure
 +++ b/lto-plugin/configure
 @@ -634,6 +634,8 @@ LTLIBOBJS
@@ -20832,7 +20695,7 @@ index baa84adbb6c..8f3f71c9ec6 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
@@ -20928,7 +20791,7 @@ index 7e6f729e9dc..14a56c1e88e 100644
  AC_SUBST(target_noncanonical)
  AC_TYPE_INT64_T
 diff --git a/zlib/configure b/zlib/configure
-index f489f31bc70..03ee8e703a5 100755
+index f489f31bc70..f7adce0db2c 100755
 --- a/zlib/configure
 +++ b/zlib/configure
 @@ -639,6 +639,8 @@ TARGET_LIBRARY_FALSE
@@ -20999,7 +20862,7 @@ index f489f31bc70..03ee8e703a5 100755
 +    # We cannot build and test reliably on macOS 10.11+ (Darwin15+) without use
 +    # of rpaths, since runpaths set via DYLD_LIBRARY_PATH are elided by key
 +    # system executables (e.g. /bin/sh).  Force rpaths on for these systems.
-+      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[12].*[,.]* )
++      UNSET,darwin1[56789]*|UNSET,darwin2*|10.1[123456789][,.]*|1[123456789].*[,.]* )
 +      echo "@rpath library names are needed on macOS versions later than 10.11 (rpaths enabled)" 1>&5
 +      enable_darwin_at_rpath=yes
 +      ;;
