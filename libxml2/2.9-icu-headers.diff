@@ -1,0 +1,84 @@
+diff --git a/configure b/configure
+index e1e0d32..4cb8246 100755
+--- a/configure
++++ b/configure
+@@ -16171,8 +16171,6 @@ fi
+         else
+             if test "$with_icu" != "yes" -a "$with_iconv" != "" ; then
+                 CPPFLAGS="${CPPFLAGS} -I$with_icu"
+-                # Export this since our headers include icu.h
+-                XML_INCLUDEDIR="${XML_INCLUDEDIR} -I$with_icu"
+             fi
+ 
+             ac_fn_c_check_header_mongrel "$LINENO" "unicode/ucnv.h" "ac_cv_header_unicode_ucnv_h" "$ac_includes_default"
+diff --git a/encoding.c b/encoding.c
+index c14c9ff..009dd12 100644
+--- a/encoding.c
++++ b/encoding.c
+@@ -48,6 +48,20 @@
+ #include "buf.h"
+ #include "enc.h"
+ 
++#ifdef LIBXML_ICU_ENABLED
++#include <unicode/ucnv.h>
++/* Size of pivot buffer, same as icu/source/common/ucnv.cpp CHUNK_SIZE */
++#define ICU_PIVOT_BUF_SIZE 1024
++typedef struct _uconv_t uconv_t;
++struct _uconv_t {
++  UConverter *uconv; /* for conversion between an encoding and UTF-16 */
++  UConverter *utf8; /* for conversion between UTF-8 and UTF-16 */
++  UChar      pivot_buf[ICU_PIVOT_BUF_SIZE];
++  UChar      *pivot_source;
++  UChar      *pivot_target;
++};
++#endif
++
+ static xmlCharEncodingHandlerPtr xmlUTF16LEHandler = NULL;
+ static xmlCharEncodingHandlerPtr xmlUTF16BEHandler = NULL;
+ 
+diff --git a/include/libxml/encoding.h b/include/libxml/encoding.h
+index c875af6..77f137f 100644
+--- a/include/libxml/encoding.h
++++ b/include/libxml/encoding.h
+@@ -27,9 +27,7 @@
+ #ifdef LIBXML_ICONV_ENABLED
+ #include <iconv.h>
+ #endif
+-#ifdef LIBXML_ICU_ENABLED
+-#include <unicode/ucnv.h>
+-#endif
++
+ #ifdef __cplusplus
+ extern "C" {
+ #endif
+@@ -128,19 +126,6 @@ typedef int (* xmlCharEncodingOutputFunc)(unsigned char *out, int *outlen,
+  * Block defining the handlers for non UTF-8 encodings.
+  * If iconv is supported, there are two extra fields.
+  */
+-#ifdef LIBXML_ICU_ENABLED
+-/* Size of pivot buffer, same as icu/source/common/ucnv.cpp CHUNK_SIZE */
+-#define ICU_PIVOT_BUF_SIZE 1024
+-struct _uconv_t {
+-  UConverter *uconv; /* for conversion between an encoding and UTF-16 */
+-  UConverter *utf8; /* for conversion between UTF-8 and UTF-16 */
+-  UChar      pivot_buf[ICU_PIVOT_BUF_SIZE];
+-  UChar      *pivot_source;
+-  UChar      *pivot_target;
+-};
+-typedef struct _uconv_t uconv_t;
+-#endif
+-
+ typedef struct _xmlCharEncodingHandler xmlCharEncodingHandler;
+ typedef xmlCharEncodingHandler *xmlCharEncodingHandlerPtr;
+ struct _xmlCharEncodingHandler {
+@@ -152,8 +137,8 @@ struct _xmlCharEncodingHandler {
+     iconv_t                    iconv_out;
+ #endif /* LIBXML_ICONV_ENABLED */
+ #ifdef LIBXML_ICU_ENABLED
+-    uconv_t                    *uconv_in;
+-    uconv_t                    *uconv_out;
++    struct _uconv_t            *uconv_in;
++    struct _uconv_t            *uconv_out;
+ #endif /* LIBXML_ICU_ENABLED */
+ };
+ 
