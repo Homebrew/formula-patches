@@ -1,0 +1,43 @@
+diff -pur a/Make.inc b/Make.inc
+--- a/Make.inc	2022-05-18 07:08:54.000000000 +0200
++++ b/Make.inc	2022-08-02 20:58:28.000000000 +0200
+@@ -1506,11 +1506,7 @@ LIBGCC_NAME := libgcc_s_seh-1.$(SHLIB_EX
+ endif
+ endif
+ ifeq ($(OS),Darwin)
+-ifeq ($(ARCH),aarch64)
+ LIBGCC_NAME := libgcc_s.1.1.$(SHLIB_EXT)
+-else
+-LIBGCC_NAME := libgcc_s.1.$(SHLIB_EXT)
+-endif
+ endif
+ ifneq ($(findstring $(OS),Linux FreeBSD),)
+ LIBGCC_NAME := libgcc_s.$(SHLIB_EXT).1
+diff -pur a/base/Makefile b/base/Makefile
+--- a/base/Makefile	2022-05-18 07:08:54.000000000 +0200
++++ b/base/Makefile	2022-08-02 20:58:54.000000000 +0200
+@@ -206,7 +206,7 @@ else ifneq ($(USE_SYSTEM_OPENLIBM),0)
+ $(eval $(call symlink_system_library,OPENLIBM,$(LIBMNAME)))
+ endif
+ 
+-ifeq ($(APPLE_ARCH),arm64)
++ifeq ($(OS), Darwin)
+ $(eval $(call symlink_system_library,CSL,libgcc_s,1.1))
+ else
+ $(eval $(call symlink_system_library,CSL,libgcc_s,1))
+diff -pur a/deps/csl.mk b/deps/csl.mk
+--- a/deps/csl.mk	2022-05-18 07:08:54.000000000 +0200
++++ b/deps/csl.mk	2022-08-02 20:59:58.000000000 +0200
+@@ -76,8 +76,12 @@ else
+ $(eval $(call copy_csl,$(call versioned_libname,libgcc_s_seh,1)))
+ endif
+ else
++ifeq ($(OS), Darwin)
++$(eval $(call copy_csl,$(call versioned_libname,libgcc_s,1.1)))
++else
+ $(eval $(call copy_csl,$(call versioned_libname,libgcc_s,1)))
+ endif
++endif
+ # winpthread is only Windows, pthread is only others
+ ifeq ($(OS),WINNT)
+ $(eval $(call copy_csl,$(call versioned_libname,libwinpthread,1)))
