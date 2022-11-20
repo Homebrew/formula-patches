@@ -1,0 +1,13 @@
+diff --git a/libntp/work_thread.c b/libntp/work_thread.c
+index 03a5647..3ddd751 100644
+--- a/libntp/work_thread.c
++++ b/libntp/work_thread.c
+@@ -41,7 +41,7 @@
+ #ifndef THREAD_MINSTACKSIZE
+ # define THREAD_MINSTACKSIZE   (64U * 1024)
+ #endif
+-#ifndef __sun
++#if !defined(__sun) && !defined(__GLIBC__)
+ #if defined(PTHREAD_STACK_MIN) && THREAD_MINSTACKSIZE < PTHREAD_STACK_MIN
+ # undef THREAD_MINSTACKSIZE
+ # define THREAD_MINSTACKSIZE PTHREAD_STACK_MIN
