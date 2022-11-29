@@ -1,0 +1,13 @@
+diff --git a/server/server.go b/server/server.go
+index ed1e876..3bc9571 100644
+--- a/server/server.go
++++ b/server/server.go
+@@ -139,7 +139,7 @@ func main() {
+ 	flag.BoolVar(&disableTLS, "disable-tls", false, "don't use HTTPS")
+ 	flag.StringVar(&logFilename, "log", "", "log file to write to")
+ 	flag.BoolVar(&unsafeLogging, "unsafe-logging", false, "prevent logs from being scrubbed")
+-	flag.BoolVar(&versionFlag, "unsafe-logging", false, "display version info to stderr and quit")
++	flag.BoolVar(&versionFlag, "version", false, "display version info to stderr and quit")
+ 	flag.Parse()
+
+ 	if versionFlag {
