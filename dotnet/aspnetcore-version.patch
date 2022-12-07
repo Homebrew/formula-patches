@@ -1,0 +1,54 @@
+diff --git a/src/SourceBuild/tarball/content/Directory.Build.props b/src/SourceBuild/tarball/content/Directory.Build.props
+index 3ffe8c56a..2d95ab951 100644
+--- a/src/SourceBuild/tarball/content/Directory.Build.props
++++ b/src/SourceBuild/tarball/content/Directory.Build.props
+@@ -231,12 +231,8 @@
+     <ExtraPackageVersionPropsPackageInfo Include="MicrosoftNETCoreAppRuntimePackageVersion" Version="$(runtimeOutputPackageVersion)" />
+     <ExtraPackageVersionPropsPackageInfo Include="MicrosoftNETCoreAppRuntimeVersion" Version="$(runtimeOutputPackageVersion)" />
+     <ExtraPackageVersionPropsPackageInfo Include="MicrosoftNETCoreAppHostPackageVersion" Version="$(runtimeOutputPackageVersion)" />
+-    <ExtraPackageVersionPropsPackageInfo Include="MicrosoftAspNetCoreAppRuntimePackageVersion" Version="%24(MicrosoftAspNetCoreAppRuntimeLinux$(Platform)PackageVersion)" />
+     <!-- core-sdk uses this property for ASP.NET blob directory -->
+     <ExtraPackageVersionPropsPackageInfo Include="VSRedistCommonAspNetCoreTargetingPackx6430PackageVersion" Version="$(aspnetcoreOutputPackageVersion)" />
+-    <!-- OSX needs the OSX version instead of Linux.  We don't have a lot of flexibility in how we output these properties so we're relying on the previous one being blank if the Linux version of the package is missing.  -->
+-    <ExtraPackageVersionPropsPackageInfo Include="MicrosoftAspNetCoreAppRuntimePackageVersion" Version="%24(MicrosoftAspNetCoreAppRuntimeOsxX64PackageVersion)" DoNotOverwrite="true" />
+-    <ExtraPackageVersionPropsPackageInfo Include="MicrosoftAspNetCoreAppRuntimePackageVersion" Version="%24(MicrosoftAspNetCoreAppRuntimewinx64PackageVersion)" DoNotOverwrite="true" />
+ 
+     <!-- Used by installer to determine sdk version -->
+     <ExtraPackageVersionPropsPackageInfo Include="MicrosoftDotnetToolsetInternalPackageVersion" Version="%24(MicrosoftNETSdkPackageVersion)" />
+diff --git a/src/SourceBuild/tarball/content/tools-local/init-build.proj b/src/SourceBuild/tarball/content/tools-local/init-build.proj
+index b2c3beed1..0405ad8f1 100644
+--- a/src/SourceBuild/tarball/content/tools-local/init-build.proj
++++ b/src/SourceBuild/tarball/content/tools-local/init-build.proj
+@@ -9,6 +9,7 @@
+   <UsingTask AssemblyFile="$(XPlatSourceBuildTasksAssembly)" TaskName="NuGetPack" />
+   <UsingTask AssemblyFile="$(XPlatSourceBuildTasksAssembly)" TaskName="ZipFileExtractToDirectory" />
+   <UsingTask AssemblyFile="$(XPlatSourceBuildTasksAssembly)" TaskName="ReplaceTextInFile" />
++  <UsingTask AssemblyFile="$(XPlatSourceBuildTasksAssembly)" TaskName="ReplaceRegexInFiles" />
+ 
+   <ItemGroup>
+     <BuildTasksTarget Include="Restore;Build;InstallResolver" />
+@@ -22,6 +23,7 @@
+     <CallTarget Targets="
+       UnpackTarballs;
+       BuildXPlatTasks;
++      PatchPackageVersions;
+       BuildLeakDetection;
+       ExtractToolPackage;
+       GenerateRootFs;
+@@ -118,6 +120,16 @@
+     <WriteLinesToFile File="$(CompletedSemaphorePath)BuildXPlatTasks.complete" Overwrite="true" />
+   </Target>
+ 
++  <!-- TODO: Remove this when the .NET 8 artifacts tarball no longer includes MicrosoftAspNetCoreAppRuntimePackageVersion -->
++  <Target Name="PatchPackageVersions">
++    <!-- Rename MicrosoftAspNetCoreAppRuntimePackageVersion so it isn't used
++         Fixes https://github.com/dotnet/installer/issues/14492 -->
++    <ReplaceRegexInFiles
++      InputFiles="$(IntermediatePath)PreviouslySourceBuiltPackageVersions.props"
++      OldTextRegex="\bMicrosoftAspNetCoreAppRuntimePackageVersion\b"
++      NewText="__unused" />
++  </Target>
++
+   <Target Name="BuildLeakDetection"
+           DependsOnTargets="ExtractToolPackage"
+           Inputs="$(MSBuildProjectFullPath)"
