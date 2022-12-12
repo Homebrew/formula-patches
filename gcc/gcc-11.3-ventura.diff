@@ -11,16 +11,6 @@ diff -pur gcc-11.3.0/gcc/config/darwin-driver.c gcc-11.3.0-patched/gcc/config/da
      return NULL;
  
    /* Skip a separating period, if there's one.  */
-@@ -160,8 +161,7 @@ darwin_find_version_from_kernel (void)
- 
-   /* Darwin20 sees a transition to macOS 11.  In this, it seems that the
-      mapping to macOS minor version is now shifted to the kernel minor
--     version - 1 (at least for the initial releases).  At this stage, we
--     don't know what macOS version will correspond to Darwin21.  */
-+     version - 1 (at least for the initial releases).  */
-   if (major_vers >= 20)
-     {
-       int minor_vers = *version_p++ - '0';
 diff -pur gcc-11.3.0/gcc/config.gcc gcc-11.3.0-patched/gcc/config.gcc
 --- gcc-11.3.0/gcc/config.gcc	2022-04-21 09:58:52
 +++ gcc-11.3.0-patched/gcc/config.gcc	2022-12-12 12:20:01
