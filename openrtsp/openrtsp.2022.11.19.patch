@@ -1,0 +1,31 @@
+diff --git a/groupsock/GroupsockHelper.cpp b/groupsock/GroupsockHelper.cpp
+index c3b1bbc..76a8792 100644
+--- a/groupsock/GroupsockHelper.cpp
++++ b/groupsock/GroupsockHelper.cpp
+@@ -51,7 +51,7 @@ extern "C" int initializeWinsockIfNecessary();
+ // By default, use INADDR_ANY for the sending and receiving interfaces (IPv4 only):
+ ipv4AddressBits SendingInterfaceAddr = INADDR_ANY;
+ ipv4AddressBits ReceivingInterfaceAddr = INADDR_ANY;
+-in6_addr ReceivingInterfaceAddr6 = IN6ADDR_ANY_INIT;
++in6_addr ReceivingInterfaceAddr6 = in6addr_any;
+ 
+ static void socketErr(UsageEnvironment& env, char const* errorMsg) {
+   env.setResultErrMsg(errorMsg);
+@@ -177,7 +177,7 @@ int setupDatagramSocket(UsageEnvironment& env, Port port, int domain) {
+     }
+ #endif
+   } else { // IPv6
+-    in6_addr addr = IN6ADDR_ANY_INIT;
++    in6_addr addr = in6addr_any;
+     if (port.num() != 0) {
+       // For IPv6 sockets, we need the IPV6_V6ONLY flag set to 1, otherwise we would not
+       // be able to have an IPv4 socket and an IPv6 socket bound to the same port:
+@@ -742,7 +742,7 @@ Boolean getSourcePort(UsageEnvironment& env, int socket, int domain, Port& port)
+       MAKE_SOCKADDR_IN(name, INADDR_ANY, 0);
+       bind(socket, (struct sockaddr*)&name, sizeof name);
+     } else { // IPv6
+-      MAKE_SOCKADDR_IN6(name,IN6ADDR_ANY_INIT, 0);
++      MAKE_SOCKADDR_IN6(name,in6addr_any, 0);
+       bind(socket, (struct sockaddr*)&name, sizeof name);
+     }
+ 
