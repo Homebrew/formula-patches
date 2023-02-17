@@ -1,39 +1,41 @@
 *** Makefile.orig
 --- Makefile
 ***************
-*** 6,20 ****
-  OS = $(shell uname)
+*** 5,20 ****
   #LIBS = -lblas
+  SHVER = 5
+  OS = $(shell uname)
+  ifeq ($(OS),Darwin)
+! 	SHARED_LIB_FLAG = -dynamiclib -Wl,-install_name,liblinear.so.$(SHVER)
+  else
+! 	SHARED_LIB_FLAG = -shared -Wl,-soname,liblinear.so.$(SHVER)
+  endif
   
 ! all: train predict
   
   lib: linear.o newton.o blas/blas.a
-  	if [ "$(OS)" = "Darwin" ]; then \
-! 		SHARED_LIB_FLAG="-dynamiclib -Wl,-install_name,liblinear.so.$(SHVER)"; \
-  	else \
-! 		SHARED_LIB_FLAG="-shared -Wl,-soname,liblinear.so.$(SHVER)"; \
-  	fi; \
-! 	$(CXX) $${SHARED_LIB_FLAG} linear.o newton.o blas/blas.a -o liblinear.so.$(SHVER)
+! 	$(CXX) $(SHARED_LIB_FLAG) linear.o newton.o blas/blas.a -o liblinear.so.$(SHVER)
   
   train: newton.o linear.o train.c blas/blas.a
   	$(CXX) $(CFLAGS) -o train train.c newton.o linear.o $(LIBS)
---- 6,24 ----
-  OS = $(shell uname)
+--- 5,24 ----
   #LIBS = -lblas
+  SHVER = 5
+  OS = $(shell uname)
++ PREFIX ?= /usr/local
++ 
+  ifeq ($(OS),Darwin)
+! 	LIBEXT = ".$(SHVER).dylib"
+! 	SHARED_LIB_FLAG = -dynamiclib -install_name $(PREFIX)/lib/liblinear$(LIBEXT)
+  else
+! 	LIBEXT = ".so.$(SHVER)"
+! 	SHARED_LIB_FLAG = -shared -Wl,-soname,liblinear$(LIBEXT)
+  endif
   
-! PREFIX ?= /usr/local
-! 
 ! all: train predict lib
   
   lib: linear.o newton.o blas/blas.a
-  	if [ "$(OS)" = "Darwin" ]; then \
-! 		LIBEXT=".$(SHVER).dylib"; \
-! 		SHARED_LIB_FLAG="-dynamiclib -install_name $(PREFIX)/lib/liblinear$${LIBEXT}"; \
-  	else \
-! 		LIBEXT=".so.$(SHVER)"; \
-! 		SHARED_LIB_FLAG="-shared -Wl,-soname,liblinear$${LIBEXT}"; \
-  	fi; \
-! 	$(CXX) $${SHARED_LIB_FLAG} linear.o newton.o blas/blas.a -o liblinear$${LIBEXT}
+! 	$(CXX) $(SHARED_LIB_FLAG) linear.o newton.o blas/blas.a -o liblinear$(LIBEXT)
   
   train: newton.o linear.o train.c blas/blas.a
   	$(CXX) $(CFLAGS) -o train train.c newton.o linear.o $(LIBS)
