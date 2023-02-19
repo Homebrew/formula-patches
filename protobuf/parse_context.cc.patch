@@ -1,0 +1,20 @@
+diff --git a/src/google/protobuf/parse_context.cc b/src/google/protobuf/parse_context.cc
+index 11d21819fc2469113a9917274b1c16823762e941..9174c76fb3fbca764bea92dddc25ff4e3ec24d16 100644
+--- a/src/google/protobuf/parse_context.cc
++++ b/src/google/protobuf/parse_context.cc
+@@ -730,6 +730,7 @@ constexpr uint64_t kFirstResultBitChunk6 = 6 * 7;
+ constexpr uint64_t kFirstResultBitChunk8 = 8 * 7;
+ constexpr uint64_t kValidBitsForInvalidVarint = 0x60;
+ 
++PROTOBUF_EXPORT
+ PROTOBUF_NOINLINE const char* VarintParseSlowArm64(const char* p, uint64_t* out,
+                                                    uint64_t first8) {
+   SlowPathEncodedInfo info = ComputeLengthAndUpdateP(p);
+@@ -768,6 +769,7 @@ PROTOBUF_NOINLINE const char* VarintParseSlowArm64(const char* p, uint64_t* out,
+ 
+ // See comments in VarintParseSlowArm64 for a description of the algorithm.
+ // Differences in the 32 bit version are noted below.
++PROTOBUF_EXPORT
+ PROTOBUF_NOINLINE const char* VarintParseSlowArm32(const char* p, uint32_t* out,
+                                                    uint64_t first8) {
+   // This also skips the slop bytes.
