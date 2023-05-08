@@ -1,14 +1,22 @@
 diff -pur a/qtbase/cmake/QtModuleHelpers.cmake b/qtbase/cmake/QtModuleHelpers.cmake
 --- a/qtbase/cmake/QtModuleHelpers.cmake	2023-03-14 09:29:43.000000000 +0100
 +++ b/qtbase/cmake/QtModuleHelpers.cmake	2023-05-04 17:21:27.005334813 +0200
-@@ -1201,7 +1201,6 @@ function(qt_internal_collect_module_head
-
-         get_source_file_property(is_generated "${file_path}" GENERATED)
+@@ -1190,7 +1190,6 @@
+         get_target_property(source_dir ${target} SOURCE_DIR)
+     endif()
+     get_filename_component(source_dir "${source_dir}" ABSOLUTE)
+-    get_filename_component(source_dir "${source_dir}" REALPATH)
+ 
+     get_target_property(is_3rdparty_library ${target} _qt_module_is_3rdparty_header_library)
+ 
+@@ -1211,7 +1210,6 @@
+         endif()
+ 
          get_filename_component(file_path "${file_path}" ABSOLUTE)
 -        get_filename_component(file_path "${file_path}" REALPATH)
-         list(APPEND ${out_var}_all "${file_path}")
-         if(qpa_filter AND file_name MATCHES "${qpa_filter}")
-             list(APPEND ${out_var}_qpa "${file_path}")
+ 
+         string(FIND "${file_path}" "${source_dir}" source_dir_pos)
+         if(source_dir_pos EQUAL 0)
 diff -pur a/qtbase/cmake/QtSyncQtHelpers.cmake b/qtbase/cmake/QtSyncQtHelpers.cmake
 --- a/qtbase/cmake/QtSyncQtHelpers.cmake	2023-03-14 09:29:43.000000000 +0100
 +++ b/qtbase/cmake/QtSyncQtHelpers.cmake	2023-05-04 17:16:32.343246300 +0200
