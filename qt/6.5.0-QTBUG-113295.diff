@@ -1,0 +1,34 @@
+diff -pur a/qtbase/cmake/QtModuleHelpers.cmake b/qtbase/cmake/QtModuleHelpers.cmake
+--- a/qtbase/cmake/QtModuleHelpers.cmake	2023-03-14 09:29:43.000000000 +0100
++++ b/qtbase/cmake/QtModuleHelpers.cmake	2023-05-04 17:21:27.005334813 +0200
+@@ -1201,7 +1201,6 @@ function(qt_internal_collect_module_head
+
+         get_source_file_property(is_generated "${file_path}" GENERATED)
+         get_filename_component(file_path "${file_path}" ABSOLUTE)
+-        get_filename_component(file_path "${file_path}" REALPATH)
+         list(APPEND ${out_var}_all "${file_path}")
+         if(qpa_filter AND file_name MATCHES "${qpa_filter}")
+             list(APPEND ${out_var}_qpa "${file_path}")
+diff -pur a/qtbase/cmake/QtSyncQtHelpers.cmake b/qtbase/cmake/QtSyncQtHelpers.cmake
+--- a/qtbase/cmake/QtSyncQtHelpers.cmake	2023-03-14 09:29:43.000000000 +0100
++++ b/qtbase/cmake/QtSyncQtHelpers.cmake	2023-05-04 17:16:32.343246300 +0200
+@@ -138,7 +138,6 @@ function(qt_internal_target_sync_headers
+
+     set(syncqt_args "${common_syncqt_arguments}")
+     list(APPEND syncqt_args
+-        ${common_syncqt_arguments}
+         -headers ${module_headers}
+         -generatedHeaders ${module_headers_generated}
+         -stagingDir "${syncqt_staging_dir}"
+diff -pur a/qtbase/src/tools/syncqt/main.cpp b/qtbase/src/tools/syncqt/main.cpp
+--- a/qtbase/src/tools/syncqt/main.cpp	2023-03-14 09:29:43.000000000 +0100
++++ b/qtbase/src/tools/syncqt/main.cpp	2023-05-04 17:16:32.343246300 +0200
+@@ -110,7 +110,7 @@ void printInternalError()
+
+ std::filesystem::path normilizedPath(const std::string &path)
+ {
+-    return std::filesystem::path(std::filesystem::absolute(path).generic_string());
++    return std::filesystem::path(std::filesystem::weakly_canonical(path).generic_string());
+ }
+ }
+
