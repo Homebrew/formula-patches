@@ -1,0 +1,53 @@
+diff --git a/bindings/java/build.xml.in b/bindings/java/build.xml.in
+index 8a1e96b..bdce5da 100644
+--- a/bindings/java/build.xml.in
++++ b/bindings/java/build.xml.in
+@@ -2,8 +2,8 @@
+ <project basedir="." default="build" name="linkgrammar">
+     <property environment="env"/>
+     <property name="debuglevel" value="source,lines,vars"/>
+-    <property name="target" value="1.7"/>
+-    <property name="source" value="1.7"/>
++    <property name="target" value="1.8"/>
++    <property name="source" value="1.8"/>
+     <target name="init">
+         <mkdir dir="bin"/>
+         <copy includeemptydirs="false" todir="bin">
+diff --git a/link-grammar/parse/extract-links.c b/link-grammar/parse/extract-links.c
+index a6129ac..f681428 100644
+--- a/link-grammar/parse/extract-links.c
++++ b/link-grammar/parse/extract-links.c
+@@ -12,7 +12,11 @@
+ /*************************************************************************/
+ 
+ #include <limits.h>                     // INT_MAX
++#ifdef __APPLE__
++#include <malloc/malloc.h>
++#else
+ #include <malloc.h>                     // malloc_trim
++#endif
+ #include <math.h>                       // log2
+ 
+ #include "connectors.h"
+@@ -294,7 +298,7 @@ void free_extractor(extractor_t * pex)
+ 
+ 	xfree((void *) pex, sizeof(extractor_t));
+ 
+-#if defined __GNUC__
++#if defined __GNUC__ && defined HAVE_MALLOC_TRIM
+ 	// malloc_trim() is a gnu extension.  An alternative would be
+ 	// to call madvise(MADV_DONTNEED) but this is more complicated.
+ 	if (trim) malloc_trim(0);
+diff --git a/link-grammar/resources.c b/link-grammar/resources.c
+index 9504237..18fa2bf 100644
+--- a/link-grammar/resources.c
++++ b/link-grammar/resources.c
+@@ -48,7 +48,7 @@ int getrusage(int who, struct rusage *rusage);
+ /** Returns the CPU usage time, for this thread only, in seconds. */
+ static double current_usage_time(void)
+ {
+-#if !defined(_WIN32)
++#if !defined(_WIN32) && !defined(__APPLE__)
+ 	struct rusage u;
+ 	getrusage (RUSAGE_THREAD, &u);
+ 	return (u.ru_utime.tv_sec + ((double) u.ru_utime.tv_usec) / 1000000.0);
