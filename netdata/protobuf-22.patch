@@ -291,7 +291,7 @@ index 9fe156d..212ee69 100644
      freez(filename);
  }
 diff --git a/collectors/apps.plugin/apps_plugin.c b/collectors/apps.plugin/apps_plugin.c
-index 3132b22..cc65bb0 100644
+index 3132b22..ccc842f 100644
 --- a/collectors/apps.plugin/apps_plugin.c
 +++ b/collectors/apps.plugin/apps_plugin.c
 @@ -1470,7 +1470,7 @@ static inline int read_proc_pid_stat(struct pid_stat *p, void *ptr) {
@@ -303,7 +303,7 @@ index 3132b22..cc65bb0 100644
      }
  #else
      pid_incremental_rate(stat, p->minflt,  str2kernel_uint_t(procfile_lineword(ff, 0,  9)));
-@@ -4184,28 +4184,28 @@ static void parse_args(int argc, char **argv)
+@@ -4184,17 +4184,17 @@ static void parse_args(int argc, char **argv)
      if(freq > 0) update_every = freq;
  
      if(read_apps_groups_conf(user_config_dir, "groups")) {
@@ -324,19 +324,6 @@ index 3132b22..cc65bb0 100644
  }
  
  static int am_i_running_as_root() {
-     uid_t uid = getuid(), euid = geteuid();
- 
-     if(uid == 0 || euid == 0) {
--        if(debug_enabled) info("I am running with escalated privileges, uid = %u, euid = %u.", uid, euid);
-+        if(debug_enabled) netdata_info("I am running with escalated privileges, uid = %u, euid = %u.", uid, euid);
-         return 1;
-     }
- 
--    if(debug_enabled) info("I am not running with escalated privileges, uid = %u, euid = %u.", uid, euid);
-+    if(debug_enabled) netdata_info("I am not running with escalated privileges, uid = %u, euid = %u.", uid, euid);
-     return 0;
- }
- 
 @@ -4217,7 +4217,7 @@ static int check_capabilities() {
          return 0;
      }
@@ -364,27 +351,7 @@ index 3132b22..cc65bb0 100644
      }
  
      cap_free(caps);
-@@ -5107,23 +5107,23 @@ int main(int argc, char **argv) {
- 
-     user_config_dir = getenv("NETDATA_USER_CONFIG_DIR");
-     if(user_config_dir == NULL) {
--        // info("NETDATA_CONFIG_DIR is not passed from netdata");
-+        // netdata_info("NETDATA_CONFIG_DIR is not passed from netdata");
-         user_config_dir = CONFIG_DIR;
-     }
--    // else info("Found NETDATA_USER_CONFIG_DIR='%s'", user_config_dir);
-+    // else netdata_info("Found NETDATA_USER_CONFIG_DIR='%s'", user_config_dir);
- 
-     stock_config_dir = getenv("NETDATA_STOCK_CONFIG_DIR");
-     if(stock_config_dir == NULL) {
--        // info("NETDATA_CONFIG_DIR is not passed from netdata");
-+        // netdata_info("NETDATA_CONFIG_DIR is not passed from netdata");
-         stock_config_dir = LIBCONFIG_DIR;
-     }
--    // else info("Found NETDATA_USER_CONFIG_DIR='%s'", user_config_dir);
-+    // else netdata_info("Found NETDATA_USER_CONFIG_DIR='%s'", user_config_dir);
- 
- #ifdef NETDATA_INTERNAL_CHECKS
+@@ -5123,7 +5123,7 @@ int main(int argc, char **argv) {
      if(debug_flags != 0) {
          struct rlimit rl = { RLIM_INFINITY, RLIM_INFINITY };
          if(setrlimit(RLIMIT_CORE, &rl) != 0)
@@ -414,18 +381,9 @@ index ecadc4e..5213d75 100644
 +    netdata_info("CUPS process exiting");
  }
 diff --git a/collectors/debugfs.plugin/debugfs_plugin.c b/collectors/debugfs.plugin/debugfs_plugin.c
-index 9713be3..6f533b9 100644
+index 9713be3..3cc7622 100644
 --- a/collectors/debugfs.plugin/debugfs_plugin.c
 +++ b/collectors/debugfs.plugin/debugfs_plugin.c
-@@ -176,7 +176,7 @@ int main(int argc, char **argv)
- 
-     stock_config_dir = getenv("NETDATA_STOCK_CONFIG_DIR");
-     if (stock_config_dir == NULL) {
--        // info("NETDATA_CONFIG_DIR is not passed from netdata");
-+        // netdata_info("NETDATA_CONFIG_DIR is not passed from netdata");
-         stock_config_dir = LIBCONFIG_DIR;
-     }
- 
 @@ -235,7 +235,7 @@ int main(int argc, char **argv)
                  enabled++;
          }
@@ -449,10 +407,10 @@ index a2991b9..94b197b 100644
      }
  
 diff --git a/collectors/ebpf.plugin/ebpf.c b/collectors/ebpf.plugin/ebpf.c
-index 4530357..a319876 100644
+index ffab37d..bf867d7 100644
 --- a/collectors/ebpf.plugin/ebpf.c
 +++ b/collectors/ebpf.plugin/ebpf.c
-@@ -738,7 +738,7 @@ static void ebpf_stop_threads(int sig)
+@@ -727,7 +727,7 @@ static void ebpf_stop_threads(int sig)
          if (ebpf_modules[i].enabled == NETDATA_THREAD_EBPF_RUNNING) {
              netdata_thread_cancel(*ebpf_modules[i].thread->thread);
  #ifdef NETDATA_DEV_MODE
@@ -461,7 +419,7 @@ index 4530357..a319876 100644
  #endif
          }
      }
-@@ -747,7 +747,7 @@ static void ebpf_stop_threads(int sig)
+@@ -736,7 +736,7 @@ static void ebpf_stop_threads(int sig)
      pthread_mutex_lock(&mutex_cgroup_shm);
      netdata_thread_cancel(*cgroup_integration_thread.thread);
  #ifdef NETDATA_DEV_MODE
@@ -470,7 +428,7 @@ index 4530357..a319876 100644
  #endif
      pthread_mutex_unlock(&mutex_cgroup_shm);
  
-@@ -2158,11 +2158,11 @@ static void ebpf_parse_args(int argc, char **argv)
+@@ -2135,11 +2135,11 @@ static void ebpf_parse_args(int argc, char **argv)
          freq = EBPF_DEFAULT_UPDATE_EVERY;
  
      if (load_collector_config(ebpf_user_config_dir, &disable_apps, &disable_cgroups, freq)) {
@@ -484,7 +442,7 @@ index 4530357..a319876 100644
          }
      }
  
-@@ -2177,112 +2177,112 @@ static void ebpf_parse_args(int argc, char **argv)
+@@ -2154,112 +2154,112 @@ static void ebpf_parse_args(int argc, char **argv)
              case EBPF_MODULE_PROCESS_IDX: {
                  select_threads |= 1<<EBPF_MODULE_PROCESS_IDX;
  #ifdef NETDATA_INTERNAL_CHECKS
@@ -613,7 +571,7 @@ index 4530357..a319876 100644
  #endif
                  break;
              }
-@@ -2290,7 +2290,7 @@ static void ebpf_parse_args(int argc, char **argv)
+@@ -2267,7 +2267,7 @@ static void ebpf_parse_args(int argc, char **argv)
                  disable_apps = 0;
                  disable_cgroups = 0;
  #ifdef NETDATA_INTERNAL_CHECKS
@@ -622,7 +580,7 @@ index 4530357..a319876 100644
  #endif
                  break;
              }
-@@ -2306,28 +2306,28 @@ static void ebpf_parse_args(int argc, char **argv)
+@@ -2283,28 +2283,28 @@ static void ebpf_parse_args(int argc, char **argv)
                  disable_apps = 1;
                  disable_cgroups = 1;
  #ifdef NETDATA_INTERNAL_CHECKS
@@ -655,7 +613,7 @@ index 4530357..a319876 100644
  #endif
                  break;
              }
-@@ -2384,7 +2384,7 @@ unittest:
+@@ -2361,7 +2361,7 @@ unittest:
      // Load apps_groups.conf
      if (ebpf_read_apps_groups_conf(
              &apps_groups_default_target, &apps_groups_root_target, ebpf_user_config_dir, "groups")) {
@@ -664,7 +622,7 @@ index 4530357..a319876 100644
               ebpf_user_config_dir, ebpf_stock_config_dir);
          if (ebpf_read_apps_groups_conf(
                  &apps_groups_default_target, &apps_groups_root_target, ebpf_stock_config_dir, "groups")) {
-@@ -2393,7 +2393,7 @@ unittest:
+@@ -2370,7 +2370,7 @@ unittest:
              ebpf_exit();
          }
      } else
@@ -700,7 +658,7 @@ index 6d7c555..0c44e76 100644
  #endif
  
 diff --git a/collectors/ebpf.plugin/ebpf_dcstat.c b/collectors/ebpf.plugin/ebpf_dcstat.c
-index 5a07e46..cb2b2c2 100644
+index 4157f0c..073ef3d 100644
 --- a/collectors/ebpf.plugin/ebpf_dcstat.c
 +++ b/collectors/ebpf.plugin/ebpf_dcstat.c
 @@ -195,7 +195,7 @@ netdata_ebpf_program_loaded_t ebpf_dc_update_load(ebpf_module_t *em)
@@ -713,7 +671,7 @@ index 5a07e46..cb2b2c2 100644
  
      return EBPF_LOAD_RETPROBE;
 diff --git a/collectors/ebpf.plugin/ebpf_disk.c b/collectors/ebpf.plugin/ebpf_disk.c
-index 71c9727..5299e90 100644
+index 231186b..97a52d1 100644
 --- a/collectors/ebpf.plugin/ebpf_disk.c
 +++ b/collectors/ebpf.plugin/ebpf_disk.c
 @@ -311,7 +311,7 @@ static void update_disk_table(char *name, int major, int minor, time_t current_t
@@ -739,10 +697,10 @@ index 63f592e..5542e6f 100644
          goto endfilesystem;
      }
 diff --git a/collectors/ebpf.plugin/ebpf_oomkill.c b/collectors/ebpf.plugin/ebpf_oomkill.c
-index 0948752..5f3a95c 100644
+index c80f448..f320207 100644
 --- a/collectors/ebpf.plugin/ebpf_oomkill.c
 +++ b/collectors/ebpf.plugin/ebpf_oomkill.c
-@@ -375,14 +375,14 @@ void *ebpf_oomkill_thread(void *ptr)
+@@ -379,14 +379,14 @@ void *ebpf_oomkill_thread(void *ptr)
          // we need to disable it.
          pthread_mutex_lock(&ebpf_exit_cleanup);
          if (em->enabled)
@@ -1017,6 +975,19 @@ index b45dec7..d943b16 100644
  #endif
  }
  
+diff --git a/collectors/ebpf.plugin/ebpf_sync.c b/collectors/ebpf.plugin/ebpf_sync.c
+index 9f1c015..dc98ef4 100644
+--- a/collectors/ebpf.plugin/ebpf_sync.c
++++ b/collectors/ebpf.plugin/ebpf_sync.c
+@@ -373,7 +373,7 @@ static int ebpf_sync_initialize_syscall(ebpf_module_t *em)
+                         }
+                     }
+                 } else {
+-                    info("Cannot find syscall %s we are not going to monitor it.", syscall);
++                    netdata_info("Cannot find syscall %s we are not going to monitor it.", syscall);
+                     w->enabled = false;
+                 }
+ 
 diff --git a/collectors/plugins.d/plugins_d.c b/collectors/plugins.d/plugins_d.c
 index da5226a..2f560cb 100644
 --- a/collectors/plugins.d/plugins_d.c
@@ -1163,7 +1134,7 @@ index b0cfa0b..a4eb9ae 100644
      return 0;
  }
 diff --git a/daemon/analytics.c b/daemon/analytics.c
-index 2689886..bdf6e8f 100644
+index 2689886..2173b44 100644
 --- a/daemon/analytics.c
 +++ b/daemon/analytics.c
 @@ -314,7 +314,7 @@ void analytics_alarms_notifications(void)
@@ -1200,7 +1171,7 @@ index 2689886..bdf6e8f 100644
              }
          } else
              buffer[0] = '\0';
-@@ -740,14 +740,14 @@ void get_system_timezone(void)
+@@ -740,7 +740,7 @@ void get_system_timezone(void)
              else {
                  buffer[FILENAME_MAX] = '\0';
                  timezone = buffer;
@@ -1209,14 +1180,6 @@ index 2689886..bdf6e8f 100644
              }
          }
      }
- 
-     if (timezone && *timezone) {
-         // make sure it does not have illegal characters
--        // info("TIMEZONE: fixing '%s'", timezone);
-+        // netdata_info("TIMEZONE: fixing '%s'", timezone);
- 
-         size_t len = strlen(timezone);
-         char tmp[len + 1];
 @@ -763,7 +763,7 @@ void get_system_timezone(void)
          *d = '\0';
          strncpyz(buffer, tmp, len);
@@ -1537,7 +1500,7 @@ index ee68beb..6293777 100644
      static_thread->enabled = NETDATA_MAIN_THREAD_EXITED;
  }
 diff --git a/daemon/main.c b/daemon/main.c
-index cff6530..587b733 100644
+index cff6530..12fd61f 100644
 --- a/daemon/main.c
 +++ b/daemon/main.c
 @@ -271,7 +271,7 @@ static bool service_wait_exit(SERVICE_TYPE service, usec_t timeout_ut) {
@@ -1695,15 +1658,6 @@ index cff6530..587b733 100644
          last_ut = now_ut;                               \
          prev_msg = msg;                                 \
      }
-@@ -1345,7 +1345,7 @@ int main(int argc, char **argv) {
-     usec_t started_ut = now_monotonic_usec();
-     usec_t last_ut = started_ut;
-     const char *prev_msg = NULL;
--    // Initialize stderror avoiding coredump when info() or error() is called
-+    // Initialize stderror avoiding coredump when netdata_info() or error() is called
-     stderror = stderr;
- 
-     int i;
 @@ -2010,7 +2010,7 @@ int main(int argc, char **argv) {
      if(become_daemon(dont_fork, user) == -1)
          fatal("Cannot daemonize myself.");
@@ -1855,7 +1809,7 @@ index 40a7e42..7d56cc7 100644
  
          // disable it temporarily, so that our worker will not attempt to send messages in parallel
 diff --git a/database/engine/cache.c b/database/engine/cache.c
-index bc3ba6b..a2464d7 100644
+index bc3ba6b..d18f809 100644
 --- a/database/engine/cache.c
 +++ b/database/engine/cache.c
 @@ -2092,7 +2092,7 @@ void pgc_open_cache_to_journal_v2(PGC *cache, Word_t section, unsigned datafile_
@@ -1867,24 +1821,6 @@ index bc3ba6b..a2464d7 100644
          pgc_ll_unlock(cache, &cache->hot);
          return;
      }
-@@ -2355,7 +2355,7 @@ void *unittest_stress_test_collector(void *ptr) {
-     heartbeat_init(&hb);
- 
-     while(!__atomic_load_n(&pgc_uts.stop, __ATOMIC_RELAXED)) {
--        // info("COLLECTOR %zu: collecting metrics %zu to %zu, from %ld to %lu", id, metric_start, metric_end, start_time_t, start_time_t + pgc_uts.points_per_page);
-+        // netdata_info("COLLECTOR %zu: collecting metrics %zu to %zu, from %ld to %lu", id, metric_start, metric_end, start_time_t, start_time_t + pgc_uts.points_per_page);
- 
-         netdata_thread_disable_cancelability();
- 
-@@ -2485,7 +2485,7 @@ void *unittest_stress_test_service(void *ptr) {
- }
- 
- static void unittest_stress_test_save_dirty_page_callback(PGC *cache __maybe_unused, PGC_ENTRY *entries_array __maybe_unused, PGC_PAGE **pages_array __maybe_unused, size_t entries __maybe_unused) {
--    // info("SAVE %zu pages", entries);
-+    // netdata_info("SAVE %zu pages", entries);
-     if(!pgc_uts.stop) {
-         usec_t t = pgc_uts.time_per_flush_ut;
- 
 @@ -2625,7 +2625,7 @@ void unittest_stress_test(void) {
          if(stats.events_flush_critical > old_stats.events_flush_critical)
              flushing_status = "F";
@@ -2300,7 +2236,7 @@ index ddc306e..6b4df79 100755
      completion_init(&completion);
      rrdeng_enq_cmd(ctx, RRDENG_OPCODE_CTX_SHUTDOWN, NULL, &completion, STORAGE_PRIORITY_BEST_EFFORT, NULL, NULL);
 diff --git a/database/engine/rrdenginelib.c b/database/engine/rrdenginelib.c
-index 984a591..112ae3c 100644
+index 984a591..ed7af39 100644
 --- a/database/engine/rrdenginelib.c
 +++ b/database/engine/rrdenginelib.c
 @@ -65,7 +65,7 @@ int open_file_for_io(char *path, int flags, uv_file *file, int direct)
@@ -2312,15 +2248,6 @@ index 984a591..112ae3c 100644
              fcntl(fd, F_NOCACHE, 1);
  #endif
              --direct; /* break the loop */
-@@ -90,7 +90,7 @@ int is_legacy_child(const char *machine_guid)
-         snprintfz(dbengine_file, FILENAME_MAX, "%s/%s/dbengine", netdata_configured_cache_dir, machine_guid);
-         int rc = uv_fs_stat(NULL, &stat_req, dbengine_file, NULL);
-         if (likely(rc == 0 && ((stat_req.statbuf.st_mode & S_IFMT) == S_IFDIR))) {
--            //info("Found legacy engine folder \"%s\"", dbengine_file);
-+            //netdata_info("Found legacy engine folder \"%s\"", dbengine_file);
-             return 1;
-         }
-     }
 @@ -143,12 +143,12 @@ int compute_multidb_diskspace()
          int rc = count_legacy_children(netdata_configured_cache_dir);
          if (likely(rc >= 0)) {
@@ -2336,19 +2263,6 @@ index 984a591..112ae3c 100644
                  fclose(fp);
              } else
                  error("Failed to store the default multidb disk quota size on '%s'", multidb_disk_space_file);
-diff --git a/database/ram/rrddim_mem.c b/database/ram/rrddim_mem.c
-index a417c5a..0df4760 100644
---- a/database/ram/rrddim_mem.c
-+++ b/database/ram/rrddim_mem.c
-@@ -353,7 +353,7 @@ void rrddim_query_init(STORAGE_METRIC_HANDLE *db_metric_handle, struct storage_e
-     h->slot_timestamp = rrddim_slot2time(db_metric_handle, h->slot);
-     h->last_timestamp = rrddim_slot2time(db_metric_handle, h->last_slot);
- 
--    // info("RRDDIM QUERY INIT: start %ld, end %ld, next %ld, first %ld, last %ld, dt %ld", start_time, end_time, h->next_timestamp, h->slot_timestamp, h->last_timestamp, h->dt);
-+    // netdata_info("RRDDIM QUERY INIT: start %ld, end %ld, next %ld, first %ld, last %ld, dt %ld", start_time, end_time, h->next_timestamp, h->slot_timestamp, h->last_timestamp, h->dt);
- 
-     __atomic_add_fetch(&rrddim_db_memory_size, sizeof(struct mem_query_handle), __ATOMIC_RELAXED);
-     handle->handle = (STORAGE_QUERY_HANDLE *)h;
 diff --git a/database/rrdcalctemplate.c b/database/rrdcalctemplate.c
 index 53630f9..50532b9 100644
 --- a/database/rrdcalctemplate.c
@@ -2581,7 +2495,7 @@ index 69e4bea..dd69cb3 100644
      rrd_rdlock();
  
 diff --git a/database/rrdset.c b/database/rrdset.c
-index 3177f43..5565664 100644
+index 3177f43..fbd3770 100644
 --- a/database/rrdset.c
 +++ b/database/rrdset.c
 @@ -64,7 +64,7 @@ static STRING *rrdset_fix_name(RRDHOST *host, const char *chart_full_id, const c
@@ -2705,15 +2619,6 @@ index 3177f43..5565664 100644
              "'%s': too old data (last updated at %"PRId64".%"PRId64", last collected at %"PRId64".%"PRId64"). "
              "Resetting it. Will not store the next entry.",
              rrdset_id(st),
-@@ -1883,7 +1883,7 @@ void rrdset_timed_done(RRDSET *st, struct timeval now, bool pending_rrdset_next)
- //     if(unlikely(now_collect_ut < next_store_ut && st->counter_done > 1)) {
- //         // this is collected in the same interpolation point
- //         rrdset_debug(st, "THIS IS IN THE SAME INTERPOLATION POINT");
--//         info("INTERNAL CHECK: host '%s', chart '%s' collection %zu is in the same interpolation point: short by %llu microseconds", st->rrdhost->hostname, rrdset_name(st), st->counter_done, next_store_ut - now_collect_ut);
-+//         netdata_info("INTERNAL CHECK: host '%s', chart '%s' collection %zu is in the same interpolation point: short by %llu microseconds", st->rrdhost->hostname, rrdset_name(st), st->counter_done, next_store_ut - now_collect_ut);
- //     }
- // #endif
- 
 @@ -2159,7 +2159,7 @@ bool rrdset_memory_load_or_create_map_save(RRDSET *st, RRD_MEMORY_MODE memory_mo
  
      st_on_file->magic[sizeof(RRDSET_MAGIC_V019)] = '\0';
@@ -3175,10 +3080,10 @@ index 555db10..c9360f0 100644
              }
              uuid_copy(node_list[row].host_id, *host_id);
 diff --git a/database/sqlite/sqlite_health.c b/database/sqlite/sqlite_health.c
-index aedbf11..4d5adc6 100644
+index 5c4cdbb..435bfbb 100644
 --- a/database/sqlite/sqlite_health.c
 +++ b/database/sqlite/sqlite_health.c
-@@ -405,7 +405,7 @@ void sql_health_alarm_log_count(RRDHOST *host) {
+@@ -404,7 +404,7 @@ void sql_health_alarm_log_count(RRDHOST *host) {
      if (unlikely(rc != SQLITE_OK))
          error_report("Failed to finalize the prepared statement to count health log entries from db");
  
@@ -3407,19 +3312,6 @@ index 186a7dc..0372bce 100644
      instance->exited = 1;
  
      return;
-diff --git a/exporting/prometheus/prometheus.c b/exporting/prometheus/prometheus.c
-index 0e0e8ab..2fb9964 100644
---- a/exporting/prometheus/prometheus.c
-+++ b/exporting/prometheus/prometheus.c
-@@ -244,7 +244,7 @@ inline char *prometheus_units_copy(char *d, const char *s, size_t usable, int sh
-         uint32_t hash = simple_hash(s);
-         for (i = 0; units[i].newunit; i++) {
-             if (unlikely(hash == units[i].hash && !strcmp(s, units[i].newunit))) {
--                // info("matched extension for filename '%s': '%s'", filename, last_dot);
-+                // netdata_info("matched extension for filename '%s': '%s'", filename, last_dot);
-                 s = units[i].oldunit;
-                 sorig = s;
-                 break;
 diff --git a/exporting/pubsub/pubsub.c b/exporting/pubsub/pubsub.c
 index d65fc2c..b293bdb 100644
 --- a/exporting/pubsub/pubsub.c
@@ -3530,7 +3422,7 @@ index d91fc50..7177e2e 100644
                              struct timeval tv;
                              tv.tv_sec = timeout.tv_sec / 4;
 diff --git a/health/health.c b/health/health.c
-index df4798a..db99caf 100644
+index e04debb..073c946 100644
 --- a/health/health.c
 +++ b/health/health.c
 @@ -257,7 +257,7 @@ static void health_silencers_init(void) {
@@ -3551,7 +3443,7 @@ index df4798a..db99caf 100644
      }
  }
  
-@@ -742,7 +742,7 @@ static void health_main_cleanup(void *ptr) {
+@@ -747,7 +747,7 @@ static void health_main_cleanup(void *ptr) {
  
      struct netdata_static_thread *static_thread = (struct netdata_static_thread *)ptr;
      static_thread->enabled = NETDATA_MAIN_THREAD_EXITING;
@@ -3560,7 +3452,7 @@ index df4798a..db99caf 100644
      static_thread->enabled = NETDATA_MAIN_THREAD_EXITED;
  
      log_health("Health thread ended.");
-@@ -883,7 +883,7 @@ static int update_disabled_silenced(RRDHOST *host, RRDCALC *rc) {
+@@ -888,7 +888,7 @@ static int update_disabled_silenced(RRDHOST *host, RRDCALC *rc) {
      }
  
      if (rrdcalc_flags_old != rc->run_flags) {
@@ -3616,7 +3508,7 @@ index 6332fa1..d27a508 100644
  
      e->flags |= ARL_ENTRY_FLAG_FOUND;
 diff --git a/libnetdata/aral/aral.c b/libnetdata/aral/aral.c
-index 60fe5e3..07752b9 100644
+index 60fe5e3..d3d64ba 100644
 --- a/libnetdata/aral/aral.c
 +++ b/libnetdata/aral/aral.c
 @@ -192,7 +192,7 @@ static void aral_delete_leftover_files(const char *name, const char *path, const
@@ -3628,15 +3520,6 @@ index 60fe5e3..07752b9 100644
          if(unlikely(unlink(full_path) == -1))
              error("ARAL: '%s' cannot delete file '%s'", name, full_path);
      }
-@@ -756,7 +756,7 @@ ARAL *aral_create(const char *name, size_t element_size, size_t initial_page_ele
-               ar->config.name, ar->config.requested_element_size, sizeof(uintptr_t), ARAL_NATURAL_ALIGNMENT,
-               ar->config.element_size, ar->config.page_ptr_offset);
- 
--    //info("ARAL: element size %zu, sizeof(uintptr_t) %zu, natural alignment %zu, final element size %zu, page_ptr_offset %zu",
-+    //netdata_info("ARAL: element size %zu, sizeof(uintptr_t) %zu, natural alignment %zu, final element size %zu, page_ptr_offset %zu",
-     //      ar->element_size, sizeof(uintptr_t), ARAL_NATURAL_ALIGNMENT, ar->internal.element_size, ar->internal.page_ptr_offset);
- 
- 
 @@ -1056,7 +1056,7 @@ int aral_stress_test(size_t threads, size_t elements, size_t seconds) {
          __atomic_add_fetch(&auc.errors, 1, __ATOMIC_RELAXED);
      }
@@ -3664,19 +3547,6 @@ index 19c66f0..9af2010 100644
              use_boottime = 0;
          }
          else {
-diff --git a/libnetdata/config/appconfig.c b/libnetdata/config/appconfig.c
-index d346da8..eed2b0d 100644
---- a/libnetdata/config/appconfig.c
-+++ b/libnetdata/config/appconfig.c
-@@ -653,7 +653,7 @@ int appconfig_load(struct config *root, char *filename, int overwrite_used, cons
- 
-     FILE *fp = fopen(filename, "r");
-     if(!fp) {
--        // info("CONFIG: cannot open file '%s'. Using internal defaults.", filename);
-+        // netdata_info("CONFIG: cannot open file '%s'. Using internal defaults.", filename);
-         return 0;
-     }
- 
 diff --git a/libnetdata/ebpf/ebpf.c b/libnetdata/ebpf/ebpf.c
 index b980d09..c07ea4f 100644
 --- a/libnetdata/ebpf/ebpf.c
@@ -3776,39 +3646,18 @@ index 532b677..c37138c 100644
          }
          snprintfz(ne.name, JSON_NAME_LEN, "%s[%lu]", e->name, i);
 diff --git a/libnetdata/libnetdata.c b/libnetdata/libnetdata.c
-index 19b861e..a1d5269 100644
+index 19b861e..6d08daf 100644
 --- a/libnetdata/libnetdata.c
 +++ b/libnetdata/libnetdata.c
-@@ -1043,7 +1043,7 @@ void netdata_fix_chart_id(char *s) {
- }
- 
- static int memory_file_open(const char *filename, size_t size) {
--    // info("memory_file_open('%s', %zu", filename, size);
-+    // netdata_info("memory_file_open('%s', %zu", filename, size);
- 
-     int fd = open(filename, O_RDWR | O_CREAT | O_NOATIME, 0664);
-     if (fd != -1) {
-@@ -1127,7 +1127,7 @@ inline int madvise_mergeable(void *mem __maybe_unused, size_t len __maybe_unused
- 
- void *netdata_mmap(const char *filename, size_t size, int flags, int ksm, bool read_only, int *open_fd)
- {
--    // info("netdata_mmap('%s', %zu", filename, size);
-+    // netdata_info("netdata_mmap('%s', %zu", filename, size);
- 
-     // MAP_SHARED is used in memory mode map
-     // MAP_PRIVATE is used in memory mode ram and save
-@@ -1177,9 +1177,9 @@ void *netdata_mmap(const char *filename, size_t size, int flags, int ksm, bool r
+@@ -1177,7 +1177,7 @@ void *netdata_mmap(const char *filename, size_t size, int flags, int ksm, bool r
          if(fd != -1 && fd_for_mmap == -1) {
              if (lseek(fd, 0, SEEK_SET) == 0) {
                  if (read(fd, mem, size) != (ssize_t) size)
 -                    info("Cannot read from file '%s'", filename);
 +                    netdata_info("Cannot read from file '%s'", filename);
              }
--            else info("Cannot seek to beginning of file '%s'.", filename);
-+            else netdata_info("Cannot seek to beginning of file '%s'.", filename);
+             else info("Cannot seek to beginning of file '%s'.", filename);
          }
- 
-         // madvise_sequential(mem, size);
 @@ -1321,14 +1321,14 @@ int recursively_delete_dir(const char *path, const char *reason) {
              continue;
          }
@@ -3844,19 +3693,6 @@ index 19b861e..a1d5269 100644
                   buffer_tostring(wb), total_reqs, (double)total_usec / USEC_PER_MS);
  
              memcpy(timings2, timings3, sizeof(timings2));
-diff --git a/libnetdata/log/log.c b/libnetdata/log/log.c
-index 6832d62..9d4ff3d 100644
---- a/libnetdata/log/log.c
-+++ b/libnetdata/log/log.c
-@@ -555,7 +555,7 @@ static FILE *open_log_file(int fd, FILE *fp, const char *filename, int *enabled_
-             if(fd_ptr) *fd_ptr = fd;
-             return fp;
-         }
--        // info("dup2() new fd %d to old fd %d for '%s'", f, fd, filename);
-+        // netdata_info("dup2() new fd %d to old fd %d for '%s'", f, fd, filename);
-         close(f);
-     }
-     else fd = f;
 diff --git a/libnetdata/log/log.h b/libnetdata/log/log.h
 index 3d9f092..c6941bd 100644
 --- a/libnetdata/log/log.h
@@ -3870,32 +3706,10 @@ index 3d9f092..c6941bd 100644
  #define collector_info(args...)    info_int(1, __FILE__, __FUNCTION__, __LINE__, ##args)
  #define infoerr(args...) error_int(0, "INFO", __FILE__, __FUNCTION__, __LINE__, ##args)
  #define error(args...)   error_int(0, "ERROR", __FILE__, __FUNCTION__, __LINE__, ##args)
-diff --git a/libnetdata/onewayalloc/onewayalloc.c b/libnetdata/onewayalloc/onewayalloc.c
-index 489ce73..708304a 100644
---- a/libnetdata/onewayalloc/onewayalloc.c
-+++ b/libnetdata/onewayalloc/onewayalloc.c
-@@ -195,7 +195,7 @@ void onewayalloc_destroy(ONEWAYALLOC *owa) {
- 
-     OWA_PAGE *head = (OWA_PAGE *)owa;
- 
--    //info("OWA: %zu allocations of %zu total bytes, in %zu pages of %zu total bytes",
-+    //netdata_info("OWA: %zu allocations of %zu total bytes, in %zu pages of %zu total bytes",
-     //     head->stats_mallocs_made, head->stats_mallocs_size,
-     //     head->stats_pages, head->stats_pages_size);
- 
 diff --git a/libnetdata/popen/popen.c b/libnetdata/popen/popen.c
-index 783c74a..b68c2f2 100644
+index 783c74a..2198b0e 100644
 --- a/libnetdata/popen/popen.c
 +++ b/libnetdata/popen/popen.c
-@@ -140,7 +140,7 @@ static int popene_internal(volatile pid_t *pidptr, char **env, uint8_t flags, FI
-     // create a string to be logged about the command we are running
-     char command_to_be_logged[2048];
-     convert_argv_to_string(command_to_be_logged, sizeof(command_to_be_logged), spawn_argv);
--    // info("custom_popene() running command: %s", command_to_be_logged);
-+    // netdata_info("custom_popene() running command: %s", command_to_be_logged);
- 
-     int ret = 0;     // success by default
-     int attr_rc = 1; // failure by default
 @@ -406,11 +406,11 @@ int netdata_pclose(FILE *fp_child_input, FILE *fp_child_output, pid_t pid) {
  
              case CLD_KILLED:
@@ -3910,42 +3724,11 @@ index 783c74a..b68c2f2 100644
                      return(0);
                  }
                  else {
-diff --git a/libnetdata/procfile/procfile.c b/libnetdata/procfile/procfile.c
-index cdf0f97..be71e5c 100644
---- a/libnetdata/procfile/procfile.c
-+++ b/libnetdata/procfile/procfile.c
-@@ -410,7 +410,7 @@ procfile *procfile_open(const char *filename, const char *separators, uint32_t f
-         return NULL;
-     }
- 
--    // info("PROCFILE: opened '%s' on fd %d", filename, fd);
-+    // netdata_info("PROCFILE: opened '%s' on fd %d", filename, fd);
- 
-     size_t size = (unlikely(procfile_adaptive_initial_allocation)) ? procfile_max_allocation : PROCFILE_INCREMENT_BUFFER;
-     procfile *ff = mallocz(sizeof(procfile) + size);
-@@ -435,7 +435,7 @@ procfile *procfile_reopen(procfile *ff, const char *filename, const char *separa
-     if(unlikely(!ff)) return procfile_open(filename, separators, flags);
- 
-     if(likely(ff->fd != -1)) {
--        // info("PROCFILE: closing fd %d", ff->fd);
-+        // netdata_info("PROCFILE: closing fd %d", ff->fd);
-         close(ff->fd);
-     }
- 
-@@ -445,7 +445,7 @@ procfile *procfile_reopen(procfile *ff, const char *filename, const char *separa
-         return NULL;
-     }
- 
--    // info("PROCFILE: opened '%s' on fd %d", filename, ff->fd);
-+    // netdata_info("PROCFILE: opened '%s' on fd %d", filename, ff->fd);
- 
-     //strncpyz(ff->filename, filename, FILENAME_MAX);
-     freez(ff->filename);
 diff --git a/libnetdata/socket/security.c b/libnetdata/socket/security.c
-index d1181ad..28a0092 100644
+index abae71c..682861f 100644
 --- a/libnetdata/socket/security.c
 +++ b/libnetdata/socket/security.c
-@@ -578,7 +578,7 @@ void netdata_ssl_initialize_ctx(int selector) {
+@@ -585,7 +585,7 @@ void netdata_ssl_initialize_ctx(int selector) {
              if(!netdata_ssl_web_server_ctx) {
                  struct stat statbuf;
                  if (stat(netdata_ssl_security_key, &statbuf) || stat(netdata_ssl_security_cert, &statbuf))
@@ -3954,7 +3737,7 @@ index d1181ad..28a0092 100644
                  else {
                      netdata_ssl_web_server_ctx = netdata_ssl_create_server_ctx(
                              SSL_MODE_ENABLE_PARTIAL_WRITE |
-@@ -698,13 +698,13 @@ int ssl_security_location_for_context(SSL_CTX *ctx, char *file, char *path) {
+@@ -705,13 +705,13 @@ int ssl_security_location_for_context(SSL_CTX *ctx, char *file, char *path) {
      int load_custom = 1, load_default = 1;
      if (file || path) {
          if(!SSL_CTX_load_verify_locations(ctx, file, path)) {
@@ -3971,27 +3754,9 @@ index d1181ad..28a0092 100644
      }
  
 diff --git a/libnetdata/socket/socket.c b/libnetdata/socket/socket.c
-index 220db76..dae0806 100644
+index 7f0b81f..4c2a844 100644
 --- a/libnetdata/socket/socket.c
 +++ b/libnetdata/socket/socket.c
-@@ -588,7 +588,7 @@ static inline int bind_to_this(LISTEN_SOCKETS *sockets, const char *definition,
-                 struct sockaddr_in *sin = (struct sockaddr_in *) rp->ai_addr;
-                 inet_ntop(AF_INET, &sin->sin_addr, rip, INET_ADDRSTRLEN);
-                 rport = ntohs(sin->sin_port);
--                // info("Attempting to listen on IPv4 '%s' ('%s'), port %d ('%s'), socktype %d", rip, ip, rport, port, socktype);
-+                // netdata_info("Attempting to listen on IPv4 '%s' ('%s'), port %d ('%s'), socktype %d", rip, ip, rport, port, socktype);
-                 fd = create_listen_socket4(socktype, rip, rport, listen_backlog);
-                 break;
-             }
-@@ -597,7 +597,7 @@ static inline int bind_to_this(LISTEN_SOCKETS *sockets, const char *definition,
-                 struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) rp->ai_addr;
-                 inet_ntop(AF_INET6, &sin6->sin6_addr, rip, INET6_ADDRSTRLEN);
-                 rport = ntohs(sin6->sin6_port);
--                // info("Attempting to listen on IPv6 '%s' ('%s'), port %d ('%s'), socktype %d", rip, ip, rport, port, socktype);
-+                // netdata_info("Attempting to listen on IPv6 '%s' ('%s'), port %d ('%s'), socktype %d", rip, ip, rport, port, socktype);
-                 fd = create_listen_socket6(socktype, scope_id, rip, rport, listen_backlog);
-                 break;
-             }
 @@ -660,7 +660,7 @@ int listen_sockets_setup(LISTEN_SOCKETS *sockets) {
      if(sockets->failed) {
          size_t i;
@@ -4019,16 +3784,7 @@ index 220db76..dae0806 100644
                      }
                      else if(rc == -1) {
                          error("Failed to connect to '%s', port '%s'. select() returned %d", hostBfr, servBfr, rc);
-@@ -1331,7 +1331,7 @@ inline POLLINFO *poll_add_fd(POLLJOB *p
-     if(unlikely(fd < 0)) return NULL;
- 
-     //if(p->limit && p->used >= p->limit) {
--    //    info("Max sockets limit reached (%zu sockets), dropping connection", p->used);
-+    //    netdata_info("Max sockets limit reached (%zu sockets), dropping connection", p->used);
-     //    close(fd);
-     //    return NULL;
-     //}
-@@ -1515,7 +1515,7 @@ int poll_default_rcv_callback(POLLINFO *pi, short int *events) {
+@@ -1518,7 +1518,7 @@ int poll_default_rcv_callback(POLLINFO *pi, short int *events) {
              }
          } else if (rc) {
              // data received
@@ -4037,7 +3793,7 @@ index 220db76..dae0806 100644
          }
      } while (rc != -1);
  
-@@ -1525,7 +1525,7 @@ int poll_default_rcv_callback(POLLINFO *pi, short int *events) {
+@@ -1528,7 +1528,7 @@ int poll_default_rcv_callback(POLLINFO *pi, short int *events) {
  int poll_default_snd_callback(POLLINFO *pi, short int *events) {
      *events &= ~POLLOUT;
  
@@ -4046,7 +3802,7 @@ index 220db76..dae0806 100644
      return 0;
  }
  
-@@ -1755,7 +1755,7 @@ void poll_events(LISTEN_SOCKETS *sockets
+@@ -1758,7 +1758,7 @@ void poll_events(LISTEN_SOCKETS *sockets
          );
  
          pi->data = data;
@@ -4055,7 +3811,7 @@ index 220db76..dae0806 100644
      }
  
      int listen_sockets_active = 1;
-@@ -1796,7 +1796,7 @@ void poll_events(LISTEN_SOCKETS *sockets
+@@ -1799,7 +1799,7 @@ void poll_events(LISTEN_SOCKETS *sockets
          // enable or disable the TCP listening sockets, based on the current number of sockets used and the limit set
          if((listen_sockets_active && (p.limit && p.used >= p.limit)) || (!listen_sockets_active && (!p.limit || p.used < p.limit))) {
              listen_sockets_active = !listen_sockets_active;
@@ -4064,7 +3820,7 @@ index 220db76..dae0806 100644
              for (i = 0; i <= p.max; i++) {
                  if(p.inf[i].flags & POLLINFO_FLAG_SERVER_SOCKET && p.inf[i].socktype == SOCK_STREAM) {
                      p.fds[i].events = (short int) ((listen_sockets_active) ? POLLIN : 0);
-@@ -1944,7 +1944,7 @@ void poll_events(LISTEN_SOCKETS *sockets
+@@ -1947,7 +1947,7 @@ void poll_events(LISTEN_SOCKETS *sockets
  
                  if(likely(pi->flags & POLLINFO_FLAG_CLIENT_SOCKET)) {
                      if (unlikely(pi->send_count == 0 && p.complete_request_timeout > 0 && (now - pi->connected_t) >= p.complete_request_timeout)) {
@@ -4073,7 +3829,7 @@ index 220db76..dae0806 100644
                                , i
                                , pi->fd
                                , pi->client_ip ? pi->client_ip : "<undefined-ip>"
-@@ -1954,7 +1954,7 @@ void poll_events(LISTEN_SOCKETS *sockets
+@@ -1957,7 +1957,7 @@ void poll_events(LISTEN_SOCKETS *sockets
                          poll_close_fd(pi);
                      }
                      else if(unlikely(pi->recv_count && p.idle_timeout > 0 && now - ((pi->last_received_t > pi->last_sent_t) ? pi->last_received_t : pi->last_sent_t) >= p.idle_timeout )) {
@@ -4175,7 +3931,7 @@ index ba4250e..53b1931 100644
          registry.enabled = 0;
      }
 diff --git a/registry/registry_internals.c b/registry/registry_internals.c
-index fe4d2da..03eeb1a 100644
+index fe4d2da..8e9ee63 100644
 --- a/registry/registry_internals.c
 +++ b/registry/registry_internals.c
 @@ -13,7 +13,7 @@ struct registry registry;
@@ -4231,7 +3987,7 @@ index fe4d2da..03eeb1a 100644
          return NULL;
      }
      if(mm) *mm = m;
-@@ -116,18 +116,18 @@ REGISTRY_PERSON_URL *registry_verify_request(char *person_guid, char *machine_gu
+@@ -116,14 +116,14 @@ REGISTRY_PERSON_URL *registry_verify_request(char *person_guid, char *machine_gu
      // make sure the person exist
      REGISTRY_PERSON *p = registry_person_find(person_guid);
      if(!p) {
@@ -4248,11 +4004,6 @@ index fe4d2da..03eeb1a 100644
          return NULL;
      }
      //else if (pu->machine != m) {
--    //    info("Registry Request Verification: Machine mismatch: person: '%s', machine requested='%s' <> loaded='%s', url '%s'", person_guid, machine_guid, pu->machine->guid, url);
-+    //    netdata_info("Registry Request Verification: Machine mismatch: person: '%s', machine requested='%s' <> loaded='%s', url '%s'", person_guid, machine_guid, pu->machine->guid, url);
-     //    return NULL;
-     //}
- 
 @@ -178,7 +178,7 @@ REGISTRY_PERSON *registry_request_delete(char *person_guid, char *machine_guid,
      // make sure the user is not deleting the url it uses
      /*
@@ -4442,7 +4193,7 @@ index 3e37e79..83450b7 100644
  
      return;
 diff --git a/streaming/receiver.c b/streaming/receiver.c
-index 709f15b..30090e1 100644
+index 709f15b..704e530 100644
 --- a/streaming/receiver.c
 +++ b/streaming/receiver.c
 @@ -619,7 +619,7 @@ void rrdpush_receive_log_status(struct receiver_state *rpt, const char *msg, con
@@ -4463,15 +4214,6 @@ index 709f15b..30090e1 100644
           "client willing to stream metrics for host '%s' with machine_guid '%s': "
           "update every = %d, history = %ld, memory mode = %s, health %s,%s tags '%s'"
           , rpt->hostname
-@@ -809,7 +809,7 @@ static void rrdpush_receive(struct receiver_state *rpt)
- #endif
- 
-     {
--        // info("STREAM %s [receive from [%s]:%s]: initializing communication...", rrdhost_hostname(rpt->host), rpt->client_ip, rpt->client_port);
-+        // netdata_info("STREAM %s [receive from [%s]:%s]: initializing communication...", rrdhost_hostname(rpt->host), rpt->client_ip, rpt->client_port);
-         char initial_response[HTTP_HEADER_SIZE];
-         if (stream_has_capability(rpt, STREAM_CAP_VCAPS)) {
-             log_receiver_capabilities(rpt);
 @@ -914,7 +914,7 @@ static void rrdpush_receiver_thread_cleanup(void *ptr) {
  
      rrdhost_clear_receiver(rpt);
@@ -4595,7 +4337,7 @@ index c481871..d4bbfa9 100644
  
      buffer_free(wb);
 diff --git a/streaming/sender.c b/streaming/sender.c
-index c74c9b4..bff00f4 100644
+index 6e58d9a..6fae768 100644
 --- a/streaming/sender.c
 +++ b/streaming/sender.c
 @@ -111,7 +111,7 @@ void sender_commit(struct sender_state *s, BUFFER *wb, STREAM_TRAFFIC_TYPE type)
@@ -4607,25 +4349,7 @@ index c74c9b4..bff00f4 100644
                rrdhost_hostname(s->host), s->connected_to, s->buffer->max_size, buffer_strlen(wb) + 1, SENDER_BUFFER_ADAPT_TO_TIMES_MAX_SIZE);
  
          s->buffer->max_size = (src_len + 1) * SENDER_BUFFER_ADAPT_TO_TIMES_MAX_SIZE;
-@@ -588,7 +588,7 @@ static bool rrdpush_sender_thread_connect_to_parent(RRDHOST *host, int default_p
-         return false;
-     }
- 
--    // info("STREAM %s [send to %s]: initializing communication...", rrdhost_hostname(host), s->connected_to);
-+    // netdata_info("STREAM %s [send to %s]: initializing communication...", rrdhost_hostname(host), s->connected_to);
- 
-     // reset our capabilities to default
-     s->capabilities = stream_our_capabilities();
-@@ -730,7 +730,7 @@ static bool rrdpush_sender_thread_connect_to_parent(RRDHOST *host, int default_p
-         return false;
-     }
- 
--    // info("STREAM %s [send to %s]: waiting response from remote netdata...", rrdhost_hostname(host), s->connected_to);
-+    // netdata_info("STREAM %s [send to %s]: waiting response from remote netdata...", rrdhost_hostname(host), s->connected_to);
- 
-     bytes = recv_timeout(
- #ifdef ENABLE_HTTPS
-@@ -1282,7 +1282,7 @@ static void rrdpush_sender_thread_cleanup_callback(void *ptr) {
+@@ -1280,7 +1280,7 @@ static void rrdpush_sender_thread_cleanup_callback(void *ptr) {
      RRDHOST *host = s->host;
  
      netdata_mutex_lock(&host->sender->mutex);
@@ -4634,7 +4358,7 @@ index c74c9b4..bff00f4 100644
           rrdhost_hostname(host),
           host->sender->exit.reason ? host->sender->exit.reason : "");
  
-@@ -1368,7 +1368,7 @@ void *rrdpush_sender_thread(void *ptr) {
+@@ -1366,7 +1366,7 @@ void *rrdpush_sender_thread(void *ptr) {
  
      rrdpush_initialize_ssl_ctx(s->host);
  
@@ -4643,7 +4367,7 @@ index c74c9b4..bff00f4 100644
  
      s->timeout = (int)appconfig_get_number(
          &stream_config, CONFIG_SECTION_STREAM, "timeout seconds", 600);
-@@ -1440,7 +1440,7 @@ void *rrdpush_sender_thread(void *ptr) {
+@@ -1438,7 +1438,7 @@ void *rrdpush_sender_thread(void *ptr) {
              s->replication.oldest_request_after_t = 0;
  
              rrdhost_flag_set(s->host, RRDHOST_FLAG_RRDPUSH_SENDER_READY_4_METRICS);
@@ -4652,68 +4376,6 @@ index c74c9b4..bff00f4 100644
  
              continue;
          }
-diff --git a/web/api/formatters/csv/csv.c b/web/api/formatters/csv/csv.c
-index 8f4950d..981357f 100644
---- a/web/api/formatters/csv/csv.c
-+++ b/web/api/formatters/csv/csv.c
-@@ -4,7 +4,7 @@
- #include "csv.h"
- 
- void rrdr2csv(RRDR *r, BUFFER *wb, uint32_t format, RRDR_OPTIONS options, const char *startline, const char *separator, const char *endline, const char *betweenlines) {
--    //info("RRD2CSV(): %s: BEGIN", r->st->id);
-+    //netdata_info("RRD2CSV(): %s: BEGIN", r->st->id);
-     long c, i;
-     const long used = (long)r->d;
- 
-@@ -104,5 +104,5 @@ void rrdr2csv(RRDR *r, BUFFER *wb, uint32_t format, RRDR_OPTIONS options, const
- 
-         buffer_strcat(wb, endline);
-     }
--    //info("RRD2CSV(): %s: END", r->st->id);
-+    //netdata_info("RRD2CSV(): %s: END", r->st->id);
- }
-diff --git a/web/api/formatters/json/json.c b/web/api/formatters/json/json.c
-index 3a7a23b..0b0f7d2 100644
---- a/web/api/formatters/json/json.c
-+++ b/web/api/formatters/json/json.c
-@@ -6,7 +6,7 @@
- #define JSON_DATES_TIMESTAMP 2
- 
- void rrdr2json(RRDR *r, BUFFER *wb, RRDR_OPTIONS options, int datatable) {
--    //info("RRD2JSON(): %s: BEGIN", r->st->id);
-+    //netdata_info("RRD2JSON(): %s: BEGIN", r->st->id);
-     int row_annotations = 0, dates, dates_with_new = 0;
-     char kq[2] = "",                        // key quote
-             sq[2] = "",                     // string quote
-@@ -241,7 +241,7 @@ void rrdr2json(RRDR *r, BUFFER *wb, RRDR_OPTIONS options, int datatable) {
-     }
- 
-     buffer_strcat(wb, finish);
--    //info("RRD2JSON(): %s: END", r->st->id);
-+    //netdata_info("RRD2JSON(): %s: END", r->st->id);
- }
- 
- void rrdr2json_v2(RRDR *r, BUFFER *wb) {
-diff --git a/web/api/formatters/ssv/ssv.c b/web/api/formatters/ssv/ssv.c
-index 65de046..754cbb7 100644
---- a/web/api/formatters/ssv/ssv.c
-+++ b/web/api/formatters/ssv/ssv.c
-@@ -3,7 +3,7 @@
- #include "ssv.h"
- 
- void rrdr2ssv(RRDR *r, BUFFER *wb, RRDR_OPTIONS options, const char *prefix, const char *separator, const char *suffix) {
--    //info("RRD2SSV(): %s: BEGIN", r->st->id);
-+    //netdata_info("RRD2SSV(): %s: BEGIN", r->st->id);
-     long i;
- 
-     buffer_strcat(wb, prefix);
-@@ -41,5 +41,5 @@ void rrdr2ssv(RRDR *r, BUFFER *wb, RRDR_OPTIONS options, const char *prefix, con
-             buffer_print_netdata_double(wb, v);
-     }
-     buffer_strcat(wb, suffix);
--    //info("RRD2SSV(): %s: END", r->st->id);
-+    //netdata_info("RRD2SSV(): %s: END", r->st->id);
- }
 diff --git a/web/api/health/health_cmdapi.c b/web/api/health/health_cmdapi.c
 index 7c4869b..ac1729e 100644
 --- a/web/api/health/health_cmdapi.c
@@ -4728,27 +4390,9 @@ index 7c4869b..ac1729e 100644
          fclose(fd);
          return;
 diff --git a/web/api/queries/query.c b/web/api/queries/query.c
-index a0347f6..e20e36c 100644
+index a0347f6..9ba7a25 100644
 --- a/web/api/queries/query.c
 +++ b/web/api/queries/query.c
-@@ -1627,7 +1627,7 @@ static void rrd2rrdr_query_execute(RRDR *r, size_t dim_id_in_rrdr, QUERY_ENGINE_
-                 new_point.sp.start_time_s = last1_point.sp.end_time_s;
-                 new_point.sp.end_time_s   = now_end_time;
- //
--//                if(debug_this) info("QUERY: is finished() returned true");
-+//                if(debug_this) netdata_info("QUERY: is finished() returned true");
- //
-                 break;
-             }
-@@ -1687,7 +1687,7 @@ static void rrd2rrdr_query_execute(RRDR *r, size_t dim_id_in_rrdr, QUERY_ENGINE_
-                 query_point_set_id(new_point, ops->db_total_points_read);
- 
- //                if(debug_this)
--//                    info("QUERY: got point %zu, from time %ld to %ld   //   now from %ld to %ld   //   query from %ld to %ld",
-+//                    netdata_info("QUERY: got point %zu, from time %ld to %ld   //   now from %ld to %ld   //   query from %ld to %ld",
- //                         new_point.id, new_point.start_time, new_point.end_time, now_start_time, now_end_time, after_wanted, before_wanted);
- //
-                 // get the right value from the point we got
 @@ -2158,7 +2158,7 @@ bool rrdr_relative_window_to_absolute(time_t *after, time_t *before, time_t *now
  #define query_debug_log_init() BUFFER *debug_log = buffer_create(1000)
  #define query_debug_log(args...) buffer_sprintf(debug_log, ##args)
@@ -4842,7 +4486,7 @@ index ba16865..e6699e7 100644
  
          default:
 diff --git a/web/server/static/static-threaded.c b/web/server/static/static-threaded.c
-index 4cb3dcd..9d18d33 100644
+index 4cb3dcd..acd6d65 100644
 --- a/web/server/static/static-threaded.c
 +++ b/web/server/static/static-threaded.c
 @@ -394,7 +394,7 @@ cleanup:
@@ -4854,26 +4498,6 @@ index 4cb3dcd..9d18d33 100644
              worker_private->connected,
              worker_private->disconnected,
              worker_private->max_concurrent,
-@@ -462,16 +462,16 @@ static void socket_listen_main_static_threaded_cleanup(void *ptr) {
- //    for(i = 1; i < static_threaded_workers_count; i++) {
- //        if(static_workers_private_data[i].running) {
- //            found++;
--//            info("stopping worker %d", i + 1);
-+//            netdata_info("stopping worker %d", i + 1);
- //            netdata_thread_cancel(static_workers_private_data[i].thread);
- //        }
- //        else
--//            info("found stopped worker %d", i + 1);
-+//            netdata_info("found stopped worker %d", i + 1);
- //    }
- //
- //    while(found && max > 0) {
- //        max -= step;
--//        info("Waiting %d static web threads to finish...", found);
-+//        netdata_info("Waiting %d static web threads to finish...", found);
- //        sleep_usec(step);
- //        found = 0;
- //
 @@ -485,10 +485,10 @@ static void socket_listen_main_static_threaded_cleanup(void *ptr) {
  //    if(found)
  //        error("%d static web threads are taking too long to finish. Giving up.", found);
@@ -4924,45 +4548,9 @@ index 4cb3dcd..9d18d33 100644
                                socket_listen_main_static_threaded_worker, (void *)&static_workers_private_data[i]);
      }
 diff --git a/web/server/web_client.c b/web/server/web_client.c
-index 6e3c122..3cada4a 100644
+index 5dcff0b..63a974a 100644
 --- a/web/server/web_client.c
 +++ b/web/server/web_client.c
-@@ -275,7 +275,7 @@ static struct {
- };
- 
- static inline uint8_t contenttype_for_filename(const char *filename) {
--    // info("checking filename '%s'", filename);
-+    // netdata_info("checking filename '%s'", filename);
- 
-     static int initialized = 0;
-     int i;
-@@ -296,22 +296,22 @@ static inline uint8_t contenttype_for_filename(const char *filename) {
-     }
- 
-     if(unlikely(!last_dot || !*last_dot || !last_dot[1])) {
--        // info("no extension for filename '%s'", filename);
-+        // netdata_info("no extension for filename '%s'", filename);
-         return CT_APPLICATION_OCTET_STREAM;
-     }
-     last_dot++;
- 
--    // info("extension for filename '%s' is '%s'", filename, last_dot);
-+    // netdata_info("extension for filename '%s' is '%s'", filename, last_dot);
- 
-     uint32_t hash = simple_hash(last_dot);
-     for(i = 0; mime_types[i].extension ; i++) {
-         if(unlikely(hash == mime_types[i].hash && !strcmp(last_dot, mime_types[i].extension))) {
--            // info("matched extension for filename '%s': '%s'", filename, last_dot);
-+            // netdata_info("matched extension for filename '%s': '%s'", filename, last_dot);
-             return mime_types[i].contenttype;
-         }
-     }
- 
--    // info("not matched extension for filename '%s': '%s'", filename, last_dot);
-+    // netdata_info("not matched extension for filename '%s': '%s'", filename, last_dot);
-     return CT_APPLICATION_OCTET_STREAM;
- }
- 
 @@ -891,7 +891,7 @@ static inline HTTP_VALIDATION http_request_validate(struct web_client *w) {
          is_it_valid = url_is_request_complete(s, &s[last_pos], w->header_parse_last_size, &w->post_payload, &w->post_payload_size);
          if(!is_it_valid) {
