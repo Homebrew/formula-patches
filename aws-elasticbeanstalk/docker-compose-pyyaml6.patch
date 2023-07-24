@@ -1,0 +1,36 @@
+diff --git a/docker_compose.egg-info/requires.txt b/docker_compose.egg-info/requires.txt
+index 0bd4cd2..7ebf426 100644
+--- a/docker_compose.egg-info/requires.txt
++++ b/docker_compose.egg-info/requires.txt
+@@ -1,4 +1,4 @@
+-PyYAML<6,>=3.10
++PyYAML<7,>=6.0.1
+ cached-property<2,>=1.2.0
+ docker[ssh]<5,>=3.7.0
+ dockerpty<1,>=0.4.1
+diff --git a/requirements.txt b/requirements.txt
+index 76556d6..10856f8 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -17,7 +17,7 @@ paramiko==2.7.1
+ pypiwin32==219; sys_platform == 'win32' and python_version < '3.6'
+ pypiwin32==223; sys_platform == 'win32' and python_version >= '3.6'
+ PySocks==1.7.1
+-PyYAML==5.3
++PyYAML==6.0.1
+ requests==2.22.0
+ six==1.12.0
+ subprocess32==3.5.4; python_version < '3.2'
+diff --git a/setup.py b/setup.py
+index 110441d..b3b4f94 100644
+--- a/setup.py
++++ b/setup.py
+@@ -32,7 +32,7 @@ def find_version(*file_paths):
+ install_requires = [
+     'cached-property >= 1.2.0, < 2',
+     'docopt >= 0.6.1, < 1',
+-    'PyYAML >= 3.10, < 6',
++    'PyYAML >= 6.0.1, < 7',
+     'requests >= 2.20.0, < 3',
+     'texttable >= 0.9.0, < 2',
+     'websocket-client >= 0.32.0, < 1',
