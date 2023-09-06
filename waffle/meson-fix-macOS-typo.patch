@@ -1,0 +1,24 @@
+From b97591f3065ad1a89ec97380bcaf6b71a7e31cce Mon Sep 17 00:00:00 2001
+From: Yurii Kolesnykov <root@yurikoles.com>
+Date: Wed, 6 Sep 2023 21:09:29 +0300
+Subject: [PATCH] Fix build on macOS by fixing a typo
+
+Signed-off-by: Yurii Kolesnykov <root@yurikoles.com>
+---
+ meson.build | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/meson.build b/meson.build
+index ca6a212..69d039a 100644
+--- a/meson.build
++++ b/meson.build
+@@ -161,7 +161,7 @@ install_data('shell-completion/zsh/_wflinfo', install_dir : zshcompletiondir)
+ if build_wgl
+     add_project_arguments('-DWAFFLE_HAS_WGL', language : ['c', 'cpp'])
+ elif build_cgl
+-    add_project_arguments('-DWAFFLE_HAS_CGL -DGL_SILENCE_DEPRECATION', language : ['c', 'obj'])
++    add_project_arguments('-DWAFFLE_HAS_CGL -DGL_SILENCE_DEPRECATION', language : ['c', 'objc'])
+ else
+   if build_x11_egl
+     add_project_arguments('-DWAFFLE_HAS_X11_EGL', language : ['c', 'cpp'])
+
