@@ -53,24 +53,3 @@ index ce18af288dfeea0d4543a1da5bf1f42e297feaf1..0b4bcc61bb12050a488b4ad57a53de45
    std::vector<double> approxsize = std::vector<double>(segs.size(), 0.0);
  #pragma omp parallel for
 
-From c98c1b95491ee88470eb265f30f151d54e1d96ca Mon Sep 17 00:00:00 2001
-From: Votca Bot <github@votca.org>
-Date: Tue, 19 Sep 2023 08:43:26 +0000
-Subject: [PATCH 2/2] Update CHANGELOG.rst
-
----
- CHANGELOG.rst | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/CHANGELOG.rst b/CHANGELOG.rst
-index b4abb39940a7c613d05831ba7444984ec6e543c0..28f83d0eec1947e0af2b18db73dc81d26a1c00e0 100644
---- a/CHANGELOG.rst
-+++ b/CHANGELOG.rst
-@@ -12,6 +12,7 @@ Version 2023-rc.2-dev
- -  update MKL detection to MKL config (#1053)
- -  remove geometry optimization (#1077)
- -  remove all references to old pdf manual (#1081)
-+-  replaced deprecated boost::progress headers (#1083)
- 
- Version 2023-rc.2 (released 02.06.23)
- =====================================
