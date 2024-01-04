@@ -1,0 +1,13 @@
+diff --git a/gdb/solib-darwin.c b/gdb/solib-darwin.c
+index 4819afe8863..7b000da2465 100644
+--- a/gdb/solib-darwin.c
++++ b/gdb/solib-darwin.c
+@@ -59,7 +59,7 @@ struct gdb_dyld_all_image_infos
+
+ /* Current all_image_infos version.  */
+ #define DYLD_VERSION_MIN 1
+-#define DYLD_VERSION_MAX 15
++#define DYLD_VERSION_MAX 17
+
+ /* Per PSPACE specific data.  */
+ struct darwin_info
