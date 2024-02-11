@@ -27,13 +27,15 @@ jobs:
 
           core_patches=$(git -C homebrew-core grep -h "Homebrew/formula-patches" | awk -F/ '{print $(NF-1)"/"$NF}' | tr -d '"')
           all_patches=$(git ls-files -- '*/*' ':^.*/*')
-          status=0
+
+          git checkout -b remove-unused-patches
 
           for patch in $all_patches; do
             if ! grep -qx "$core_patches" <<< "$patch"; then
-              echo "Unused patch: $patch."
-              # TODO: Delete the patch and commit the deletion.
-              status=1
+              echo "Unused patch: $patch; deleting."
+              git rm "$patch"
+              git commit -m "Remove unused patch: $patch"
             fi
           done
-          exit $status
+
+          git push origin remove-unused-patches
