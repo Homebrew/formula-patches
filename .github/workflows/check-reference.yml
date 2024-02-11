@@ -26,7 +26,7 @@ jobs:
           #!/bin/bash
 
           core_patches=$(git -C homebrew-core grep -h "Homebrew/formula-patches" | awk -F/ '{print $NF}' | tr -d '"')
-          all_patches=$(git ls-files | grep -v "LICENSE" | grep -v "README.md" | grep -v ".github/workflows/triage-issues.yml" | grep -v ".github/workflows/check-reference.yml")
+          all_patches=$(git ls-files -- '*/*' ':^.*/*')
           status=0
 
           for patch in $all_patches; do
