@@ -23,11 +23,16 @@ jobs:
 
       - name: Detect references
         run: |
-          patches=$(find -name "*.patch" -printf "%f\n")
+          #!/bin/bash
+
+          core_patches=$(git -C homebrew-core grep -h "Homebrew/formula-patches" | awk -F/ '{print $NF}' | tr -d '"')
+          all_patches=$(git ls-files | grep -v "LICENSE" | grep -v "README.md" | grep -v ".github/workflows/triage-issues.yml" | grep -v ".github/workflows/check-reference.yml")
           status=0
-          for patch in $patches; do
-            if ! git -C "homebrew-core" grep -r "${patch/./}" > /dev/null; then
-              echo "$patch not needed!"
+
+          for patch in $all_patches; do
+            if ! grep -q "$core_patches" <<< "$patch"; then
+              echo "Unused patch: $patch."
+              # TODO: Delete the patch and commit the deletion.
               status=1
             fi
           done
