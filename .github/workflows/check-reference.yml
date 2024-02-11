@@ -1,0 +1,34 @@
+name: Check patch references
+
+on:
+  push:
+    branches-ignore:
+      - dependabot/**
+  schedule:
+    # Once every day at midnight UTC
+    - cron: "0 0 * * *"
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout patches
+        uses: actions/checkout@v4
+
+      - name: Checkout core
+        uses: actions/checkout@v4
+        with:
+          repository: 'homebrew/homebrew-core'
+          path: homebrew-core
+
+      - name: Detect references
+        run: |
+          patches=$(find -name "*.patch" -printf "%f\n")
+          status=0
+          for patch in $patches; do
+            if ! git -C "homebrew-core" grep -r "${patch/./}" > /dev/null; then
+              echo "$patch not needed!"
+              status=1
+            fi
+          done
+          exit $status
