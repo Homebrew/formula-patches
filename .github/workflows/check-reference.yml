@@ -21,6 +21,11 @@ jobs:
           repository: 'homebrew/homebrew-core'
           path: homebrew-core
 
+      - name: Configure Git user
+        uses: Homebrew/actions/git-user-config@master
+        with:
+          username: BrewTestBot
+
       - name: Detect references
         run: |
           #!/bin/bash
