@@ -9,7 +9,7 @@ on:
     - cron: "0 0 * * *"
 
 jobs:
-  stale:
+  cleanup:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout patches
