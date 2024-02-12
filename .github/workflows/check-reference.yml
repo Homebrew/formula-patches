@@ -37,7 +37,7 @@ jobs:
             if ! grep -qx "$core_patches" <<< "$patch"; then
               echo "Unused patch: $patch; deleting."
               git rm "$patch"
-              git commit -m "Remove unused patch: $patch"
+              git commit -m "${patch%%/*}: remove unused ${patch#*/}"
             fi
           done
 
