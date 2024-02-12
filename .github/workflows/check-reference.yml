@@ -8,6 +8,9 @@ on:
     # Once every day at midnight UTC
     - cron: "0 0 * * *"
 
+permissions:
+  contents: write
+
 jobs:
   cleanup:
     runs-on: ubuntu-latest
