@@ -28,8 +28,6 @@ jobs:
 
       - name: Detect references
         run: |
-          #!/bin/bash
-
           core_patches=$(git -C homebrew-core grep -h "Homebrew/formula-patches" | awk -F/ '{print $(NF-1)"/"$NF}' | tr -d '"')
           all_patches=$(git ls-files -- '*/*' ':^.*/*')
 
