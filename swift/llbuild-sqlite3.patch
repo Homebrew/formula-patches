@@ -1,0 +1,33 @@
+From c020eeafde2dc408846af24bda4e8d676ad4dd69 Mon Sep 17 00:00:00 2001
+From: Bo Anderson <mail@boanderson.me>
+Date: Tue, 20 Feb 2024 17:55:37 +0000
+Subject: [PATCH] Workaround failing to find Homebrew sqlite3 on Linux
+
+Requires @@HOMEBREW_PREFIX@@ inreplace
+
+---
+ Package.swift | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/Package.swift b/Package.swift
+index 0f559e94..46eb8a87 100644
+--- a/Package.swift
++++ b/Package.swift
+@@ -238,12 +238,12 @@ package.targets.first { $0.name == "llbuildBasic" }?.linkerSettings = [
+ // FIXME: when the SupportedPlatforms availability directive is updated and
+ // the platform port is in sync with this directive, these conditions can
+ // be folded up with .when(platforms:_) clauses.
+-#if os(OpenBSD)
++#if os(Linux)
+ if let target = package.targets.first(where: { $0.name == "llbuildCore"}) {
+-    target.cSettings = [.unsafeFlags(["-I/usr/local/include"])] 
++    target.cSettings = [.unsafeFlags(["-I@@HOMEBREW_PREFIX@@/opt/sqlite3/include"])] 
+     target.linkerSettings = [
+         .linkedLibrary("sqlite3"),
+-        .unsafeFlags(["-L/usr/local/lib"])
++        .unsafeFlags(["-L@@HOMEBREW_PREFIX@@/opt/sqlite3/lib"])
+     ]
+ }
+ #endif
+-- 
+2.39.3 (Apple Git-145)
