@@ -1,0 +1,60 @@
+name: Check patch references
+
+on:
+  push:
+    branches-ignore:
+      - dependabot/**
+  schedule:
+    # Once every day at midnight UTC
+    - cron: "0 0 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout patches
+        uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - name: Checkout core
+        uses: actions/checkout@v4
+        with:
+          repository: 'homebrew/homebrew-core'
+          path: homebrew-core
+
+      - name: Configure Git user
+        uses: Homebrew/actions/git-user-config@master
+        with:
+          username: BrewTestBot
+
+      - name: Set up commit signing
+        uses: Homebrew/actions/setup-commit-signing@master
+        with:
+          signing_key: ${{ secrets.BREWTESTBOT_GPG_SIGNING_SUBKEY }}
+
+      - name: Detect references
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HOMEBREW_GPG_PASSPHRASE: ${{ secrets.BREWTESTBOT_GPG_SIGNING_SUBKEY_PASSPHRASE }}
+        shell: bash
+        run: |
+          core_patches=$(git -C homebrew-core grep -h "Homebrew/formula-patches" | awk -F/ '{print $(NF-1)"/"$NF}' | tr -d '"')
+          all_patches=$(git ls-files -- '*/*' ':^.*/*')
+
+          git checkout -b remove-unused-patches
+
+          for patch in $all_patches; do
+            if ! grep -qx "$core_patches" <<< "$patch"; then
+              echo "Unused patch: $patch; deleting."
+              git rm "$patch"
+              git commit -m "${patch%%/*}: remove unused ${patch#*/}"
+            fi
+          done
+
+          git push origin remove-unused-patches
+          gh pr create --title "Remove unused patches" --body "$(git log --oneline master..remove-unused-patches)"
