@@ -49,4 +49,4 @@ jobs:
           done
 
           git push origin remove-unused-patches
-          gh pr create --fill --title "Remove unused patches"
+          gh pr create --title "Remove unused patches" --body "$(git log --oneline FETCH_HEAD..remove-unused-patches)"
