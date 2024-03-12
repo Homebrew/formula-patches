@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   cleanup:
@@ -46,3 +47,4 @@ jobs:
           done
 
           git push origin remove-unused-patches
+          gh pr create --fill --title "Remove unused patches"
