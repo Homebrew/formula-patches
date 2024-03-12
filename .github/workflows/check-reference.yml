@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout patches
         uses: actions/checkout@v4
+        with:
+          ref: master
 
       - name: Checkout core
         uses: actions/checkout@v4
@@ -49,4 +51,4 @@ jobs:
           done
 
           git push origin remove-unused-patches
-          gh pr create --title "Remove unused patches" --body "$(git log --oneline FETCH_HEAD..remove-unused-patches)"
+          gh pr create --title "Remove unused patches" --body "$(git log --oneline master..remove-unused-patches)"
