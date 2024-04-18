@@ -1,0 +1,30 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 34828a6..f57cdc3 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -4,7 +4,6 @@ members = [
+     "taskchampion/taskchampion",
+     "taskchampion/sync-server",
+     "taskchampion/lib",
+-    "taskchampion/integration-tests",
+     "taskchampion/xtask",
+ ]
+ 
+diff --git a/src/tc/CMakeLists.txt b/src/tc/CMakeLists.txt
+index 500ad17..47bec50 100644
+--- a/src/tc/CMakeLists.txt
++++ b/src/tc/CMakeLists.txt
+@@ -1,11 +1,7 @@
+ cmake_minimum_required (VERSION 3.22)
+ 
+-FetchContent_Declare (
+-    Corrosion
+-    GIT_REPOSITORY https://github.com/corrosion-rs/corrosion.git
+-    GIT_TAG v0.4.7
+-)
+-FetchContent_MakeAvailable(Corrosion)
++# Find the Corrosion package
++find_package(Corrosion REQUIRED)
+ 
+ # Import taskchampion-lib as a CMake library.
+ corrosion_import_crate(
