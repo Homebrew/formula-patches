@@ -24,6 +24,19 @@ index 2e8bb3e..5db7599 100644
  # include <unistd.h>
  # endif
  
+diff --git a/mkjambase.c b/mkjambase.c
+index 26224c9..eebe354 100644
+--- a/mkjambase.c
++++ b/mkjambase.c
+@@ -24,7 +24,7 @@
+ # include <stdio.h>
+ # include <string.h>
+ 
+-main( int argc, char **argv, char **envp )
++int main( int argc, char **argv, char **envp )
+ {
+ 	char buf[ 1024 ];
+ 	FILE *fin;
 diff --git a/scan.h b/scan.h
 index e16af85..f9ed291 100644
 --- a/scan.h
