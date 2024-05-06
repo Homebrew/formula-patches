@@ -1,0 +1,132 @@
+diff --git a/scripts/data/lints.rs b/scripts/data/lints.rs
+index b33c70f..f97a1b2 100644
+--- a/scripts/data/lints.rs
++++ b/scripts/data/lints.rs
+@@ -47,7 +47,6 @@
+ 	unused_macro_rules,
+ 	unused_qualifications,
+ 	unused_results,
+-	unused_tuple_struct_fields,
+ 	variant_size_differences
+ )]
+ // enable all of Clippy's lints
+diff --git a/src/config/src/lib.rs b/src/config/src/lib.rs
+index 8c02d74..7a39dd1 100644
+--- a/src/config/src/lib.rs
++++ b/src/config/src/lib.rs
+@@ -48,7 +48,6 @@
+ 	unused_macro_rules,
+ 	unused_qualifications,
+ 	unused_results,
+-	unused_tuple_struct_fields,
+ 	variant_size_differences
+ )]
+ // enable all of Clippy's lints
+diff --git a/src/core/src/lib.rs b/src/core/src/lib.rs
+index cdf4ad7..53bf64f 100644
+--- a/src/core/src/lib.rs
++++ b/src/core/src/lib.rs
+@@ -48,7 +48,6 @@
+ 	unused_macro_rules,
+ 	unused_qualifications,
+ 	unused_results,
+-	unused_tuple_struct_fields,
+ 	variant_size_differences
+ )]
+ // enable all of Clippy's lints
+diff --git a/src/display/src/lib.rs b/src/display/src/lib.rs
+index 741d562..706e483 100644
+--- a/src/display/src/lib.rs
++++ b/src/display/src/lib.rs
+@@ -48,7 +48,6 @@
+ 	unused_macro_rules,
+ 	unused_qualifications,
+ 	unused_results,
+-	unused_tuple_struct_fields,
+ 	variant_size_differences
+ )]
+ // enable all of Clippy's lints
+diff --git a/src/git/src/lib.rs b/src/git/src/lib.rs
+index bcbb18a..03464ff 100644
+--- a/src/git/src/lib.rs
++++ b/src/git/src/lib.rs
+@@ -48,7 +48,6 @@
+ 	unused_macro_rules,
+ 	unused_qualifications,
+ 	unused_results,
+-	unused_tuple_struct_fields,
+ 	variant_size_differences
+ )]
+ // enable all of Clippy's lints
+diff --git a/src/input/src/lib.rs b/src/input/src/lib.rs
+index d0b11d2..cceada8 100644
+--- a/src/input/src/lib.rs
++++ b/src/input/src/lib.rs
+@@ -48,7 +48,6 @@
+ 	unused_macro_rules,
+ 	unused_qualifications,
+ 	unused_results,
+-	unused_tuple_struct_fields,
+ 	variant_size_differences
+ )]
+ // enable all of Clippy's lints
+diff --git a/src/main.rs b/src/main.rs
+index 99ff1a6..6a10a5f 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -48,7 +48,6 @@
+ 	unused_macro_rules,
+ 	unused_qualifications,
+ 	unused_results,
+-	unused_tuple_struct_fields,
+ 	variant_size_differences
+ )]
+ // enable all of Clippy's lints
+diff --git a/src/runtime/src/lib.rs b/src/runtime/src/lib.rs
+index a7197d6..fc3a7c1 100644
+--- a/src/runtime/src/lib.rs
++++ b/src/runtime/src/lib.rs
+@@ -48,7 +48,6 @@
+ 	unused_macro_rules,
+ 	unused_qualifications,
+ 	unused_results,
+-	unused_tuple_struct_fields,
+ 	variant_size_differences
+ )]
+ // enable all of Clippy's lints
+diff --git a/src/testutils/src/lib.rs b/src/testutils/src/lib.rs
+index 38bf351..bd7a859 100644
+--- a/src/testutils/src/lib.rs
++++ b/src/testutils/src/lib.rs
+@@ -48,7 +48,6 @@
+ 	unused_macro_rules,
+ 	unused_qualifications,
+ 	unused_results,
+-	unused_tuple_struct_fields,
+ 	variant_size_differences
+ )]
+ // enable all of Clippy's lints
+diff --git a/src/todo_file/src/lib.rs b/src/todo_file/src/lib.rs
+index 782ff4a..9074d0f 100644
+--- a/src/todo_file/src/lib.rs
++++ b/src/todo_file/src/lib.rs
+@@ -48,7 +48,6 @@
+ 	unused_macro_rules,
+ 	unused_qualifications,
+ 	unused_results,
+-	unused_tuple_struct_fields,
+ 	variant_size_differences
+ )]
+ // enable all of Clippy's lints
+diff --git a/src/view/src/lib.rs b/src/view/src/lib.rs
+index 74af3da..e58f790 100644
+--- a/src/view/src/lib.rs
++++ b/src/view/src/lib.rs
+@@ -48,7 +48,6 @@
+ 	unused_macro_rules,
+ 	unused_qualifications,
+ 	unused_results,
+-	unused_tuple_struct_fields,
+ 	variant_size_differences
+ )]
+ // enable all of Clippy's lints
