@@ -1,0 +1,145 @@
+diff --git a/configure.ac b/configure.ac
+index ffd48fc..a60ffad 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -62,6 +62,7 @@ AC_CONFIG_MACRO_DIRS([m4])
+ # Include the Autoconf macros from Jitter.
+ m4_include([m4/jitter.m4])
+ 
++m4_pattern_allow([gl_FUNC_PRINTF_POSIX])
+ 
+ dnl Autobuild
+ dnl AB_INIT
+diff --git a/jitter/autoconf/jitter.m4 b/jitter/autoconf/jitter.m4
+index 1b573c7..0fc0727 100644
+--- a/jitter/autoconf/jitter.m4
++++ b/jitter/autoconf/jitter.m4
+@@ -809,3 +809,42 @@ else
+   ac_cv_prog_YACC=''
+ fi
+ ]) # JITTER_PROG_BISON
++
++# Jitter feature tests
++################################################################
++
++# Expand to a C compilation check to see if a certain GNU C attribute is
++# supported by the compiler.
++# Three arguments:
++# * attribute name;
++# * fragment of a C program to compile, at the top level;
++# * fragment of a C program to compile, inside the main body.
++# The expansion:
++# * defines the shell variable ac_cv_have_<name> to either yes or no, where
++#   <name> is the attribute name as given.
++# * defines using AC_DEFINE the CPP feature macro JITTER_HAVE_ATTRIBUTE_<name>
++#   where <name> is the attribute name converted to uppercase, with dashes
++#   replaced by underscores.
++# This uses -Werror; if that is not supported then the test will fail, which
++# is the correct result.
++AC_DEFUN([JITTER_CHECK_SPECIFIC_GNU_C_ATTRIBUTE], [
++  # Save the previous CFLAGS value before temporarily changing it; we want
++  # compilation to fail in case the attribute is not supported, so we rely
++  # on -Werror.
++  jitter_old_CFLAGS="$CFLAGS"
++  CFLAGS="$CFLAGS -Werror"; export CFLAGS
++  AC_CACHE_CHECK([for the [$1] attribute],
++  [ac_cv_have_[$1]],
++  [AC_COMPILE_IFELSE(
++     [AC_LANG_PROGRAM(
++        [$2],
++        [$3])],
++     [ac_cv_have_[$1]='yes'],
++     [ac_cv_have_[$1]='no'])])
++  if test "x$ac_cv_have_[$1]" = 'xyes'; then
++    AC_DEFINE([[JITTER_HAVE_ATTRIBUTE_]jitter_tocpp([$1])], [1],
++              [Define if the [$1] attribute works])
++  fi
++  # Restore the previous CFLAGS value.
++  CFLAGS="${jitter_old_CFLAGS}"
++]) # JITTER_CHECK_SPECIFIC_GNU_C_ATTRIBUTE
+diff --git a/jitter/configure.ac b/jitter/configure.ac
+index e135c79..5b7a0a4 100644
+--- a/jitter/configure.ac
++++ b/jitter/configure.ac
+@@ -1192,63 +1192,27 @@ if test "x$ac_cv_have_gnu_c_attribute" = 'xyes'; then
+             [Define if the compiler supports __attribute__.])
+ fi
+ 
+-# Check for specific attributes not supported by older versions of GCC;
+-# and possibly by other compilers.  Notice that we have to temporarily
+-# change CFLAGS (in a subshell, so as not to affect the rest of this
+-# script) to force -Werror.  If -Werror is not supported than the tests
+-# will all fail, which is the correct conservative behavior.
+-# Out of the subshell, define the shell variable ac_cv_have_ATTRIBUTE ,
+-# in order for the test result to be visible in the following.
+-
+-# FIXME: I should factor the following with M4.
+-
+ # Check for attribute no_reorder .
+-ac_cv_have_no_reorder=$(CFLAGS="$CFLAGS -Werror"; export CFLAGS
+-AC_CACHE_CHECK([for the no_reorder attribute],
+-  [ac_cv_have_no_reorder],
+-  [AC_COMPILE_IFELSE(
+-     [AC_LANG_PROGRAM(
+-        [[long n = 7;
+-          __attribute__ ((no_reorder))
+-          long *
+-          f (void)
+-          {
+-            return & n;
+-          }]],
+-        [[return * f () != 0;]])],
+-     [ac_cv_have_no_reorder=yes],
+-     [ac_cv_have_no_reorder=no])])
+-if test "x$ac_cv_have_no_reorder" = 'xyes'; then
+-  AC_DEFINE([JITTER_HAVE_ATTRIBUTE_NO_REORDER], [1],
+-            [Define if the no_reorder attribute works])
+-fi;
+-echo "$ac_cv_have_no_reorder")
++JITTER_CHECK_SPECIFIC_GNU_C_ATTRIBUTE([no_reorder],
++  [long n = 7;
++   __attribute__ ((no_reorder))
++   long *
++   f (void)
++   {
++     return & n;
++   }],
++  [])
+ 
+ # Check for attribute returns_nonnull .
+-ac_cv_have_returns_nonnull=$(CFLAGS="$CFLAGS -Werror"; export CFLAGS
+-AC_CACHE_CHECK([for the returns_nonnull attribute],
+-  [ac_cv_have_returns_nonnull],
+-  [AC_COMPILE_IFELSE(
+-     [AC_LANG_PROGRAM(
+-        [[long n = 7;
+-          __attribute__ ((returns_nonnull))
+-          long *
+-          f (void)
+-          {
+-            return & n;
+-          }]],
+-        [[return * f () != 0;]])],
+-     [ac_cv_have_returns_nonnull=yes],
+-     [ac_cv_have_returns_nonnull=no])])
+-if test "x$ac_cv_have_returns_nonnull" = 'xyes'; then
+-  AC_DEFINE([JITTER_HAVE_ATTRIBUTE_RETURNS_NONNULL], [1],
+-            [Define if the returns_nonnull attribute works])
+-fi
+-echo "$ac_cv_have_returns_nonnull")
+-
+-# Many people like to compile with -Werror.  This is a way of redefining
+-# attributes not supported by the compiler so that they expand to nothing.
+-
++JITTER_CHECK_SPECIFIC_GNU_C_ATTRIBUTE([returns_nonnull],
++  [long n = 7;
++   __attribute__ ((returns_nonnull))
++   long *
++   f (void)
++   {
++     return & n;
++   }],
++  [return * f () != 0;])
+ 
+ # Check for GCC builtins.
+ ################################################################
