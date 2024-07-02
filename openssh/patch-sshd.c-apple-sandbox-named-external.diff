@@ -1,0 +1,23 @@
+diff --git a/sshd-session.c b/sshd-session.c
+index fe6ae7f..683cf01 100644
+--- a/sshd-session.c
++++ b/sshd-session.c
+@@ -376,10 +376,18 @@ privsep_preauth(struct ssh *ssh)
+ 		/* Arrange for logging to be sent to the monitor */
+ 		set_log_handler(mm_log_handler, pmonitor);
+ 
++#ifdef __APPLE_SANDBOX_NAMED_EXTERNAL__
++		/* We need to do this before we chroot() so we can read sshd.sb */
++		if (box != NULL)
++			ssh_sandbox_child(box);
++#endif
++
+ 		privsep_preauth_child();
+ 		setproctitle("%s", "[net]");
++#ifndef __APPLE_SANDBOX_NAMED_EXTERNAL__
+ 		if (box != NULL)
+ 			ssh_sandbox_child(box);
++#endif
+ 
+ 		return 0;
+ 	}
