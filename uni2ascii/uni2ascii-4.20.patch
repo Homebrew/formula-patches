@@ -1,16 +1,30 @@
-From 94fedc354757170d336ef19784ab71fb12097610 Mon Sep 17 00:00:00 2001
+From b351e132db164dd97a0e0a937c1551edbcfed583 Mon Sep 17 00:00:00 2001
 From: Rui Chen <rui@chenrui.dev>
-Date: Sun, 7 Jul 2024 15:48:19 -0400
+Date: Sun, 7 Jul 2024 15:59:06 -0400
 Subject: [PATCH] build patch for fixing `implicit function declarations`
+ errors
 
 Signed-off-by: Rui Chen <rui@chenrui.dev>
 ---
+ enttbl.c    | 1 +
  putu8.c     | 2 +-
  putu8.h     | 8 ++++++++
  uni2ascii.c | 5 +++--
- 3 files changed, 12 insertions(+), 3 deletions(-)
+ 4 files changed, 13 insertions(+), 3 deletions(-)
  create mode 100644 putu8.h
 
+diff --git a/enttbl.c b/enttbl.c
+index 13b7675..f6a644c 100644
+--- a/enttbl.c
++++ b/enttbl.c
+@@ -20,6 +20,7 @@
+ 
+ #include "config.h"
+ #include <stdlib.h>
++#include <string.h>
+ #include "unicode.h"
+ 
+ struct ent {
 diff --git a/putu8.c b/putu8.c
 index 1cf2795..45933e4 100644
 --- a/putu8.c
