@@ -1,0 +1,243 @@
+From 53b1bc3f0b1c2ee068f07e502a0a4b7ed309d163 Mon Sep 17 00:00:00 2001
+From: Daniel Gomez <da.gomez@samsung.com>
+Date: Mon, 19 Aug 2024 15:47:24 +0200
+Subject: [PATCH 1/2] headers: prepare minimal headers for macos
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The Linux kernel requires some user space headers provided by the GNU C Library
+(glibc). This patch ensures headers can be installed and used in macOS.
+
+This patch is not appropiate for upstream. This is to be used only in macOS to
+be able to build the Linux kernel.
+
+Minimal subset of headers required for building the Linux kernel are:
+include/
+├── bits
+│   ├── byteswap.h
+│   ├── types.h
+│   └── uintn-identity.h
+├── byteswap.h
+├── elf.h
+├── endian.h
+├── features-time64.h
+├── features.h
+└── stdc-predef.h
+
+Signed-off-by: Daniel Gomez <da.gomez@samsung.com>
+---
+ bits/byteswap.h       |  2 +-
+ bits/uintn-identity.h |  2 -
+ include/features.h    | 10 -----
+ posix/bits/types.h    | 91 -------------------------------------------
+ string/byteswap.h     |  2 -
+ string/endian.h       |  7 ----
+ 6 files changed, 1 insertion(+), 113 deletions(-)
+
+diff --git a/bits/byteswap.h b/bits/byteswap.h
+index d15c940db2..82601ab8c9 100644
+--- a/bits/byteswap.h
++++ b/bits/byteswap.h
+@@ -24,7 +24,7 @@
+ #define _BITS_BYTESWAP_H 1
+ 
+ #include <features.h>
+-#include <bits/types.h>
++#include <arm/_types.h>
+ 
+ /* Swap bytes in 16-bit value.  */
+ #define __bswap_constant_16(x)					\
+diff --git a/bits/uintn-identity.h b/bits/uintn-identity.h
+index 8104070583..0310c9d955 100644
+--- a/bits/uintn-identity.h
++++ b/bits/uintn-identity.h
+@@ -23,8 +23,6 @@
+ #ifndef _BITS_UINTN_IDENTITY_H
+ #define _BITS_UINTN_IDENTITY_H 1
+ 
+-#include <bits/types.h>
+-
+ /* These inline functions are to ensure the appropriate type
+    conversions and associated diagnostics from macros that convert to
+    a given endianness.  */
+diff --git a/include/features.h b/include/features.h
+index 093de6f44c..348c90f147 100644
+--- a/include/features.h
++++ b/include/features.h
+@@ -399,8 +399,6 @@
+ # define __USE_FILE_OFFSET64	1
+ #endif
+ 
+-#include <features-time64.h>
+-
+ #if defined _DEFAULT_SOURCE
+ # define __USE_MISC	1
+ #endif
+@@ -527,12 +525,4 @@
+ # define __USE_EXTERN_INLINES	1
+ #endif
+ 
+-
+-/* This is here only because every header file already includes this one.
+-   Get the definitions of all the appropriate `__stub_FUNCTION' symbols.
+-   <gnu/stubs.h> contains `#define __stub_FUNCTION' when FUNCTION is a stub
+-   that will always return failure (and set errno to ENOSYS).  */
+-#include <gnu/stubs.h>
+-
+-
+ #endif	/* features.h  */
+diff --git a/posix/bits/types.h b/posix/bits/types.h
+index 34e001ad68..b46168313a 100644
+--- a/posix/bits/types.h
++++ b/posix/bits/types.h
+@@ -23,10 +23,6 @@
+ #ifndef	_BITS_TYPES_H
+ #define	_BITS_TYPES_H	1
+ 
+-#include <features.h>
+-#include <bits/wordsize.h>
+-#include <bits/timesize.h>
+-
+ /* Convenience types.  */
+ typedef unsigned char __u_char;
+ typedef unsigned short int __u_short;
+@@ -138,91 +134,4 @@ __extension__ typedef unsigned long long int __uintmax_t;
+ #else
+ # error
+ #endif
+-#include <bits/typesizes.h>	/* Defines __*_T_TYPE macros.  */
+-#include <bits/time64.h>	/* Defines __TIME*_T_TYPE macros.  */
+-
+-
+-__STD_TYPE __DEV_T_TYPE __dev_t;	/* Type of device numbers.  */
+-__STD_TYPE __UID_T_TYPE __uid_t;	/* Type of user identifications.  */
+-__STD_TYPE __GID_T_TYPE __gid_t;	/* Type of group identifications.  */
+-__STD_TYPE __INO_T_TYPE __ino_t;	/* Type of file serial numbers.  */
+-__STD_TYPE __INO64_T_TYPE __ino64_t;	/* Type of file serial numbers (LFS).*/
+-__STD_TYPE __MODE_T_TYPE __mode_t;	/* Type of file attribute bitmasks.  */
+-__STD_TYPE __NLINK_T_TYPE __nlink_t;	/* Type of file link counts.  */
+-__STD_TYPE __OFF_T_TYPE __off_t;	/* Type of file sizes and offsets.  */
+-__STD_TYPE __OFF64_T_TYPE __off64_t;	/* Type of file sizes and offsets (LFS).  */
+-__STD_TYPE __PID_T_TYPE __pid_t;	/* Type of process identifications.  */
+-__STD_TYPE __FSID_T_TYPE __fsid_t;	/* Type of file system IDs.  */
+-__STD_TYPE __CLOCK_T_TYPE __clock_t;	/* Type of CPU usage counts.  */
+-__STD_TYPE __RLIM_T_TYPE __rlim_t;	/* Type for resource measurement.  */
+-__STD_TYPE __RLIM64_T_TYPE __rlim64_t;	/* Type for resource measurement (LFS).  */
+-__STD_TYPE __ID_T_TYPE __id_t;		/* General type for IDs.  */
+-__STD_TYPE __TIME_T_TYPE __time_t;	/* Seconds since the Epoch.  */
+-__STD_TYPE __USECONDS_T_TYPE __useconds_t; /* Count of microseconds.  */
+-__STD_TYPE __SUSECONDS_T_TYPE __suseconds_t; /* Signed count of microseconds.  */
+-__STD_TYPE __SUSECONDS64_T_TYPE __suseconds64_t;
+-
+-__STD_TYPE __DADDR_T_TYPE __daddr_t;	/* The type of a disk address.  */
+-__STD_TYPE __KEY_T_TYPE __key_t;	/* Type of an IPC key.  */
+-
+-/* Clock ID used in clock and timer functions.  */
+-__STD_TYPE __CLOCKID_T_TYPE __clockid_t;
+-
+-/* Timer ID returned by `timer_create'.  */
+-__STD_TYPE __TIMER_T_TYPE __timer_t;
+-
+-/* Type to represent block size.  */
+-__STD_TYPE __BLKSIZE_T_TYPE __blksize_t;
+-
+-/* Types from the Large File Support interface.  */
+-
+-/* Type to count number of disk blocks.  */
+-__STD_TYPE __BLKCNT_T_TYPE __blkcnt_t;
+-__STD_TYPE __BLKCNT64_T_TYPE __blkcnt64_t;
+-
+-/* Type to count file system blocks.  */
+-__STD_TYPE __FSBLKCNT_T_TYPE __fsblkcnt_t;
+-__STD_TYPE __FSBLKCNT64_T_TYPE __fsblkcnt64_t;
+-
+-/* Type to count file system nodes.  */
+-__STD_TYPE __FSFILCNT_T_TYPE __fsfilcnt_t;
+-__STD_TYPE __FSFILCNT64_T_TYPE __fsfilcnt64_t;
+-
+-/* Type of miscellaneous file system fields.  */
+-__STD_TYPE __FSWORD_T_TYPE __fsword_t;
+-
+-__STD_TYPE __SSIZE_T_TYPE __ssize_t; /* Type of a byte count, or error.  */
+-
+-/* Signed long type used in system calls.  */
+-__STD_TYPE __SYSCALL_SLONG_TYPE __syscall_slong_t;
+-/* Unsigned long type used in system calls.  */
+-__STD_TYPE __SYSCALL_ULONG_TYPE __syscall_ulong_t;
+-
+-/* These few don't really vary by system, they always correspond
+-   to one of the other defined types.  */
+-typedef __off64_t __loff_t;	/* Type of file sizes and offsets (LFS).  */
+-typedef char *__caddr_t;
+-
+-/* Duplicates info from stdint.h but this is used in unistd.h.  */
+-__STD_TYPE __SWORD_TYPE __intptr_t;
+-
+-/* Duplicate info from sys/socket.h.  */
+-__STD_TYPE __U32_TYPE __socklen_t;
+-
+-/* C99: An integer type that can be accessed as an atomic entity,
+-   even in the presence of asynchronous interrupts.
+-   It is not currently necessary for this to be machine-specific.  */
+-typedef int __sig_atomic_t;
+-
+-/* Seconds since the Epoch, visible to user code when time_t is too
+-   narrow only for consistency with the old way of widening too-narrow
+-   types.  User code should never use __time64_t.  */
+-#if __TIMESIZE == 64 && defined __LIBC
+-# define __time64_t __time_t
+-#elif __TIMESIZE != 64
+-__STD_TYPE __TIME64_T_TYPE __time64_t;
+-#endif
+-
+-#undef __STD_TYPE
+-
+ #endif /* bits/types.h */
+diff --git a/string/byteswap.h b/string/byteswap.h
+index 66efb8fc43..6b7b666008 100644
+--- a/string/byteswap.h
++++ b/string/byteswap.h
+@@ -19,8 +19,6 @@
+ #ifndef _BYTESWAP_H
+ #define _BYTESWAP_H	1
+ 
+-#include <features.h>
+-
+ /* Get the machine specific, optimized definitions.  */
+ #include <bits/byteswap.h>
+ 
+diff --git a/string/endian.h b/string/endian.h
+index fd20a2b198..e836270899 100644
+--- a/string/endian.h
++++ b/string/endian.h
+@@ -18,11 +18,6 @@
+ #ifndef	_ENDIAN_H
+ #define	_ENDIAN_H	1
+ 
+-#include <features.h>
+-
+-/* Get the definitions of __*_ENDIAN, __BYTE_ORDER, and __FLOAT_WORD_ORDER.  */
+-#include <bits/endian.h>
+-
+ #ifdef __USE_MISC
+ # define LITTLE_ENDIAN	__LITTLE_ENDIAN
+ # define BIG_ENDIAN	__BIG_ENDIAN
+@@ -30,7 +25,6 @@
+ # define BYTE_ORDER	__BYTE_ORDER
+ #endif
+ 
+-#if defined __USE_MISC && !defined __ASSEMBLER__
+ /* Conversion interfaces.  */
+ # include <bits/byteswap.h>
+ # include <bits/uintn-identity.h>
+@@ -67,6 +61,5 @@
+ #  define be64toh(x) __uint64_identity (x)
+ #  define le64toh(x) __bswap_64 (x)
+ # endif
+-#endif
+ 
+ #endif	/* endian.h */
+-- 
+2.46.0
+
