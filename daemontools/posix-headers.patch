@@ -1,3 +1,23 @@
+diff -u a/daemontools-0.76/src/lock_ex.c b/daemontools-0.76/src/lock_ex.c
+--- a/daemontools-0.76/src/lock_ex.c
++++ b/daemontools-0.76/src/lock_ex.c
+@@ -1,5 +1,6 @@
+ /* Public domain. */
+ 
++#include <unistd.h>
+ #include <sys/types.h>
+ #include <sys/file.h>
+ #include <fcntl.h>
+diff -u a/daemontools-0.76/src/lock_exnb.c b/daemontools-0.76/src/lock_exnb.c
+--- a/daemontools-0.76/src/lock_exnb.c
++++ b/daemontools-0.76/src/lock_exnb.c
+@@ -1,5 +1,6 @@
+ /* Public domain. */
+ 
++#include <unistd.h>
+ #include <sys/types.h>
+ #include <sys/file.h>
+ #include <fcntl.h>
 diff -u a/daemontools-0.76/src/matchtest.c b/daemontools-0.76/src/matchtest.c
 --- a/daemontools-0.76/src/matchtest.c
 +++ b/daemontools-0.76/src/matchtest.c
@@ -22,7 +42,7 @@ diff -u a/daemontools-0.76/src/pathexec_run.c b/daemontools-0.76/src/pathexec_ru
 +++ b/daemontools-0.76/src/pathexec_run.c
 @@ -1,5 +1,6 @@
  /* Public domain. */
-
+ 
 +#include <unistd.h>
  #include "error.h"
  #include "stralloc.h"
@@ -32,7 +52,7 @@ diff -u a/daemontools-0.76/src/prot.c b/daemontools-0.76/src/prot.c
 +++ b/daemontools-0.76/src/prot.c
 @@ -1,5 +1,6 @@
  /* Public domain. */
-
+ 
 +#include <unistd.h>
  #include "hasshsgr.h"
  #include "prot.h"
@@ -42,11 +62,11 @@ diff -u a/daemontools-0.76/src/seek_set.c b/daemontools-0.76/src/seek_set.c
 +++ b/daemontools-0.76/src/seek_set.c
 @@ -1,6 +1,7 @@
  /* Public domain. */
-
+ 
  #include <sys/types.h>
 +#include <unistd.h>
  #include "seek.h"
-
+ 
  #define SET 0 /* sigh */
 diff -u a/daemontools-0.76/src/supervise.c b/daemontools-0.76/src/supervise.c
 --- a/daemontools-0.76/src/supervise.c
