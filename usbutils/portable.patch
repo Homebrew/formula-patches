@@ -115,9 +115,18 @@ index 3e93c23..2a97df6 100644
  
  #endif
 diff --git a/meson.build b/meson.build
-index c522283..7344f40 100644
+index c522283..ee4469f 100644
 --- a/meson.build
 +++ b/meson.build
+@@ -76,7 +76,7 @@ add_project_arguments('-include', 'config.h', language : 'c')
+ #####################
+ # man page generation
+ #####################
+-install_man(['man/lsusb.8', 'man/lsusb.py.1', 'man/usb-devices.1', 'man/usbhid-dump.8'])
++man_pages = ['man/lsusb.8', 'man/usbhid-dump.8']
+ 
+ 
+ ##########################
 @@ -87,13 +87,9 @@ lsusb_sources = [
    'desc-defs.h',
    'desc-dump.c',
@@ -158,7 +167,7 @@ index c522283..7344f40 100644
 +  ]
 +endif
 +
-+if libudev.found()
++if get_option('with_udev') and libudev.found()
 +  add_project_arguments('-DHAVE_UDEV', language : 'c')
 +
 +  lsusb_sources += [
@@ -174,6 +183,23 @@ index c522283..7344f40 100644
  
  ################################
  # usbhid-dump build instructions
+@@ -128,6 +152,7 @@ usbhid_sources = [
+ 
+ executable('usbhid-dump', usbhid_sources, dependencies: libusb, install: true)
+ 
++if get_option('with_sysfs')
+ ##############################
+ # usbreset build instructions
+ ##############################
+@@ -156,3 +181,8 @@ install_data(usb_devices_sources, install_dir: get_option('bindir'), install_mod
+ # Also a hack, like was done for usb-devices, as this is "just" a script and
+ # doesn't need to be compiled.
+ install_data(files('lsusb.py'), install_dir: get_option('bindir'), install_mode: 'rwxr-xr-x')
++
++man_pages += ['man/lsusb.py.1', 'man/usb-devices.1']
++endif
++
++install_man(man_pages)
 diff --git a/meson_options.txt b/meson_options.txt
 new file mode 100644
 index 0000000..aff1fc8
@@ -185,10 +211,10 @@ index 0000000..aff1fc8
 +option('with_tree_mode', type : 'boolean', value : false)
 diff --git a/names_no_udev.c b/names_no_udev.c
 new file mode 100644
-index 0000000..5712252
+index 0000000..9494b48
 --- /dev/null
 +++ b/names_no_udev.c
-@@ -0,0 +1,227 @@
+@@ -0,0 +1,222 @@
 +// SPDX-License-Identifier: GPL-2.0-or-later
 +/*
 + * USB name database manipulation routines
@@ -212,7 +238,9 @@ index 0000000..5712252
 +
 +#include "usb-spec.h"
 +#include "names.h"
-+
++#ifdef HAVE_SYSFS
++#include "sysfs.h"
++#endif
 +
 +/* ---------------------------------------------------------------------- */
 +
@@ -274,42 +302,27 @@ index 0000000..5712252
 +
 +const char *names_vendor(uint16_t vendorid)
 +{
-+	char modalias[64];
-+
-+	sprintf(modalias, "usb:v%04X*", vendorid);
-+	return hwdb_get(modalias, "ID_VENDOR_FROM_DATABASE");
++	return NULL;
 +}
 +
 +const char *names_product(uint16_t vendorid, uint16_t productid)
 +{
-+	char modalias[64];
-+
-+	sprintf(modalias, "usb:v%04Xp%04X*", vendorid, productid);
-+	return hwdb_get(modalias, "ID_MODEL_FROM_DATABASE");
++	return NULL;
 +}
 +
 +const char *names_class(uint8_t classid)
 +{
-+	char modalias[64];
-+
-+	sprintf(modalias, "usb:v*p*d*dc%02X*", classid);
-+	return hwdb_get(modalias, "ID_USB_CLASS_FROM_DATABASE");
++	return NULL;
 +}
 +
 +const char *names_subclass(uint8_t classid, uint8_t subclassid)
 +{
-+	char modalias[64];
-+
-+	sprintf(modalias, "usb:v*p*d*dc%02Xdsc%02X*", classid, subclassid);
-+	return hwdb_get(modalias, "ID_USB_SUBCLASS_FROM_DATABASE");
++	return NULL;
 +}
 +
 +const char *names_protocol(uint8_t classid, uint8_t subclassid, uint8_t protocolid)
 +{
-+	char modalias[64];
-+
-+	sprintf(modalias, "usb:v*p*d*dc%02Xdsc%02Xdp%02X*", classid, subclassid, protocolid);
-+	return hwdb_get(modalias, "ID_USB_PROTOCOL_FROM_DATABASE");
++	return NULL;
 +}
 +
 +const char *names_audioterminal(uint16_t termt)
@@ -406,6 +419,14 @@ index 0000000..5712252
 +
 +	if (have_vendor && have_product)
 +		return;
++#ifdef HAVE_SYSFS
++	if (get_sysfs_name(sysfs_name, sizeof(sysfs_name), dev) >= 0) {
++		if (!have_vendor)
++			read_sysfs_prop(vendor, vendor_len, sysfs_name, "manufacturer");
++		if (!have_product)
++			read_sysfs_prop(product, product_len, sysfs_name, "product");
++	}
++#endif
 +}
 +
 +int names_init(void)
