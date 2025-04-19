@@ -1,0 +1,16 @@
+diff --git a/Source/Metadata/XTIFF.cpp b/Source/Metadata/XTIFF.cpp
+index 35ab4ec..3b0ae10 100644
+--- a/Source/Metadata/XTIFF.cpp
++++ b/Source/Metadata/XTIFF.cpp
+@@ -604,9 +604,11 @@ tiff_read_exif_tags(TIFF *tif, TagLib::MDMODEL md_model, FIBITMAP *dib) {
+ 	// ### uses private data, but there is no other way
+ 	// -> Fedora: Best we can do without private headers is to hard-code a list of known EXIF tags and read those
+ 	if(md_model == TagLib::EXIF_MAIN) {
++		TIFFErrorHandler handler = TIFFSetWarningHandler(NULL);
+ 		for (int i = 0; i < nExifTags; ++i) {
+ 			tiff_read_exif_tag(tif, exif_tag_ids[i], dib, md_model);
+ 		}
++		TIFFSetWarningHandler(handler);
+ 
+ 	}
+ 

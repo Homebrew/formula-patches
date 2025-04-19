@@ -1,0 +1,52 @@
+diff --git a/Makefile.fip b/Makefile.fip
+index 046a835..566c4fe 100644
+--- a/Makefile.fip
++++ b/Makefile.fip
+@@ -24,9 +24,9 @@ override CXXFLAGS += $(INCLUDE) -IDist
+ 
+ TARGET  = freeimageplus
+ STATICLIB = lib$(TARGET).a
+-SHAREDLIB = lib$(TARGET)-$(VER_MAJOR).$(VER_MINOR).so
+-LIBNAME	= lib$(TARGET).so
+-VERLIBNAME = $(LIBNAME).$(VER_MAJOR)
++SHAREDLIB = lib$(TARGET).$(VER_MAJOR).$(VER_MINOR).dylib
++LIBNAME	= lib$(TARGET).dylib
++VERLIBNAME = lib$(TARGET).$(VER_MAJOR).dylib
+ HEADER = Source/FreeImage.h
+ HEADERFIP = Wrapper/FreeImagePlus/FreeImagePlus.h
+ 
+@@ -58,7 +58,7 @@ $(STATICLIB): $(MODULES)
+ 	$(AR) r $@ $(MODULES)
+ 
+ $(SHAREDLIB): $(MODULES)
+-	$(CC) -shared -Wl,-soname,$(VERLIBNAME) $(LDFLAGS) -o $@ $(MODULES) $(LIBRARIES)
++	$(CC) -dynamiclib -install_name $(VERLIBNAME) -current_version $(VER_MAJOR).$(VER_MINOR) -compatibility_version $(VER_MAJOR) $(LDFLAGS) -o $@ $(MODULES) $(LIBRARIES)
+ 
+ install:
+ 	install -d $(INCDIR) $(INSTALLDIR)
+diff --git a/Makefile.gnu b/Makefile.gnu
+index d4a0adf..589cd8a 100644
+--- a/Makefile.gnu
++++ b/Makefile.gnu
+@@ -32,9 +32,9 @@ override CXXFLAGS += $(INCLUDE) -I/usr/include/jxrlib $(shell pkg-config --cflag
+ 
+ TARGET  = freeimage
+ STATICLIB = lib$(TARGET).a
+-SHAREDLIB = lib$(TARGET)-$(VER_MAJOR).$(VER_MINOR).so
+-LIBNAME	= lib$(TARGET).so
+-VERLIBNAME = $(LIBNAME).$(VER_MAJOR)
++SHAREDLIB = lib$(TARGET).$(VER_MAJOR).$(VER_MINOR).dylib
++LIBNAME	= lib$(TARGET).dylib
++VERLIBNAME = lib$(TARGET).$(VER_MAJOR).dylib
+ HEADER = Source/FreeImage.h
+ 
+ 
+@@ -66,7 +66,7 @@ $(STATICLIB): $(MODULES)
+ 	$(AR) r $@ $(MODULES)
+ 
+ $(SHAREDLIB): $(MODULES)
+-	$(CC) -shared -Wl,-soname,$(VERLIBNAME) $(LDFLAGS) -o $@ $(MODULES) $(LIBRARIES)
++	$(CC) -dynamiclib -install_name $(VERLIBNAME) -current_version $(VER_MAJOR).$(VER_MINOR) -compatibility_version $(VER_MAJOR) $(LDFLAGS) -o $@ $(MODULES) $(LIBRARIES)
+ 
+ install:
+ 	install -d $(INCDIR) $(INSTALLDIR)
