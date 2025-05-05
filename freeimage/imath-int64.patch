@@ -1,0 +1,32 @@
+diff --git a/Source/FreeImage/PluginEXR.cpp b/Source/FreeImage/PluginEXR.cpp
+index 4ec31cb..f55c2a3 100644
+--- a/Source/FreeImage/PluginEXR.cpp
++++ b/Source/FreeImage/PluginEXR.cpp
+@@ -67,11 +67,11 @@ public:
+ 		return ((unsigned)n != _io->read_proc(c, 1, n, _handle));
+ 	}
+ 
+-	virtual Imath::Int64 tellg() {
++	virtual uint64_t tellg() {
+ 		return _io->tell_proc(_handle);
+ 	}
+ 
+-	virtual void seekg(Imath::Int64 pos) {
++	virtual void seekg(uint64_t pos) {
+ 		_io->seek_proc(_handle, (unsigned)pos, SEEK_SET);
+ 	}
+ 
+@@ -101,11 +101,11 @@ public:
+ 		}
+ 	}
+ 
+-	virtual Imath::Int64 tellp() {
++	virtual uint64_t tellp() {
+ 		return _io->tell_proc(_handle);
+ 	}
+ 
+-	virtual void seekp(Imath::Int64 pos) {
++	virtual void seekp(uint64_t pos) {
+ 		_io->seek_proc(_handle, (unsigned)pos, SEEK_SET);
+ 	}
+ };
