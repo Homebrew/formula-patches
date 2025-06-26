@@ -1,0 +1,13 @@
+diff --git a/qtmultimedia/src/plugins/multimedia/darwin/mediaplayer/avfdisplaylink.mm b/qtmultimedia/src/plugins/multimedia/darwin/mediaplayer/avfdisplaylink.mm
+index 8c37540..1e707a1 100644
+--- a/qtmultimedia/src/plugins/multimedia/darwin/mediaplayer/avfdisplaylink.mm
++++ b/qtmultimedia/src/plugins/multimedia/darwin/mediaplayer/avfdisplaylink.mm
+@@ -4,6 +4,8 @@
+ #include "avfdisplaylink_p.h"
+ #include <QtCore/qcoreapplication.h>
+
++#include <mutex>
++
+ #ifdef QT_DEBUG_AVF
+ #include <QtCore/qdebug.h>
+ #endif
