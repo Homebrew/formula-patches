@@ -1,0 +1,228 @@
+diff --git a/libs/base/src/ecflow/base/Client.cpp b/libs/base/src/ecflow/base/Client.cpp
+index be0af5bce..9bb91cac3 100644
+--- a/libs/base/src/ecflow/base/Client.cpp
++++ b/libs/base/src/ecflow/base/Client.cpp
+@@ -103,7 +103,7 @@ bool Client::start_connect(endpoints_iterator_t endpoints_iterator) {
+         // will soon be executed. If it returns 1 then the wait handler was successfully cancelled.
+ 
+         // Set a deadline for the connect operation.
+-        deadline_.expires_from_now(boost::posix_time::seconds(timeout_));
++        deadline_.expires_after(std::chrono::seconds(timeout_));
+ 
+         auto endpoint = endpoints_iterator->endpoint();
+         connection_.socket_ll().async_connect(endpoint,
+@@ -190,7 +190,7 @@ void Client::start_write() {
+     // executed. If it returns 1 then the wait handler was successfully cancelled.
+ 
+     // Set a deadline for the write operation.
+-    deadline_.expires_from_now(boost::posix_time::seconds(timeout_));
++    deadline_.expires_after(std::chrono::seconds(timeout_));
+ 
+     connection_.async_write(outbound_request_,
+                             [this](const boost::system::error_code& error) { this->handle_write(error); });
+@@ -235,7 +235,7 @@ void Client::start_read() {
+     // executed. If it returns 1 then the wait handler was successfully cancelled.
+ 
+     // Set a deadline for the read operation.
+-    deadline_.expires_from_now(boost::posix_time::seconds(timeout_));
++    deadline_.expires_after(std::chrono::seconds(timeout_));
+ 
+     connection_.async_read(inbound_response_,
+                            [this](const boost::system::error_code& error) { this->handle_read(error); });
+@@ -340,7 +340,7 @@ void Client::check_deadline() {
+     // Check whether the deadline has passed. We compare the deadline against
+     // the current time since a new asynchronous operation may have moved the
+     // deadline before this actor had a chance to run.
+-    if (deadline_.expires_at() <= boost::asio::deadline_timer::traits_type::now()) {
++    if (deadline_.expiry() <= boost::asio::chrono::system_clock::now()) {
+ #ifdef DEBUG_CLIENT
+         std::cout << "   Client::check_deadline timed out" << std::endl;
+ #endif
+diff --git a/libs/base/src/ecflow/base/Client.hpp b/libs/base/src/ecflow/base/Client.hpp
+index c84d6a457..c3f06c250 100644
+--- a/libs/base/src/ecflow/base/Client.hpp
++++ b/libs/base/src/ecflow/base/Client.hpp
+@@ -70,7 +70,7 @@ private:
+     ClientToServerRequest outbound_request_;  /// The request we will send to the server
+     ServerToClientResponse inbound_response_; /// The response we get back from the server
+ 
+-    boost::asio::deadline_timer deadline_;
++    boost::asio::system_timer deadline_;
+ 
+     //    connect        : timeout_ second
+     //    send request   : timeout_ second
+diff --git a/libs/base/src/ecflow/base/SslClient.cpp b/libs/base/src/ecflow/base/SslClient.cpp
+index f403d25dd..292aaec58 100644
+--- a/libs/base/src/ecflow/base/SslClient.cpp
++++ b/libs/base/src/ecflow/base/SslClient.cpp
+@@ -104,7 +104,7 @@ bool SslClient::start_connect(endpoints_iterator_t endpoints_iterator) {
+         // will soon be executed. If it returns 1 then the wait handler was successfully cancelled.
+ 
+         // Set a deadline for the connect operation.
+-        deadline_.expires_from_now(boost::posix_time::seconds(timeout_));
++        deadline_.expires_after(std::chrono::seconds(timeout_));
+ 
+         boost::asio::ip::tcp::endpoint endpoint = *endpoints_iterator;
+         connection_.socket_ll().async_connect(endpoint,
+@@ -192,7 +192,7 @@ void SslClient::start_handshake() {
+     // cancelled. If it returns 0 then you were too late and the wait handler has already been executed, or will soon be
+     // executed. If it returns 1 then the wait handler was successfully cancelled. Set a deadline for the write
+     // operation.
+-    deadline_.expires_from_now(boost::posix_time::seconds(timeout_));
++    deadline_.expires_after(std::chrono::seconds(timeout_));
+ 
+     connection_.socket().async_handshake(boost::asio::ssl::stream_base::client,
+                                          [this](const boost::system::error_code& e) { handle_handshake(e); });
+@@ -222,7 +222,7 @@ void SslClient::start_write() {
+     // executed. If it returns 1 then the wait handler was successfully cancelled.
+ 
+     // Set a deadline for the write operation.
+-    deadline_.expires_from_now(boost::posix_time::seconds(timeout_));
++    deadline_.expires_after(std::chrono::seconds(timeout_));
+ 
+     connection_.async_write(outbound_request_,
+                             [this](const boost::system::error_code& error) { this->handle_write(error); });
+@@ -267,7 +267,7 @@ void SslClient::start_read() {
+     // executed. If it returns 1 then the wait handler was successfully cancelled.
+ 
+     // Set a deadline for the read operation.
+-    deadline_.expires_from_now(boost::posix_time::seconds(timeout_));
++    deadline_.expires_after(std::chrono::seconds(timeout_));
+ 
+     connection_.async_read(inbound_response_,
+                            [this](const boost::system::error_code& error) { this->handle_read(error); });
+@@ -369,7 +369,7 @@ void SslClient::check_deadline() {
+     // Check whether the deadline has passed. We compare the deadline against
+     // the current time since a new asynchronous operation may have moved the
+     // deadline before this actor had a chance to run.
+-    if (deadline_.expires_at() <= boost::asio::deadline_timer::traits_type::now()) {
++    if (deadline_.expiry() <= boost::asio::chrono::system_clock::now()) {
+ #ifdef DEBUG_CLIENT
+         std::cout << "   SslClient::check_deadline timed out" << std::endl;
+ #endif
+diff --git a/libs/base/src/ecflow/base/SslClient.hpp b/libs/base/src/ecflow/base/SslClient.hpp
+index 3f3eb8ffb..60c14b55b 100644
+--- a/libs/base/src/ecflow/base/SslClient.hpp
++++ b/libs/base/src/ecflow/base/SslClient.hpp
+@@ -72,7 +72,7 @@ private:
+     ClientToServerRequest outbound_request_;  /// The request we will send to the server
+     ServerToClientResponse inbound_response_; /// The response we get back from the server
+ 
+-    boost::asio::deadline_timer deadline_;
++    boost::asio::system_timer deadline_;
+ 
+     //    connect        : timeout_ second
+     //    send request   : timeout_ second
+diff --git a/libs/server/src/ecflow/server/CheckPtSaver.cpp b/libs/server/src/ecflow/server/CheckPtSaver.cpp
+index 750b38aa8..12d8bf841 100644
+--- a/libs/server/src/ecflow/server/CheckPtSaver.cpp
++++ b/libs/server/src/ecflow/server/CheckPtSaver.cpp
+@@ -29,7 +29,7 @@ using namespace ecf;
+ //-------------------------------------------------------------------------------------
+ CheckPtSaver::CheckPtSaver(BaseServer* s, boost::asio::io_context& io, const ServerEnvironment* serverEnv)
+     : server_(s),
+-      timer_(io, boost::posix_time::seconds(0)),
++      timer_(io, std::chrono::seconds(0)),
+       firstTime_(true),
+       running_(false),
+       serverEnv_(serverEnv),
+@@ -67,7 +67,7 @@ void CheckPtSaver::start() {
+     //               with explicit save each time server is halted/started.
+     if (firstTime_) {
+         firstTime_ = false;
+-        timer_.expires_from_now(boost::posix_time::seconds(serverEnv_->checkPtInterval()));
++        timer_.expires_after(std::chrono::seconds(serverEnv_->checkPtInterval()));
+         timer_.async_wait(boost::asio::bind_executor(
+             server_->io_, [this](const boost::system::error_code& error) { periodicSaveCheckPt(error); }));
+     }
+@@ -170,7 +170,7 @@ void CheckPtSaver::periodicSaveCheckPt(const boost::system::error_code& error) {
+     }
+ 
+     /// Appears that expires_from_now is more accurate then expires_at
+-    timer_.expires_from_now(boost::posix_time::seconds(serverEnv_->checkPtInterval()));
++    timer_.expires_after(std::chrono::seconds(serverEnv_->checkPtInterval()));
+     timer_.async_wait(boost::asio::bind_executor(
+         server_->io_, [this](const boost::system::error_code& error) { periodicSaveCheckPt(error); }));
+ }
+diff --git a/libs/server/src/ecflow/server/CheckPtSaver.hpp b/libs/server/src/ecflow/server/CheckPtSaver.hpp
+index 6a8198c7f..c7ddc4436 100644
+--- a/libs/server/src/ecflow/server/CheckPtSaver.hpp
++++ b/libs/server/src/ecflow/server/CheckPtSaver.hpp
+@@ -115,7 +115,7 @@ private:
+     void periodicSaveCheckPt(const boost::system::error_code& error);
+ 
+     BaseServer* server_;
+-    boost::asio::deadline_timer timer_;
++    boost::asio::system_timer timer_;
+     bool firstTime_;
+     bool running_;
+     const ServerEnvironment* serverEnv_;
+diff --git a/libs/server/src/ecflow/server/NodeTreeTraverser.cpp b/libs/server/src/ecflow/server/NodeTreeTraverser.cpp
+index 9a5572caa..d03cb737f 100644
+--- a/libs/server/src/ecflow/server/NodeTreeTraverser.cpp
++++ b/libs/server/src/ecflow/server/NodeTreeTraverser.cpp
+@@ -37,7 +37,7 @@ using namespace ecf;
+ NodeTreeTraverser::NodeTreeTraverser(BaseServer* s, boost::asio::io_context& io, const ServerEnvironment& serverEnv)
+     : server_(s),
+       serverEnv_(serverEnv),
+-      timer_(io, boost::posix_time::seconds(0)),
++      timer_(io, std::chrono::seconds(0)),
+       interval_(0, 0, serverEnv_.submitJobsInterval(), 0),
+ #ifdef DEBUG_TRAVERSER
+       count_(0),
+@@ -283,7 +283,7 @@ void NodeTreeTraverser::do_traverse() {
+ void NodeTreeTraverser::start_timer() {
+     /// Appears that expires_from_now is more accurate then expires_at i.e timer_.expires_at( timer_.expires_at() +
+     /// boost::posix_time::seconds( poll_at ) );
+-    timer_.expires_from_now(boost::posix_time::seconds(1));
++    timer_.expires_after(std::chrono::seconds(1));
+     timer_.async_wait(
+         boost::asio::bind_executor(server_->io_, [this](const boost::system::error_code& error) { traverse(error); }));
+ }
+diff --git a/libs/server/src/ecflow/server/NodeTreeTraverser.hpp b/libs/server/src/ecflow/server/NodeTreeTraverser.hpp
+index 7898d8149..40dae36cf 100644
+--- a/libs/server/src/ecflow/server/NodeTreeTraverser.hpp
++++ b/libs/server/src/ecflow/server/NodeTreeTraverser.hpp
+@@ -77,7 +77,7 @@ private:
+ 
+     BaseServer* server_;
+     const ServerEnvironment& serverEnv_;
+-    boost::asio::deadline_timer timer_;
++    boost::asio::system_timer timer_;
+     boost::posix_time::ptime last_time_;        // ensure poll is in sync
+     boost::posix_time::ptime next_poll_time_;   // Keep as sync as possible with hard real times
+     boost::posix_time::time_duration interval_; // Job submission interval
+diff --git a/libs/server/src/ecflow/server/PeriodicScheduler.hpp b/libs/server/src/ecflow/server/PeriodicScheduler.hpp
+index 509238247..697c2aec9 100644
+--- a/libs/server/src/ecflow/server/PeriodicScheduler.hpp
++++ b/libs/server/src/ecflow/server/PeriodicScheduler.hpp
+@@ -24,7 +24,7 @@ namespace ecf {
+ 
+ class Timer {
+ public:
+-    explicit Timer(boost::asio::io_context& io) : io_{io}, timer_{io_, boost::posix_time::seconds(0)} {}
++    explicit Timer(boost::asio::io_context& io) : io_{io}, timer_{io_, std::chrono::seconds(0)} {}
+     Timer(const Timer&) = delete;
+ 
+     Timer& operator=(const Timer&) = delete;
+@@ -33,15 +33,13 @@ public:
+ 
+     template <typename CALLBACK>
+     void set(CALLBACK callback, std::chrono::seconds expiry) {
+-        /// Appears that `expires_from_now` is more accurate `then expires_at`
+-        ///   i.e. timer_.expires_at( timer_.expires_at() + boost::posix_time::seconds( poll_at ) );
+-        timer_.expires_from_now(boost::posix_time::seconds(expiry.count()));
++        timer_.expires_after(expiry);
+         timer_.async_wait(boost::asio::bind_executor(io_, callback));
+     }
+ 
+ private:
+     boost::asio::io_context& io_;
+-    boost::asio::deadline_timer timer_;
++    boost::asio::system_timer timer_;
+ };
+ 
+ ///
+-- 
+2.50.1
+
