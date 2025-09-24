@@ -1,37 +1,20 @@
-From 72891c18f227127d5a31ab375fb338ff89a64496 Mon Sep 17 00:00:00 2001
-From: Osama Albahrani <54853250+osalbahr@users.noreply.github.com>
-Date: Fri, 11 Jul 2025 01:30:57 +0300
-Subject: [PATCH] Update workaround failing to find Homebrew sqlite3 on Linux
-
-Requires @@HOMEBREW_PREFIX@@ inreplace
-
-- For https://github.com/Homebrew/homebrew-core/pull/229223
-
-Co-Authored-By: Bo Anderson <mail@boanderson.me>
----
- Package.swift | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
 diff --git a/Package.swift b/Package.swift
-index cea67d2f..0cad73eb 100644
+index 28ce8e24..aef12c4b 100644
 --- a/Package.swift
 +++ b/Package.swift
-@@ -331,12 +331,12 @@ package.targets.first { $0.name == "llbuildBasic" }?.linkerSettings = [
+@@ -335,12 +335,12 @@ package.targets.first { $0.name == "llbuildBasic" }?.linkerSettings = [
  // FIXME: when the SupportedPlatforms availability directive is updated and
  // the platform port is in sync with this directive, these conditions can
  // be folded up with .when(platforms:_) clauses.
--#if os(OpenBSD)
+-#if os(FreeBSD) || os(OpenBSD)
 +#if os(Linux)
- if let target = package.targets.first(where: { $0.name == "llbuildCore"}) {
--    target.cSettings = [.unsafeFlags(["-I/usr/local/include"])]
-+    target.cSettings = [.unsafeFlags(["-I@@HOMEBREW_PREFIX@@/opt/sqlite3/include"])]
-     target.linkerSettings = [
+ package.targets.filter({ $0.name == "llbuildCore" || $0.name == "llbuildCoreTests" }).forEach {
+-    $0.cSettings = [.unsafeFlags(["-I/usr/local/include"])]
++    $0.cSettings = [.unsafeFlags(["-I@@HOMEBREW_PREFIX@@/opt/sqlite3/include"])]
+     $0.linkerSettings = [
          .linkedLibrary("sqlite3"),
 -        .unsafeFlags(["-L/usr/local/lib"])
 +        .unsafeFlags(["-L@@HOMEBREW_PREFIX@@/opt/sqlite3/lib"])
      ]
+ 
  }
- #endif
--- 
-2.39.5 (Apple Git-154)
-
