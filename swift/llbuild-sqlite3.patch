@@ -18,3 +18,15 @@ index 28ce8e24..aef12c4b 100644
      ]
  
  }
+@@ -356,4 +356,11 @@ if let target = package.targets.first(where: { $0.name == "llvmSupport" }) {
+ package.targets.filter({ $0.name == "llbuild" || $0.name == "swift-build-tool" }).forEach {
+     $0.linkerSettings = [.linkedLibrary("dl"), .linkedLibrary("pthread")]
+ }
++#elseif os(Linux)
++if let target = package.targets.first(where: { $0.name == "llvmSupport" }) {
++    target.linkerSettings = [
++        .linkedLibrary("ncurses"),
++        .unsafeFlags(["-L@@HOMEBREW_PREFIX@@/opt/ncurses/lib"])
++    ]
++}
+ #endif
